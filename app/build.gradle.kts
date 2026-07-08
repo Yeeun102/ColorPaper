@@ -44,4 +44,15 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+
+    // 1. 화면 이동 (네비게이션)
+    implementation("androidx.navigation:navigation-fragment-ktx:2.7.7")
+    implementation("androidx.navigation:navigation-ui-ktx:2.7.7")
+
+    // 2. 서버 통신 (Retrofit - 로그인, 데이터 연동용)
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+
+    // 3. 이미지 로딩 (Coil - 사진 띄우기용)
+    implementation("io.coil-kt:coil:2.5.0")
 }
