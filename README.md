@@ -19,14 +19,17 @@
 ## 📂 프로젝트 구조
 프로젝트는 기능별로 패키지가 분리되어 있습니다.
 ```text
-ui/                 # View Layer: 화면 UI 및 이벤트 처리
-├── login/          # 로그인 및 회원가입 관련 화면
-├── home/           # 메인 대시보드 및 네비게이션
-├── diary/          # 일기 작성, 수정, 상세 조회
-├── flashcard/      # 단어장 기능 및 학습 모듈
-└── profile/        # 사용자 프로필 및 친구 관리
-data/               # Data Layer: 서버 통신 및 로컬 저장소
-├── remote/         # Retrofit API 인터페이스 및 DTO
-└── local/          # Room DB, SharedPreference 등 로컬 저장소
-model/              # Domain Layer: 데이터 모델(Entity) 정의
-└── util/               # 공통 유틸리티 (확장 함수, 커스텀 뷰, 상수 등)
+ui/
+├── login/          # 로그인, 회원가입
+├── home/           # 홈 화면 (체크리스트, 투두, n년전 등)
+├── main/           # 하단바를 포함한 메인 컨테이너
+├── diary/          # 캘린더, 메모(개별날짜), 셀프댓글 등
+├── flashcard/      # 암기카드 생성/학습
+├── profile/        # 내 프로필, 수정, 하이라이트 등
+├── friend/         # 친구 검색, 친구 다이어리, 반응(좋아요/댓글)
+└── setting/        # 설정(개인정보, 반복주기, 태그, 테마 등)
+data/
+├── model/          # DTO, 엔티티 
+├── remote/         # API
+└── local/          # DB
+util/
