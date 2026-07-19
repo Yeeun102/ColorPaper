@@ -2,4 +2,26 @@
     <string name="app_name">ColorPaper</string>
     <!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="set1">#set1</string>
+    <string name="start">시작하기</string>
+    <string name="myFlashcards">내 단어장</string>
+    <string name="createNewFlashcard">새 단어장 생성</string>
+    <string name="FlashcardFront">외울내용(앞면)</string>
+    <string name="seeFlashcardBack">← 뒷면보기</string>
+    <string name="gotoNextFlashcard">다음 카드 →</string>
+    <string name="againEmoji">😭</string>
+    <string name="hardEmoji">😕</string>
+    <string name="goodEmoji">😊</string>
+    <string name="easyEmoji">😁</string>
+    <string name="save">저장하기</string>
+    <string name="flashcard_public">전체공개</string>
+    <string name="flashcard_onlyF">팔로워공개</string>
+    <string name="flashcard_private">비공개</string>
+    <string name="f_visibility">공개범위</string>
+    <string name="f_upload">불러오기</string>
+    <string name="card1">card1</string>
+    <string name="flashcardBack">뒷면내용</string>
+    <string name="add_card">Add card</string>
+    <string name="csv_or_txt">csv 또는 txt 파일</string>
+    <string name="card_number_format">card%1$d</string>
 </resources>
