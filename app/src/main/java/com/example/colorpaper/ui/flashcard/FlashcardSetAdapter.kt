@@ -4,7 +4,7 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.example.colorpaper.databinding.ItemFlashcardSetBinding
-import com.example.colorpaper.ui.flashcard.data.FlashcardSet
+import com.example.colorpaper.data.model.FlashcardSet
 import androidx.core.graphics.toColorInt
 import androidx.recyclerview.widget.DiffUtil
 

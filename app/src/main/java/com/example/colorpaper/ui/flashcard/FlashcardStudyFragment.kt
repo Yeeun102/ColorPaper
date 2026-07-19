@@ -8,8 +8,8 @@ import android.view.ViewGroup
 import androidx.lifecycle.lifecycleScope
 import com.example.colorpaper.R
 import com.example.colorpaper.databinding.FragmentFlashcardStudyBinding
-import com.example.colorpaper.ui.flashcard.data.FlashcardItem
-import com.example.colorpaper.ui.flashcard.data.FlashcardDatabase
+import com.example.colorpaper.data.model.FlashcardItem
+import com.example.colorpaper.data.local.AppDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -41,7 +41,7 @@ class FlashcardStudyFragment : Fragment() {
         binding.tvSetTitle.text = setTitle
 
         lifecycleScope.launch {
-            val dao = FlashcardDatabase.getDatabase(requireContext()).flashcardDao()
+            val dao = AppDatabase.getDatabase(requireContext()).flashcardDao()
             cardList = withContext(Dispatchers.IO) {
                 dao.getItemsBySetId(setId)
             }

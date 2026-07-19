@@ -14,8 +14,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.example.colorpaper.R
+import com.example.colorpaper.data.model.FlashcardItem
+import com.example.colorpaper.data.model.FlashcardSet
 import com.example.colorpaper.databinding.FragmentFlashcardCreateBinding
-import com.example.colorpaper.ui.flashcard.data.FlashcardDatabase
+import com.example.colorpaper.data.local.AppDatabase
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import kotlinx.coroutines.Dispatchers
@@ -120,23 +122,23 @@ class FlashcardCreateFragment : Fragment() {
         val visibility = binding.chipGroupVisibility.findViewById<com.google.android.material.chip.Chip>(selectedChipId)?.text.toString()
 
         lifecycleScope.launch {
-            val dao = FlashcardDatabase.getDatabase(requireContext()).flashcardDao()
+            val dao = AppDatabase.getDatabase(requireContext()).flashcardDao()
 
             withContext(Dispatchers.IO) {
-                val newSet = com.example.colorpaper.ui.flashcard.data.FlashcardSet(
+                val newSet = FlashcardSet(
                     title = if (setTitle.startsWith("#")) setTitle else "#$setTitle",
                     visibility = visibility
                 )
                 val generatedSetId = dao.insertSet(newSet)
 
-                val itemsToInsert = mutableListOf<com.example.colorpaper.ui.flashcard.data.FlashcardItem>()
+                val itemsToInsert = mutableListOf<FlashcardItem>()
                 for (view in cardViewsList) {
                     val question = view.findViewById<EditText>(R.id.etQuestion).text.toString().trim()
                     val answer = view.findViewById<EditText>(R.id.etAnswer).text.toString().trim()
 
                     if (question.isNotEmpty() && answer.isNotEmpty()) {
                         itemsToInsert.add(
-                            com.example.colorpaper.ui.flashcard.data.FlashcardItem(
+                            FlashcardItem(
                                 setId = generatedSetId,
                                 question = question,
                                 answer = answer

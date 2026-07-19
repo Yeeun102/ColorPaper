@@ -1,4 +1,4 @@
-package com.example.colorpaper.ui.flashcard.data
+package com.example.colorpaper.data.model
 
 import androidx.room.Entity
 import androidx.room.ForeignKey

@@ -10,8 +10,8 @@ import android.view.View
 import android.view.ViewGroup
 import com.example.colorpaper.R
 import com.example.colorpaper.databinding.FragmentFlashcardBinding
-import com.example.colorpaper.ui.flashcard.data.FlashcardDatabase
-import com.example.colorpaper.ui.flashcard.data.FlashcardSet
+import com.example.colorpaper.data.local.AppDatabase
+import com.example.colorpaper.data.model.FlashcardSet
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -79,7 +79,7 @@ class FlashcardFragment : Fragment() {
 
     private fun loadFlashcardSets() {
         lifecycleScope.launch {
-            val dao = FlashcardDatabase.getDatabase(requireContext()).flashcardDao()
+            val dao = AppDatabase.getDatabase(requireContext()).flashcardDao()
             val sets = withContext(Dispatchers.IO) {
                 dao.getAllSets()
             }
@@ -98,7 +98,7 @@ private fun showDeleteDialog(flashcardSet: FlashcardSet) {
         .setPositiveButton("삭제") { _, _ ->
 
             lifecycleScope.launch {
-                val dao = FlashcardDatabase.getDatabase(requireContext()).flashcardDao()
+                val dao = AppDatabase.getDatabase(requireContext()).flashcardDao()
 
                 withContext(Dispatchers.IO) {
                     dao.deleteSet(flashcardSet)

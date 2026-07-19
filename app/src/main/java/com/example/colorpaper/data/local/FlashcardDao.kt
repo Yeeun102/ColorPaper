@@ -1,9 +1,12 @@
-package com.example.colorpaper.ui.flashcard.data
+package com.example.colorpaper.data.local
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import com.example.colorpaper.data.model.FlashcardItem
+import com.example.colorpaper.data.model.FlashcardSet
 
 @Dao
 interface FlashcardDao {
@@ -33,6 +36,6 @@ interface FlashcardDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insertAllItems(items: List<FlashcardItem>)
 
-    @androidx.room.Delete
+    @Delete
     fun deleteSet(flashcardSet: FlashcardSet)
 }
