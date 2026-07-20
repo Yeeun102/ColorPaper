@@ -28,6 +28,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun flashcardDao(): FlashcardDao
     abstract fun userDao(): UserDao
 
+    abstract fun diaryDao(): DiaryDao
+
     companion object {
         @Volatile
         private var INSTANCE: AppDatabase? = null
@@ -39,7 +41,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "flashcard_database"
                 )
-                    .fallbackToDestructiveMigration()
+                    .fallbackToDestructiveMigration(true)
                     .allowMainThreadQueries()
                     .build()
 
