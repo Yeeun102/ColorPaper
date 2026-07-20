@@ -2,11 +2,13 @@ package com.example.colorpaper.data.model
 
 import androidx.room.*
 
-
-@Entity(tableName = "tags")
+@Entity(
+    tableName = "tags",
+    indices = [Index(value = ["tag_name"], unique = true)]
+)
 data class TagEntity(
     @PrimaryKey(autoGenerate = true) @ColumnInfo(name = "tag_id") val tagId: Int = 0,
-    @PrimaryKey @ColumnInfo(name = "tag_name") val tagName: String
+    @ColumnInfo(name = "tag_name") val tagName: String // 💡 중복되던 @PrimaryKey를 깔끔하게 제거!
 )
 
 // 다이어리와 태그를 연결해주는 중간 테이블 (N:M 관계 해소)
