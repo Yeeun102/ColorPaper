@@ -1,134 +1,221 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp"
-    tools:context=".ui.profile.ProfileFragment">
+    android:fillViewport="true"
+    android:background="#FFFFFF">
 
-    <!-- 상단 바 구역 (유저코드 & 돋보기) -->
-    <RelativeLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content">
-        <TextView
-            android:id="@+id/tvUserCode"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerInParent="true"
-            android:text="#j32ifiewjo"
-            android:textSize="18sp"
-            android:textStyle="italic" />
-        <ImageView
-            android:id="@+id/ivSearchFriend"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_alignParentEnd="true"
-            android:src="@android:drawable/ic_menu_search" />
-    </RelativeLayout>
-
-    <!-- 프로필 정보 구역 (닉네임, 연필, 친구 업데이트) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginTop="20dp"
-        android:gravity="center_vertical">
+        android:orientation="vertical"
+        android:padding="16dp">
 
-        <ImageView
-            android:id="@+id/ivProfileImage"
-            android:layout_width="70dp"
-            android:layout_height="70dp"
-            android:src="@android:drawable/ic_menu_report_image" />
-
-        <LinearLayout
-            android:layout_width="0dp"
+        <!-- 상단 툴바 (뒤로가기, 유저코드, 검색) -->
+        <RelativeLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="16dp"
-            android:orientation="vertical">
-            <LinearLayout
+            android:layout_marginTop="8dp">
+            <ImageView
+                android:id="@+id/ivBack"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_alignParentStart="true"
+                android:src="@android:drawable/ic_menu_revert"
+                android:contentDescription="뒤로가기" />
+            <TextView
+                android:id="@+id/tvUserCodeTop"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
+                android:layout_centerInParent="true"
+                android:text="#j32ifiewjo"
+                android:textSize="18sp"
+                android:textStyle="italic|bold"
+                android:textColor="#8B5A5A" />
+            <ImageView
+                android:id="@+id/ivSearchFriend"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_alignParentEnd="true"
+                android:src="@android:drawable/ic_menu_search"
+                android:contentDescription="친구검색" />
+        </RelativeLayout>
+
+        <!-- 상단 프로필 카드 메인 -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:background="#F5E6E6"
+            android:padding="16dp">
+
+            <!-- 프로필 이미지 (원형 영역 대용) -->
+            <ImageView
+                android:id="@+id/ivProfileImage"
+                android:layout_width="75dp"
+                android:layout_height="75dp"
+                android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
+                android:src="@android:drawable/ic_menu_report_image"
+                android:background="#D1B8B8" />
+
+            <!-- 닉네임 및 팔로우 정보 -->
+            <LinearLayout
+                android:id="@+id/llUserInfo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_toEndOf="@id/ivProfileImage"
+                android:layout_marginStart="16dp"
+                android:layout_centerVertical="true">
+
                 <TextView
                     android:id="@+id/tvNickname"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="나으닝"
-                    android:textSize="22sp"
-                    android:textStyle="bold" />
-                <ImageView
-                    android:id="@+id/ivEditProfile"
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:layout_marginStart="8dp"
-                    android:src="@android:drawable/ic_menu_edit" />
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:textColor="#000000" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="팔로워 0"
+                    android:textSize="14sp"
+                    android:textColor="#555555"
+                    android:layout_marginTop="4dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="팔로잉 0"
+                    android:textSize="14sp"
+                    android:textColor="#555555" />
             </LinearLayout>
+
+            <!-- 프로필 수정 아이콘 버튼 (연필) -->
+            <ImageView
+                android:id="@+id/ivEditProfile"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_alignParentEnd="true"
+                android:layout_alignParentTop="true"
+                android:src="@android:drawable/ic_menu_edit"
+                android:contentDescription="프로필수정" />
+
+            <!-- 친구 업데이트 알림 배지 (6.5용) -->
             <TextView
+                android:id="@+id/tvFriendUpdateBadge"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="팔로워 0  팔로잉 0"
-                android:layout_marginTop="4dp"/>
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:background="#E2C2C2"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="6dp"
+                android:text="친구 업데이트 3건"
+                android:textColor="#4A3B3B"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </RelativeLayout>
+
+        <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#D1B8B8" android:layout_marginTop="16dp"/>
+
+        <!-- 6.2 하이라이트 구역 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="16dp">
+
+            <!-- 가로 스크롤 동그라미 예시 3개 -->
+            <View android:layout_width="50dp" android:layout_height="50dp" android:background="#E8D3D3" android:layout_marginEnd="12dp"/>
+            <View android:layout_width="50dp" android:layout_height="50dp" android:background="#D1B8B8" android:layout_marginEnd="12dp"/>
+            <View android:layout_width="50dp" android:layout_height="50dp" android:background="#F5E6E6" android:layout_marginEnd="12dp"/>
+
+            <TextView
+                android:id="@+id/tvHighlightLabel"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="하이라이트"
+                android:gravity="end"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="#555555"/>
         </LinearLayout>
 
-        <!-- 6.5 친구 업데이트 버튼 -->
+        <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#D1B8B8" android:layout_marginTop="16dp"/>
+
+        <!-- 6.3 공유중인 단어장 구역 -->
         <LinearLayout
-            android:id="@+id/layoutFriendUpdate"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="16dp"
+            android:weightSum="2">
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="80dp"
+                android:layout_weight="1"
+                android:background="#FDF3F3"
+                android:layout_marginEnd="8dp"/>
+
+            <LinearLayout
+                android:id="@+id/llSharedFlashcard"
+                android:layout_width="0dp"
+                android:layout_height="80dp"
+                android:layout_weight="1"
+                android:background="#F5E6E6"
+                android:layout_marginStart="8dp"
+                android:gravity="center">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="공유중인 단어장"
+                    android:textColor="#4A3B3B"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#D1B8B8" android:layout_marginTop="16dp"/>
+
+        <!-- 6.4 내 공유 다이어리 (책 커버 모양 시뮬레이션) -->
+        <LinearLayout
+            android:id="@+id/llSharedDiary"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:background="#EEEEEE"
-            android:padding="8dp">
+            android:layout_marginTop="20dp"
+            android:gravity="center_horizontal">
+
+            <!-- 갈색 다이어리 커버 비주얼 구현 -->
+            <FrameLayout
+                android:layout_width="160dp"
+                android:layout_height="220dp"
+                android:background="#5C1D1D"
+                android:padding="8dp">
+
+                <!-- 다이어리 잠금 똑딱이 버튼 표현 -->
+                <View
+                    android:layout_width="35dp"
+                    android:layout_height="25dp"
+                    android:background="#3D1212"
+                    android:layout_gravity="end|center_vertical"
+                    android:layout_marginEnd="-10dp"/>
+            </FrameLayout>
+
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="친구 업데이트\n3건"
-                android:textSize="12sp"
-                android:gravity="center"/>
+                android:text="내 공유 다이어리 보기"
+                android:layout_marginTop="8dp"
+                android:textSize="13sp"
+                android:textColor="#888888"/>
         </LinearLayout>
+
     </LinearLayout>
-
-    <!-- 6.2 하이라이트 구역 -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="하이라이트"
-        android:layout_marginTop="20dp"
-        android:textStyle="bold"/>
-    <LinearLayout
-        android:id="@+id/layoutHighlights"
-        android:layout_width="match_parent"
-        android:layout_height="60dp"
-        android:orientation="horizontal"
-        android:layout_marginTop="8dp"
-        android:background="#F9F9F9">
-        <!-- 동그라미 아이템들이 들어갈 공간 -->
-    </LinearLayout>
-
-    <!-- 6.3 공유 단어장 구역 -->
-    <LinearLayout
-        android:id="@+id/layoutSharedVocab"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginTop="20dp">
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="80dp"
-            android:background="#F5F5F5"
-            android:text="공유중인 단어장"
-            android:gravity="center"/>
-    </LinearLayout>
-
-    <!-- 6.4 내 공유 다이어리 구역 -->
-    <ImageView
-        android:id="@+id/ivMyDiary"
-        android:layout_width="match_parent"
-        android:layout_height="200dp"
-        android:layout_marginTop="20dp"
-        android:scaleType="centerCrop"
-        android:src="@android:drawable/ic_menu_gallery" />
-
-</LinearLayout>
+</ScrollView>

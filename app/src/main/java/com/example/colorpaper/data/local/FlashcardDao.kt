@@ -38,4 +38,10 @@ interface FlashcardDao {
 
     @Delete
     fun deleteSet(flashcardSet: FlashcardSet)
+
+    @Query("SELECT * FROM flashcard_sets WHERE userId = :userId AND visibility = :visibility")
+    suspend fun getFlashcardSetsByVisibility(userId: Int, visibility: String): List<FlashcardSet>
+
+    @Query("SELECT * FROM flashcard_sets WHERE visibility = '전체공개'")
+    suspend fun getSharedFlashcardSets(): List<FlashcardSet>
 }

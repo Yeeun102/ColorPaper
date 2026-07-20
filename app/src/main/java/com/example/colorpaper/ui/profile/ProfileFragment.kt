@@ -9,11 +9,11 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import com.example.colorpaper.R
 import com.example.colorpaper.data.local.AppDatabase
-import androidx.lifecycle.lifecycleScope
+import com.example.colorpaper.ui.friend.FriendListFragment // 7. 친구 검색/목록 프래그먼트
 import kotlinx.coroutines.launch
-import com.example.colorpaper.data.local.UserDao
 
 class ProfileFragment : Fragment() {
 
@@ -22,66 +22,83 @@ class ProfileFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        // 1. 피그마 레이아웃 껍데기 연결
         val view = inflater.inflate(R.layout.fragment_profile, container, false)
 
-        // 2. 피그마 디자인에 배치된 모든 뷰 컴포넌트 ID 연결
-        val tvUserCode = view.findViewById<TextView>(R.id.tvUserCode)         // 상단 유저코드 (예: #j32ifiewjo)
-        val tvNickname = view.findViewById<TextView>(R.id.tvNickname)         // 닉네임 (예: 나으닝)
-        val ivEditProfile = view.findViewById<ImageView>(R.id.ivEditProfile)   // 6.1 프로필 수정 (연필 아이콘)
-        val btnFriendUpdate = view.findViewById<LinearLayout>(R.id.layoutFriendUpdate) // 6.5 친구 업데이트 뱃지/버튼
-        val layoutHighlights = view.findViewById<LinearLayout>(R.id.layoutHighlights) // 6.2 내 하이라이트 구역
-        val layoutSharedVocab = view.findViewById<LinearLayout>(R.id.layoutSharedVocab) // 6.3 내 공유 단어장 구역
-        val ivMyDiary = view.findViewById<ImageView>(R.id.ivMyDiary)           // 6.4 내 공유 다이어리 (큰 다이어리 이미지)
-        val ivSearchFriend = view.findViewById<ImageView>(R.id.ivSearchFriend) // 6.6 친구 검색 (우측 상단 돋보기)
+        // XML 뷰 바인딩
+        val ivBack = view.findViewById<ImageView>(R.id.ivBack)
+        val tvUserCodeTop = view.findViewById<TextView>(R.id.tvUserCodeTop)
+        val ivSearchFriend = view.findViewById<ImageView>(R.id.ivSearchFriend)
+        val ivEditProfile = view.findViewById<ImageView>(R.id.ivEditProfile)
+        val tvNickname = view.findViewById<TextView>(R.id.tvNickname)
+        val tvFriendUpdateBadge = view.findViewById<TextView>(R.id.tvFriendUpdateBadge)
+        val llSharedFlashcard = view.findViewById<LinearLayout>(R.id.llSharedFlashcard)
+        val llSharedDiary = view.findViewById<LinearLayout>(R.id.llSharedDiary)
 
-        // 3. DB에서 내 정보(user_id = 1) 가져와서 상단에 실시간 반영하기 (코루틴 적용)
         val db = AppDatabase.getDatabase(requireContext())
 
+        // 1. 내 정보(user_id=1) DB에서 가져와 화면 상단에 실시간 동기화
         viewLifecycleOwner.lifecycleScope.launch {
             val myInfo = db.userDao().getUserById(1)
-
             if (myInfo != null) {
-                tvUserCode.text = "#${myInfo.userCode}"
                 tvNickname.text = myInfo.nickname
-            } else {
-                // DB에 데이터가 없으면 피그마 기본값 띄워주기
-                tvUserCode.text = "#j32ifiewjo"
-                tvNickname.text = "나으닝"
+                tvUserCodeTop.text = "#${myInfo.userCode}"
             }
         }
 
-        // 4. [6.1 프로필 수정] 연필 아이콘 클릭 시
+        // 2. 뒤로가기 화살표 클릭
+        ivBack.setOnClickListener {
+            parentFragmentManager.popBackStack()
+        }
+
+        // 3. 6.1 우측 상단 연필 아이콘 클릭 시 -> 프로필 수정하기로 이동
         ivEditProfile.setOnClickListener {
-            Toast.makeText(context, "6.1 프로필 수정 화면으로 이동합니다.", Toast.LENGTH_SHORT).show()
-            // TODO: parentFragmentManager 이용해 ProfileEditFragment로 교체하거나 Activity 띄우기
+            parentFragmentManager.beginTransaction()
+                .replace(R.id.fragment_container, ProfileEditFragment())
+                .addToBackStack(null)
+                .commit()
         }
 
-        // 5. [6.2 내 하이라이트 보기] 동그라미 구역 클릭 시
-        layoutHighlights.setOnClickListener {
-            Toast.makeText(context, "6.2 내 하이라이트 보기", Toast.LENGTH_SHORT).show()
-        }
-
-        // 6. [6.3 내 공유 단어장 보기] 네모 상자 클릭 시
-        layoutSharedVocab.setOnClickListener {
-            Toast.makeText(context, "6.3 내 공유 단어장 보기", Toast.LENGTH_SHORT).show()
-        }
-
-        // 7. [6.4 내 공유 다이어리 보기] 하단 큰 다이어리 클릭 시
-        ivMyDiary.setOnClickListener {
-            Toast.makeText(context, "6.4 내 공유 다이어리 보기", Toast.LENGTH_SHORT).show()
-        }
-
-        // 8. [6.5 업데이트한 친구 다이어리 보기] 뱃지 버튼 클릭 시
-        btnFriendUpdate.setOnClickListener {
-            Toast.makeText(context, "6.5 업데이트한 친구 다이어리 목록으로 이동", Toast.LENGTH_SHORT).show()
-            // TODO: 7.1 친구 프로필 다이어리 화면으로 이동하는 로직
-        }
-
-        // 9. [6.6 친구 검색하기] 우측 상단 돋보기 클릭 시 -> [7. 친구로 이동]
+        // 4. 6.6 우측 상단 돋보기 클릭 시 -> [7. 친구 검색/리스트] 화면으로 점프
         ivSearchFriend.setOnClickListener {
-            Toast.makeText(context, "6.6 친구 검색 화면으로 이동 (7번 기능)", Toast.LENGTH_SHORT).show()
-            // TODO: ui/friend/ 폴더에 있는 친구 검색용 Fragment로 전환하기
+            parentFragmentManager.beginTransaction()
+                .replace(R.id.fragment_container, FriendListFragment())
+                .addToBackStack(null)
+                .commit()
+        }
+
+        // 5. 6.5 친구 업데이트 배지 클릭 시 -> 업데이트 한 친구 다이어리 피드로 이동
+        tvFriendUpdateBadge.setOnClickListener {
+            Toast.makeText(context, "새로 올라온 친구들의 다이어리를 띄웁니다!", Toast.LENGTH_SHORT).show()
+            // 추후 친구 피드 전용 화면 구현 시 여기에 Fragment 전환 코드 연결
+        }
+
+        // 6.3 공유중인 단어장 구역 클릭 시 -> 진짜 DB에서 내가 공유한 세트 긁어오기
+        llSharedFlashcard.setOnClickListener {
+            viewLifecycleOwner.lifecycleScope.launch {
+                val mySharedSets = db.flashcardDao().getFlashcardSetsByVisibility(1, "전체공개")
+
+                if (mySharedSets.isEmpty()) {
+                    Toast.makeText(context, "공유 중인 단어장이 없습니다.", Toast.LENGTH_SHORT).show()
+                } else {
+                    val titles = mySharedSets.joinToString { it.title }
+                    Toast.makeText(context, "공유 단어장: $titles", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+
+// 6.4 중앙의 다이어리 책 커버 클릭 시 -> 진짜 DB에서 내 공개 다이어리 긁어오기
+        llSharedDiary.setOnClickListener {
+            viewLifecycleOwner.lifecycleScope.launch {
+                // 기획서 6.4: 내 공유 다이어리 목록 가져오기
+                val myPublicDiaries = db.diaryDao().getDiariesByVisibility(1, "PUBLIC")
+
+                if (myPublicDiaries.isEmpty()) {
+                    Toast.makeText(context, "공개 중인 다이어리가 없습니다.", Toast.LENGTH_SHORT).show()
+                } else {
+                    val contents = myPublicDiaries.joinToString { it.content.take(10) + "..." }
+                    Toast.makeText(context, "공개 다이어리: $contents", Toast.LENGTH_LONG).show()
+                }
+            }
         }
 
         return view
