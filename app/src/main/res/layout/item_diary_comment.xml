@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="12dp"
+    android:paddingStart="40dp"
+    android:paddingEnd="16dp">
+
+    <!-- 💡 댓글 포스트잇 SVG 배경 (이 색상은 나중에 코드로 랜덤 Tint 처리할 수 있습니다) -->
+
+    <!-- 댓글 내용 (읽기 전용 텍스트뷰) -->
+    <ImageView
+        android:id="@+id/ivCommentBg"
+        android:layout_width="150dp"
+        android:layout_height="130dp"
+        android:scaleType="fitXY"
+        android:src="@drawable/comment_blue"
+        android:contentDescription="@string/comment_postit"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/btnCommentDone"
+        android:layout_width="30dp"
+        android:layout_height="15dp"
+        android:layout_marginTop="35dp"
+        android:layout_marginEnd="12dp"
+        android:text="@string/sendComment"
+        android:textSize="11sp"
+        android:textColor="#000000"
+        android:gravity="center"
+        android:background="#FAFAFA"
+        android:foreground="?attr/selectableItemBackground"
+        app:layout_constraintTop_toTopOf="@id/ivCommentBg"
+        app:layout_constraintEnd_toEndOf="@id/ivCommentBg" />
+
+    <EditText
+        android:id="@+id/etCommentContent"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginHorizontal="12dp"
+        android:layout_marginTop="50dp"
+        android:layout_marginBottom="25dp"
+        android:background="@android:color/transparent"
+        android:gravity="top|start"
+        android:hint="댓글 입력..."
+        android:textSize="13sp"
+        android:textColor="#333333"
+        app:layout_constraintTop_toTopOf="@id/ivCommentBg"
+        app:layout_constraintBottom_toBottomOf="@id/ivCommentBg"
+        app:layout_constraintStart_toStartOf="@id/ivCommentBg"
+        app:layout_constraintEnd_toEndOf="@id/ivCommentBg"/>
+
+    <!-- 댓글 단 시간 표시 (예: 2026.06.30) -->
+    <TextView
+        android:id="@+id/tvCommentTime"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="today"
+        android:textSize="11sp"
+        android:textColor="#111111"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="12dp"
+        app:layout_constraintBottom_toBottomOf="@id/ivCommentBg"
+        app:layout_constraintEnd_toEndOf="@id/ivCommentBg"/>
+</androidx.constraintlayout.widget.ConstraintLayout>
