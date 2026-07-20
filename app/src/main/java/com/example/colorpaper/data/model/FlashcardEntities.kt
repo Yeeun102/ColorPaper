@@ -3,6 +3,7 @@ package com.example.colorpaper.data.model
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
+import androidx.room.Index
 
 // 1. 단어장 세트 엔티티 (단어장보기 목록용)
 @Entity(tableName = "flashcard_sets")
@@ -23,7 +24,8 @@ data class FlashcardSet(
             childColumns = ["setId"],
             onDelete = ForeignKey.CASCADE
         )
-    ]
+    ],
+    indices = [Index(value = ["setId"])]
 )
 data class FlashcardItem(
     @PrimaryKey(autoGenerate = true) val itemId: Long = 0,

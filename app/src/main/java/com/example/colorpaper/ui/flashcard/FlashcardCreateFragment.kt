@@ -123,9 +123,11 @@ class FlashcardCreateFragment : Fragment() {
 
         lifecycleScope.launch {
             val dao = AppDatabase.getDatabase(requireContext()).flashcardDao()
+            val currentUserId = 1 //임시 할당값!!!!!!!!!!!!!!!
 
             withContext(Dispatchers.IO) {
                 val newSet = FlashcardSet(
+                    userId = currentUserId,
                     title = if (setTitle.startsWith("#")) setTitle else "#$setTitle",
                     visibility = visibility
                 )

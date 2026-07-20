@@ -8,19 +8,6 @@
     android:background="#FAFAFA"
     android:padding="16dp">
 
-    <!-- 상단 바: 뒤로가기, 날짜 제목, 캘린더 아이콘
-    <ImageButton
-        android:id="@+id/btnBack"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:src="@android:drawable/abc_ic_ab_back_material"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/diaryScrollView"
-        android:contentDescription="@string/goBack"
-    /> -->
-
     <LinearLayout
         android:id="@+id/layoutDateSelect"
         android:layout_width="wrap_content"
@@ -30,7 +17,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/diaryScrollView">
+        app:layout_constraintBottom_toTopOf="@id/lineHeader">
 
         <TextView
             android:id="@+id/tvDateTitle"
@@ -64,48 +51,44 @@
     <ImageView
         android:id="@+id/ivFixedDiaryPage"
         android:layout_width="0dp"
-        android:layout_height="0dp"
+        android:layout_height="500dp"
         android:layout_marginTop="12dp"
         android:layout_marginBottom="300dp"
         android:scaleType="fitXY"
         android:src="@drawable/diarypage"
         android:contentDescription="@string/diarypage"
         app:layout_constraintTop_toBottomOf="@id/lineHeader"
-        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
     <!-- [중앙 콘텐츠 구역] 배경과 분리되어 스크롤 및 투명하게 처리된 레이어 -->
-    <ScrollView
-        android:id="@+id/diaryScrollView"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:fillViewport="true"
-        android:background="@android:color/transparent"
-        app:layout_constraintTop_toTopOf="@id/ivFixedDiaryPage"
+
+    <FrameLayout
+        android:id="@+id/layoutDiaryContainer"
+        android:layout_width="300dp"
+        android:layout_height="450dp"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:paddingStart="0dp"
+        android:paddingTop="50dp"
+        android:paddingRight="20dp"
+        android:paddingLeft="20dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="150dp"
         app:layout_constraintBottom_toBottomOf="@id/ivFixedDiaryPage"
+        app:layout_constraintEnd_toEndOf="@id/ivFixedDiaryPage"
         app:layout_constraintStart_toStartOf="@id/ivFixedDiaryPage"
-        app:layout_constraintEnd_toEndOf="@id/ivFixedDiaryPage">
+        app:layout_constraintTop_toTopOf="@+id/ivFixedDiaryPage">
 
-        <FrameLayout
-            android:id="@+id/layoutDiaryContainer"
+        <TextView
+            android:id="@+id/tvEmptyHint"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:paddingStart="40dp"
-            android:paddingEnd="20dp"
-            android:paddingTop="20dp"
-            android:paddingBottom="20dp">
-
-            <TextView
-                android:id="@+id/tvEmptyHint"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:gravity="center"
-                android:text="@string/entryHint"
-                android:textSize="16sp"
-                android:textColor="#999999" />
-        </FrameLayout>
-    </ScrollView>
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:text="@string/entryHint"
+            android:textColor="#999999"
+            android:textSize="16sp" />
+    </FrameLayout>
 
     <!-- 하단 부가 제어선: 전체공개, 하이라이트, 저장 -->
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -113,7 +96,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginBottom="12dp"
-        app:layout_constraintBottom_toTopOf="@id/layoutPostItSetting"
+        app:layout_constraintBottom_toTopOf="@id/layoutToolbarDecorate"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
@@ -165,7 +148,7 @@
         android:padding="16dp"
         android:visibility="gone"
         android:layout_marginBottom="8dp"
-        app:layout_constraintBottom_toTopOf="@id/layoutToolbarNav"
+        app:layout_constraintBottom_toTopOf="@id/layoutToolbarDecorate"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         tools:visibility="visible">
@@ -198,11 +181,8 @@
                 android:id="@+id/btnSettingSave"
                 android:layout_width="60dp"
                 android:layout_height="28dp"
-                android:text="@string/save"
-                android:textColor="#000000"
+                android:text="@string/nbsp"
                 android:gravity="center"
-                android:textStyle="bold"
-                android:background="@drawable/bg_comment_btn"
                 android:layout_alignParentEnd="true"/>
         </RelativeLayout>
 
@@ -213,9 +193,44 @@
             android:orientation="horizontal"
             android:layout_marginTop="10dp"
             android:gravity="center_vertical">
-            <TextView android:layout_width="60dp" android:layout_height="wrap_content" android:text="@string/tag" android:textStyle="bold" android:textColor="#000000"/>
-            <TextView android:id="@+id/chipTagDaily" android:layout_width="wrap_content" android:layout_height="26dp" android:text="@string/tag_daily" android:gravity="center" android:paddingHorizontal="12dp" android:background="@drawable/bg_comment_btn" android:textColor="#000000" android:layout_marginEnd="8dp"/>
-            <TextView android:id="@+id/chipTagWork" android:layout_width="wrap_content" android:layout_height="26dp" android:text="@string/tag_work" android:gravity="center" android:paddingHorizontal="12dp" android:background="@drawable/bg_comment_btn" android:textColor="#000000" android:layout_marginEnd="8dp"/>
+            <TextView
+                android:layout_width="60dp"
+                android:layout_height="wrap_content"
+                android:text="@string/tag"
+                android:textStyle="bold"
+                android:textColor="#000000"/>
+            <TextView
+                android:id="@+id/chipTagDaily"
+                android:layout_width="wrap_content"
+                android:layout_height="26dp"
+                android:text="@string/tag_daily"
+                android:gravity="center"
+                android:paddingHorizontal="12dp"
+                android:textColor="#000000"
+                android:layout_marginEnd="8dp"/>
+            <TextView android:id="@+id/chipTagWork"
+                android:layout_width="wrap_content"
+                android:layout_height="26dp"
+                android:text="@string/tag_work"
+                android:gravity="center"
+                android:paddingHorizontal="12dp"
+                android:textColor="#000000"
+                android:layout_marginEnd="8dp"/>
+            <LinearLayout
+                android:id="@+id/layoutDynamicTagsContainer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"/>
+
+            <!-- 태그 추가 + 버튼 -->
+            <ImageView
+                android:id="@+id/btnAddCustomTag"
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:src="@android:drawable/ic_input_add"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:padding="2dp"
+                android:contentDescription="@string/add_tag" />
         </LinearLayout>
 
         <!-- 감정 라인 -->
@@ -225,14 +240,27 @@
             android:orientation="horizontal"
             android:layout_marginTop="10dp"
             android:gravity="center_vertical">
-            <TextView android:layout_width="60dp" android:layout_height="wrap_content" android:text="@string/feeling" android:textStyle="bold" android:textColor="#000000"/>
+            <TextView
+                android:layout_width="60dp"
+                android:layout_height="wrap_content"
+                android:text="@string/feeling"
+                android:textStyle="bold"
+                android:textColor="#000000"/>
             <LinearLayout
                 android:id="@+id/layoutSelectedEmotionsContainer"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_height="26dp"
+                android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:layout_marginEnd="8dp"/>
-            <TextView android:id="@+id/btnSelectEmotion" android:layout_width="wrap_content" android:layout_height="26dp" android:text="@string/select" android:gravity="center" android:paddingHorizontal="12dp" android:background="@drawable/bg_comment_btn" android:textColor="#000000"/>
+            <TextView
+                android:id="@+id/btnSelectEmotion"
+                android:layout_width="wrap_content"
+                android:layout_height="26dp"
+                android:text="@string/select"
+                android:gravity="center"
+                android:paddingHorizontal="12dp"
+                android:textColor="#000000"/>
         </LinearLayout>
 
         <!-- 반복주기 라인 -->
@@ -242,10 +270,41 @@
             android:orientation="horizontal"
             android:layout_marginTop="12dp"
             android:gravity="center_vertical">
-            <TextView android:layout_width="60dp" android:layout_height="wrap_content" android:text="@string/repeat_cycle" android:textStyle="bold" android:textColor="#000000"/>
-            <TextView android:layout_width="wrap_content" android:layout_height="26dp" android:text="@string/repeat_auto" android:gravity="center" android:paddingHorizontal="12dp" android:background="@drawable/bg_comment_btn" android:textColor="#000000" android:layout_marginEnd="8dp"/>
-            <TextView android:layout_width="wrap_content" android:layout_height="26dp" android:text="@string/repeat_user" android:gravity="center" android:paddingHorizontal="12dp" android:background="@drawable/bg_comment_btn" android:textColor="#000000" android:layout_marginEnd="8dp"/>
-            <TextView android:layout_width="wrap_content" android:layout_height="26dp" android:text="@string/repeat_none" android:gravity="center" android:paddingHorizontal="12dp" android:background="@drawable/bg_comment_btn" android:textColor="#000000"/>
+            <TextView
+                android:layout_width="60dp"
+                android:layout_height="wrap_content"
+                android:text="@string/repeat_cycle"
+                android:textStyle="bold"
+                android:textColor="#000000"/>
+            <TextView
+                android:id="@+id/btnRepeatAuto"
+                android:layout_width="wrap_content"
+                android:layout_height="26dp"
+                android:text="@string/repeat_auto"
+                android:gravity="center"
+                android:paddingHorizontal="12dp"
+                android:textColor="#000000"
+                android:background="@drawable/bg_repeatauto"
+                android:layout_marginEnd="8dp"/>
+            <TextView
+                android:id="@+id/btnRepeatUser"
+                android:layout_width="wrap_content"
+                android:layout_height="26dp"
+                android:text="@string/repeat_user"
+                android:gravity="center"
+                android:paddingHorizontal="12dp"
+                android:textColor="#000000"
+                android:background="@drawable/bg_repeatuser"
+                android:layout_marginEnd="8dp"/>
+            <TextView
+                android:id="@+id/btnRepeatNone"
+                android:layout_width="wrap_content"
+                android:layout_height="26dp"
+                android:text="@string/repeat_none"
+                android:gravity="center"
+                android:paddingHorizontal="12dp"
+                android:textColor="#000000"
+                android:background="@drawable/bg_repeatnone"/>
         </LinearLayout>
 
         <!-- 종료일자 라인 -->
@@ -255,9 +314,31 @@
             android:orientation="horizontal"
             android:layout_marginTop="12dp"
             android:gravity="center_vertical">
-            <TextView android:layout_width="60dp" android:layout_height="wrap_content" android:text="@string/end_date" android:textStyle="bold" android:textColor="#000000"/>
-            <TextView android:layout_width="wrap_content" android:layout_height="26dp" android:text="@string/repeat_none" android:gravity="center" android:paddingHorizontal="12dp" android:background="@drawable/bg_comment_btn" android:textColor="#000000" android:layout_marginEnd="8dp"/>
-            <TextView android:layout_width="wrap_content" android:layout_height="26dp" android:text="@string/repeat_user" android:gravity="center" android:paddingHorizontal="12dp" android:background="@drawable/bg_comment_btn" android:textColor="#000000"/>
+            <TextView
+                android:layout_width="60dp"
+                android:layout_height="wrap_content"
+                android:text="@string/end_date"
+                android:textStyle="bold"
+                android:textColor="#000000"/>
+            <TextView
+                android:id="@+id/btnEndDateNone"
+                android:layout_width="wrap_content"
+                android:layout_height="26dp"
+                android:text="@string/repeat_none"
+                android:gravity="center"
+                android:paddingHorizontal="12dp"
+                android:textColor="#000000"
+                android:background="@drawable/bg_repeatnone"
+                android:layout_marginEnd="8dp"/>
+            <TextView
+                android:id="@+id/btnEndDateUser"
+                android:layout_width="wrap_content"
+                android:layout_height="26dp"
+                android:text="@string/repeat_user"
+                android:gravity="center"
+                android:paddingHorizontal="12dp"
+                android:textColor="#000000"
+                android:background="@drawable/bg_repeatuser"/>
         </LinearLayout>
 
         <!-- 공개범위 라인 -->
@@ -267,10 +348,41 @@
             android:orientation="horizontal"
             android:layout_marginTop="12dp"
             android:gravity="center_vertical">
-            <TextView android:layout_width="60dp" android:layout_height="wrap_content" android:text="@string/f_visibility" android:textStyle="bold" android:textColor="#000000"/>
-            <TextView android:layout_width="wrap_content" android:layout_height="26dp" android:text="@string/flashcard_public" android:gravity="center" android:paddingHorizontal="12dp" android:background="@drawable/bg_comment_btn" android:textColor="#000000" android:layout_marginEnd="8dp"/>
-            <TextView android:layout_width="wrap_content" android:layout_height="26dp" android:text="@string/flashcard_onlyF" android:gravity="center" android:paddingHorizontal="12dp" android:background="@drawable/bg_comment_btn" android:textColor="#000000" android:layout_marginEnd="8dp"/>
-            <TextView android:layout_width="wrap_content" android:layout_height="26dp" android:text="@string/flashcard_private" android:gravity="center" android:paddingHorizontal="12dp" android:background="@drawable/bg_comment_btn" android:textColor="#000000"/>
+            <TextView
+                android:layout_width="60dp"
+                android:layout_height="wrap_content"
+                android:text="@string/f_visibility"
+                android:textStyle="bold"
+                android:textColor="#000000"/>
+            <TextView
+                android:id="@+id/btnVisibilityPublic"
+                android:layout_width="wrap_content"
+                android:layout_height="26dp"
+                android:text="@string/flashcard_public"
+                android:gravity="center"
+                android:paddingHorizontal="12dp"
+                android:textColor="#000000"
+                android:background="@drawable/bg_public"
+                android:layout_marginEnd="8dp"/>
+            <TextView
+                android:id="@+id/btnVisibilityFriendOnly"
+                android:layout_width="wrap_content"
+                android:layout_height="26dp"
+                android:text="@string/flashcard_onlyF"
+                android:gravity="center"
+                android:paddingHorizontal="12dp"
+                android:textColor="#000000"
+                android:background="@drawable/bg_friendonly"
+                android:layout_marginEnd="8dp"/>
+            <TextView
+                android:id="@+id/btnVisibilityPrivate"
+                android:layout_width="wrap_content"
+                android:layout_height="26dp"
+                android:text="@string/flashcard_private"
+                android:gravity="center"
+                android:paddingHorizontal="12dp"
+                android:textColor="#000000"
+                android:background="@drawable/bg_private"/>
         </LinearLayout>
     </LinearLayout>
 
@@ -279,7 +391,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:background="#EAEAEA"
+        android:background="@drawable/bg_emotion"
         android:padding="16dp"
         android:visibility="gone"
         android:elevation="8dp"
@@ -292,28 +404,41 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="12dp">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/feeling" android:textSize="18sp" android:textStyle="bold" android:textColor="#000000"/>
-            <TextView android:id="@+id/btnEmotionPopupConfirm" android:layout_width="60dp" android:layout_height="28dp" android:text="@string/confirm" android:textColor="#000000" android:gravity="center" android:textStyle="bold" android:background="@drawable/bg_comment_btn" android:layout_alignParentEnd="true"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/feeling"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="#000000"/>
+            <TextView
+                android:id="@+id/btnEmotionPopupConfirm"
+                android:layout_width="60dp"
+                android:layout_height="28dp"
+                android:text="@string/nbsp"
+                android:textColor="#000000"
+                android:gravity="center"
+                android:layout_alignParentEnd="true"/>
         </RelativeLayout>
 
         <!-- 감정 그리드/태그 배열 (요청하신 감정 키워드 4개씩 3줄 임베딩) -->
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="8dp">
-            <TextView android:id="@+id/emo1" android:layout_width="0dp" android:layout_weight="1" android:layout_height="26dp" android:text="#기뻐요" android:gravity="center" android:layout_marginEnd="4dp" android:background="@drawable/bg_comment_btn" android:textSize="11sp"/>
-            <TextView android:id="@+id/emo2" android:layout_width="0dp" android:layout_weight="1" android:layout_height="26dp" android:text="#신나요" android:gravity="center" android:layout_marginEnd="4dp" android:background="@drawable/bg_comment_btn" android:textSize="11sp"/>
-            <TextView android:id="@+id/emo3" android:layout_width="0dp" android:layout_weight="1" android:layout_height="26dp" android:text="#만족해요" android:gravity="center" android:layout_marginEnd="4dp" android:background="@drawable/bg_comment_btn" android:textSize="11sp"/>
-            <TextView android:id="@+id/emo4" android:layout_width="0dp" android:layout_weight="1" android:layout_height="26dp" android:text="#편안해요" android:gravity="center" android:background="@drawable/bg_comment_btn" android:textSize="11sp"/>
+            <TextView android:id="@+id/emo1" android:layout_width="0dp" android:layout_weight="1" android:layout_height="26dp" android:text="#기뻐요" android:gravity="center" android:background="@drawable/bg_happy" android:layout_marginEnd="4dp" android:textSize="11sp"/>
+            <TextView android:id="@+id/emo2" android:layout_width="0dp" android:layout_weight="1" android:layout_height="26dp" android:text="#신나요" android:gravity="center" android:background="@drawable/bg_excited" android:layout_marginEnd="4dp" android:textSize="11sp"/>
+            <TextView android:id="@+id/emo3" android:layout_width="0dp" android:layout_weight="1" android:layout_height="26dp" android:text="#만족해요" android:gravity="center" android:background="@drawable/bg_satisfied" android:layout_marginEnd="4dp" android:textSize="11sp"/>
+            <TextView android:id="@+id/emo4" android:layout_width="0dp" android:layout_weight="1" android:layout_height="26dp" android:text="#편안해요" android:gravity="center" android:background="@drawable/bg_relaxed" android:textSize="11sp"/>
         </LinearLayout>
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="8dp">
-            <TextView android:id="@+id/emo5" android:layout_width="0dp" android:layout_weight="1" android:layout_height="26dp" android:text="#짜증나요" android:gravity="center" android:layout_marginEnd="4dp" android:background="@drawable/bg_comment_btn" android:textSize="11sp"/>
-            <TextView android:id="@+id/emo6" android:layout_width="0dp" android:layout_weight="1" android:layout_height="26dp" android:text="#힘들어요" android:gravity="center" android:layout_marginEnd="4dp" android:background="@drawable/bg_comment_btn" android:textSize="11sp"/>
-            <TextView android:id="@+id/emo7" android:layout_width="0dp" android:layout_weight="1" android:layout_height="26dp" android:text="#화나요" android:gravity="center" android:layout_marginEnd="4dp" android:background="@drawable/bg_comment_btn" android:textSize="11sp"/>
-            <TextView android:id="@+id/emo8" android:layout_width="0dp" android:layout_weight="1" android:layout_height="26dp" android:text="#졸려요" android:gravity="center" android:background="@drawable/bg_comment_btn" android:textSize="11sp"/>
+            <TextView android:id="@+id/emo5" android:layout_width="0dp" android:layout_weight="1" android:layout_height="26dp" android:text="#짜증나요" android:gravity="center" android:background="@drawable/bg_annoyed" android:layout_marginEnd="4dp" android:textSize="11sp"/>
+            <TextView android:id="@+id/emo6" android:layout_width="0dp" android:layout_weight="1" android:layout_height="26dp" android:text="#힘들어요" android:gravity="center" android:background="@drawable/bg_exhausted" android:layout_marginEnd="4dp" android:textSize="11sp"/>
+            <TextView android:id="@+id/emo7" android:layout_width="0dp" android:layout_weight="1" android:layout_height="26dp" android:text="#화나요" android:gravity="center" android:background="@drawable/bg_angry" android:layout_marginEnd="4dp" android:textSize="11sp"/>
+            <TextView android:id="@+id/emo8" android:layout_width="0dp" android:layout_weight="1" android:layout_height="26dp" android:text="#졸려요" android:gravity="center" android:background="@drawable/bg_sleepy" android:textSize="11sp"/>
         </LinearLayout>
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
-            <TextView android:id="@+id/emo9" android:layout_width="0dp" android:layout_weight="1" android:layout_height="26dp" android:text="#우울해요" android:gravity="center" android:layout_marginEnd="4dp" android:background="@drawable/bg_comment_btn" android:textSize="11sp"/>
-            <TextView android:id="@+id/emo10" android:layout_width="0dp" android:layout_weight="1" android:layout_height="26dp" android:text="#속상해요" android:gravity="center" android:layout_marginEnd="4dp" android:background="@drawable/bg_comment_btn" android:textSize="11sp"/>
-            <TextView android:id="@+id/emo11" android:layout_width="0dp" android:layout_weight="1" android:layout_height="26dp" android:text="#불안해요" android:gravity="center" android:layout_marginEnd="4dp" android:background="@drawable/bg_comment_btn" android:textSize="11sp"/>
-            <TextView android:id="@+id/emo12" android:layout_width="0dp" android:layout_weight="1" android:layout_height="26dp" android:text="#슬퍼요" android:gravity="center" android:background="@drawable/bg_comment_btn" android:textSize="11sp"/>
+            <TextView android:id="@+id/emo9" android:layout_width="0dp" android:layout_weight="1" android:layout_height="26dp" android:text="#우울해요" android:gravity="center" android:background="@drawable/bg_depressed" android:layout_marginEnd="4dp" android:textSize="11sp"/>
+            <TextView android:id="@+id/emo10" android:layout_width="0dp" android:layout_weight="1" android:layout_height="26dp" android:text="#속상해요" android:gravity="center" android:background="@drawable/bg_upset" android:layout_marginEnd="4dp" android:textSize="11sp"/>
+            <TextView android:id="@+id/emo11" android:layout_width="0dp" android:layout_weight="1" android:layout_height="26dp" android:text="#불안해요" android:gravity="center" android:background="@drawable/bg_anxious" android:layout_marginEnd="4dp" android:textSize="11sp"/>
+            <TextView android:id="@+id/emo12" android:layout_width="0dp" android:layout_weight="1" android:layout_height="26dp" android:text="#슬퍼요" android:gravity="center" android:background="@drawable/bg_sad" android:textSize="11sp"/>
         </LinearLayout>
     </LinearLayout>
 

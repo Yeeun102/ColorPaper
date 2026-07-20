@@ -15,8 +15,8 @@ import androidx.lifecycle.lifecycleScope
 import com.example.colorpaper.R
 import com.example.colorpaper.databinding.FragmentDiaryDetailBinding
 import com.example.colorpaper.data.local.AppDatabase
-import com.example.colorpaper.data.model.DiaryComment
-import com.example.colorpaper.data.model.DiaryPostIt
+import com.example.colorpaper.data.model.DiaryEntity
+import com.example.colorpaper.data.model.CommentEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -162,15 +162,21 @@ class DiaryDetailFragment : Fragment() {
     private fun insertCommentToDb(commentText: String, colorName: String) {
         val currentTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
 
-        val newComment = DiaryComment(
+        // 💡 DiaryComment -> CommentEntity 변경
+        // userId, diaryId 기본값 바인딩 및 프로퍼티명 매칭
+        val newComment = CommentEntity(
             date = targetDate,
             content = commentText,
             color = colorName,
-            timestamp = currentTime
+            timestamp = currentTime,
+            userId = 1,  // 기본 유저 ID (필요시 실제 유저 ID)
+            diaryId = 0  // 필요시 연동할 부모 다이어리 ID
         )
 
         lifecycleScope.launch(Dispatchers.IO) {
             val db = AppDatabase.getDatabase(requireContext())
+
+            // 💡 DAO 메서드 호출 (팀원 DAO 구조에 맞춰 insertComment 사용)
             db.diaryDao().insertComment(newComment)
 
             // 메인 UI 스레드에서 완료 알림 처리
@@ -180,25 +186,25 @@ class DiaryDetailFragment : Fragment() {
         }
     }
 
-    private fun renderReadOnlyPostIt(postIt: DiaryPostIt) {
+    private fun renderReadOnlyPostIt(diary: DiaryEntity) {
         val inflater = LayoutInflater.from(requireContext())
         val view = inflater.inflate(R.layout.item_diary_postit, binding.layoutDetailDiaryContainer, false)
 
         val ivBg = view.findViewById<ImageView>(R.id.ivPostItBg)
         val etContent = view.findViewById<TextView>(R.id.etPostItContent)
 
-        etContent.text = postIt.content
+        etContent.text = diary.content
         etContent.isEnabled = false
 
         // 일기 원본 색상 SVG 매핑
-        val resId = postItResourceMap[postIt.color] ?: R.drawable.post_yellow
+        val resId = postItResourceMap[diary.color] ?: R.drawable.post_yellow
         ivBg.setImageResource(resId)
 
         binding.layoutDetailDiaryContainer.addView(view)
     }
 
     // 과거의 일기를 켜서 '이미 저장되어 있던 댓글'들을 불러와서 그릴 때 (완벽한 잠금 모드)
-    private fun renderCommentPostIt(comment: DiaryComment) {
+    private fun renderCommentPostIt(comment: CommentEntity) {
         val inflater = LayoutInflater.from(requireContext())
         val view = inflater.inflate(R.layout.item_diary_comment, binding.layoutCommentsContainer, false)
 
@@ -207,43 +213,50 @@ class DiaryDetailFragment : Fragment() {
         val tvTime = view.findViewById<TextView>(R.id.tvCommentTime)
         val btnCommentDone = view.findViewById<TextView>(R.id.btnCommentDone)
 
-        // 기존 데이터 셋업
+        // 기존 데이터 셋업 (CommentEntity 프로퍼티 바인딩)
         etCommentContent.setText(comment.content)
         tvTime.text = comment.timestamp
 
-        // 💡 교정: commentResourceMap을 안전하게 참조하도록 분기 처리했습니다.
         val resId = commentResourceMap[comment.color] ?: R.drawable.comment_blue
         ivCommentBg.setImageResource(resId)
 
-        // 요구사항 반영: 이미 등록 완료된 과거 댓글이므로 수정 및 터치 반응 원천 차단
+        // 이미 등록 완료된 댓글이므로 수정 및 터치 반응 원천 차단
         etCommentContent.isEnabled = false
         etCommentContent.isFocusable = false
         etCommentContent.isFocusableInTouchMode = false
 
-        // 등록 버튼 원천 제거
+        // 등록 버튼 제거 및 자유 드래그 활성화
         btnCommentDone.visibility = View.GONE
-
         makeViewDraggable(view)
 
         binding.layoutCommentsContainer.addView(view)
     }
     @SuppressLint("ClickableViewAccessibility")
     private fun makeViewDraggable(view: View) {
-        var dX = 0f
-        var dY = 0f
+        var lastX = 0f
+        var lastY = 0f
 
         view.setOnTouchListener { v, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
-                    dX = v.x - event.rawX
-                    dY = v.y - event.rawY
+                    lastX = event.rawX
+                    lastY = event.rawY
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    v.animate()
-                        .x(event.rawX + dX)
-                        .y(event.rawY + dY)
-                        .setDuration(0)
-                        .start()
+                    val dx = event.rawX - lastX
+                    val dy = event.rawY - lastY
+
+                    // 💡 애니메이션 대신 translation 좌표를 직접 이동시켜 누적 위치를 고정시킵니다.
+                    v.translationX += dx
+                    v.translationY += dy
+
+                    // 다음 이동 거리 계산을 위해 기준점 갱신
+                    lastX = event.rawX
+                    lastY = event.rawY
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    // 손을 떼었을 때 현재 translationX, translationY 위치가 고정됩니다.
+                    v.performClick()
                 }
                 else -> return@setOnTouchListener false
             }

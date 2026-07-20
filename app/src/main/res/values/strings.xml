@@ -49,4 +49,10 @@
     <string name="end_date">종료일자</string>
     <string name="confirm">확인</string>
     <string name="emotion_chip_format">#%s</string>
+    <string name="nbsp" />
+    <string name="add_tag">태그 추가</string>
+    <string name="dialog_add_tag_title">새 태그 입력</string>
+    <string name="dialog_add_tag_hint">태그명을 입력하세요 (예: 운동)</string>
+    <string name="action_add">추가</string>
+    <string name="action_cancel">취소</string>
 </resources>
