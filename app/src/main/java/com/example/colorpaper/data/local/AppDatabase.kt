@@ -4,17 +4,29 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import com.example.colorpaper.data.model.DiaryComment
-import com.example.colorpaper.data.model.DiaryPostIt
-import com.example.colorpaper.data.model.FlashcardItem
-import com.example.colorpaper.data.model.FlashcardSet
+import com.example.colorpaper.data.model.*
 
-@Database(entities = [FlashcardSet::class, FlashcardItem::class, DiaryPostIt::class, DiaryComment::class],
-    version = 2, exportSchema = false)
+@Database(
+    entities = [
+        FlashcardSet::class,
+        FlashcardItem::class,
+        UserEntity::class,
+        TodoEntity::class,
+        DiaryEntity::class,
+        CommentEntity::class,
+        InteractionEntity::class,
+        FriendEntity::class,
+        TagEntity::class,
+        DiaryTagEntity::class
+    ],
+    version = 3,
+    exportSchema = false
+)
+
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun flashcardDao(): FlashcardDao
-    abstract fun diaryDao(): DiaryDao
+    abstract fun userDao(): UserDao
 
     companion object {
         @Volatile
@@ -28,6 +40,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "flashcard_database"
                 )
                     .fallbackToDestructiveMigration()
+                    .allowMainThreadQueries()
                     .build()
 
                 INSTANCE = instance
