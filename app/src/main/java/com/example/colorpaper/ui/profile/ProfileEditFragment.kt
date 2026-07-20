@@ -1,60 +1,92 @@
 package com.example.colorpaper.ui.profile
 
 import android.os.Bundle
-import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
+import android.widget.EditText
+import android.widget.ImageView
+import android.widget.Toast
+import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import com.example.colorpaper.R
+import com.example.colorpaper.data.local.AppDatabase
+import com.example.colorpaper.data.model.UserEntity
+import kotlinx.coroutines.launch
 
-// TODO: Rename parameter arguments, choose names that match
-// the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
-private const val ARG_PARAM1 = "param1"
-private const val ARG_PARAM2 = "param2"
-
-/**
- * A simple [Fragment] subclass.
- * Use the [ProfileEditFragment.newInstance] factory method to
- * create an instance of this fragment.
- */
 class ProfileEditFragment : Fragment() {
-    // TODO: Rename and change types of parameters
-    private var param1: String? = null
-    private var param2: String? = null
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        arguments?.let {
-            param1 = it.getString(ARG_PARAM1)
-            param2 = it.getString(ARG_PARAM2)
-        }
-    }
 
     override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
+        inflater: LayoutInflater,
+        container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_profile_edit, container, false)
-    }
+        val view = inflater.inflate(R.layout.fragment_profile_edit, container, false)
 
-    companion object {
-        /**
-         * Use this factory method to create a new instance of
-         * this fragment using the provided parameters.
-         *
-         * @param param1 Parameter 1.
-         * @param param2 Parameter 2.
-         * @return A new instance of fragment ProfileEditFragment.
-         */
-        // TODO: Rename and change types and number of parameters
-        @JvmStatic
-        fun newInstance(param1: String, param2: String) =
-            ProfileEditFragment().apply {
-                arguments = Bundle().apply {
-                    putString(ARG_PARAM1, param1)
-                    putString(ARG_PARAM2, param2)
-                }
+        val ivBack = view.findViewById<ImageView>(R.id.ivBack)
+        val ivEditProfileImage = view.findViewById<ImageView>(R.id.ivEditProfileImage)
+        val etNickname = view.findViewById<EditText>(R.id.etNickname)
+        val etUserCode = view.findViewById<EditText>(R.id.etUserCode)
+        val btnSave = view.findViewById<Button>(R.id.btnSave)
+
+        val db = AppDatabase.getDatabase(requireContext())
+
+        // 1. 기존에 저장된 내 정보(user_id = 1)가 있다면 입력창에 미리 세팅해주기
+        viewLifecycleOwner.lifecycleScope.launch {
+            val myInfo = db.userDao().getUserById(1)
+            if (myInfo != null) {
+                etNickname.setText(myInfo.nickname)
+                etUserCode.setText(myInfo.userCode) // 새로 도입한 userCode를 입력칸에 바인딩
             }
+        }
+
+        // 2. 뒤로가기 버튼 클릭 시 화면 탈출
+        ivBack.setOnClickListener {
+            parentFragmentManager.popBackStack()
+        }
+
+        // 3. 프로필 이미지 변경 클릭 시 알림
+        ivEditProfileImage.setOnClickListener {
+            Toast.makeText(context, "갤러리 열기 기능 준비 중!", Toast.LENGTH_SHORT).show()
+        }
+
+        // 4. 저장 버튼 클릭 시 -> 입력값 무결성 체크 후 Room DB 업데이트
+        btnSave.setOnClickListener {
+            val inputNickname = etNickname.text.toString().trim()
+            val inputUserCode = etUserCode.text.toString().trim()
+
+            if (inputNickname.isEmpty() || inputUserCode.isEmpty()) {
+                Toast.makeText(context, "빈칸을 모두 채워주세요!", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            viewLifecycleOwner.lifecycleScope.launch {
+                // 기존 데이터 가져와서 누락되는 컬럼 방지
+                val existingUser = db.userDao().getUserById(1)
+
+                val updatedUser = UserEntity(
+                    userId = 1, // 기존 1번 유저 정보를 교체
+                    userCode = inputUserCode, // 새로 입력받은 사용자 ID 세팅
+                    email = existingUser?.email ?: "default@email.com",
+                    passwordHash = existingUser?.passwordHash ?: "default_hash",
+                    nickname = inputNickname, // 새로 입력받은 닉네임 세팅
+                    profileImageUrl = existingUser?.profileImageUrl,
+                    membershipStatus = existingUser?.membershipStatus ?: "FREE",
+                    pushEnabled = existingUser?.pushEnabled ?: true,
+                    createdAt = existingUser?.createdAt ?: System.currentTimeMillis()
+                )
+
+                // DB에 반영
+                db.userDao().insertUser(updatedUser)
+
+                Toast.makeText(context, "프로필이 성공적으로 저장되었습니다!", Toast.LENGTH_SHORT).show()
+
+                // 저장이 완료되었으므로 이전 프로필 홈 화면으로 자동 복귀
+                parentFragmentManager.popBackStack()
+            }
+        }
+
+        return view
     }
 }

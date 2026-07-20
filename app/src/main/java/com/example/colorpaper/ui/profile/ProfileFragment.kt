@@ -35,15 +35,17 @@ class ProfileFragment : Fragment() {
         val ivMyDiary = view.findViewById<ImageView>(R.id.ivMyDiary)           // 6.4 내 공유 다이어리 (큰 다이어리 이미지)
         val ivSearchFriend = view.findViewById<ImageView>(R.id.ivSearchFriend) // 6.6 친구 검색 (우측 상단 돋보기)
 
+        // 3. DB에서 내 정보(user_id = 1) 가져와서 상단에 실시간 반영하기 (코루틴 적용)
         val db = AppDatabase.getDatabase(requireContext())
 
         viewLifecycleOwner.lifecycleScope.launch {
             val myInfo = db.userDao().getUserById(1)
 
             if (myInfo != null) {
-                tvUserCode.text = "#User_${myInfo.userId}"
+                tvUserCode.text = "#${myInfo.userCode}"
                 tvNickname.text = myInfo.nickname
             } else {
+                // DB에 데이터가 없으면 피그마 기본값 띄워주기
                 tvUserCode.text = "#j32ifiewjo"
                 tvNickname.text = "나으닝"
             }

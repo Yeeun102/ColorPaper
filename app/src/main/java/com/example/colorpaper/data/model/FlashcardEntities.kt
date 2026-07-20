@@ -8,6 +8,7 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "flashcard_sets")
 data class FlashcardSet(
     @PrimaryKey(autoGenerate = true) val setId: Long = 0,
+    val userId: Int,
     val title: String,            // 예: #set1
     val visibility: String = "전체공개" // 전체공개, 팔로워공개, 비공개
 )
