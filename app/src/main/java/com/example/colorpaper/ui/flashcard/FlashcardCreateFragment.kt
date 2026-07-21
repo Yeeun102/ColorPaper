@@ -126,6 +126,7 @@ class FlashcardCreateFragment : Fragment() {
 
             withContext(Dispatchers.IO) {
                 val newSet = FlashcardSet(
+                    userId = 1, // Using 1 for now as seen in ProfileEditFragment
                     title = if (setTitle.startsWith("#")) setTitle else "#$setTitle",
                     visibility = visibility
                 )
