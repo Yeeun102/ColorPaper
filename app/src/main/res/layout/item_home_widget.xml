@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="@dimen/home_widget_gap"
+    app:cardBackgroundColor="@color/home_widget_checklist"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="0dp"
+    app:strokeColor="@color/home_widget_stroke"
+    app:strokeWidth="1dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:minHeight="@dimen/home_widget_min_height"
+        android:orientation="horizontal"
+        android:padding="@dimen/home_widget_inner_padding">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tv_widget_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#332B2B"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_widget_content"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:lineSpacingExtra="4dp"
+                android:textColor="#544747"
+                android:textSize="15sp" />
+
+            <LinearLayout
+                android:id="@+id/layout_todo_items"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <CheckBox
+                    android:id="@+id/cb_home_todo_1"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="할일 1"
+                    android:buttonTint="@color/home_check_tint"
+                    android:textColor="#544747"
+                    android:textSize="15sp" />
+
+                <CheckBox
+                    android:id="@+id/cb_home_todo_2"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="할일 2"
+                    android:buttonTint="@color/home_check_tint"
+                    android:textColor="#544747"
+                    android:textSize="15sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/switch_widget_visibility"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:contentDescription="위젯 표시 여부"
+            app:thumbTint="@color/home_switch_thumb"
+            app:trackTint="@color/home_switch_track"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/tv_drag_handle"
+            android:layout_width="40dp"
+            android:layout_height="48dp"
+            android:gravity="center"
+            android:text="☰"
+            android:textColor="#443838"
+            android:textSize="26sp"
+            android:visibility="gone" />
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

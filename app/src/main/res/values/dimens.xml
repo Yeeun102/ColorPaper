@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Compact-phone fallback values. -->
+    <dimen name="home_horizontal_padding">20dp</dimen>
+    <dimen name="home_header_top_padding">16dp</dimen>
+    <dimen name="home_header_bottom_padding">14dp</dimen>
+    <dimen name="home_widget_min_height">80dp</dimen>
+    <dimen name="home_widget_inner_padding">14dp</dimen>
+    <dimen name="home_widget_gap">10dp</dimen>
+
+    <dimen name="bottom_nav_horizontal_margin">16dp</dimen>
+    <dimen name="bottom_nav_bottom_margin">10dp</dimen>
+    <dimen name="bottom_nav_height">66dp</dimen>
+    <dimen name="bottom_nav_corner_radius">26dp</dimen>
+    <dimen name="bottom_nav_icon_size">28dp</dimen>
+    <dimen name="bottom_nav_item_vertical_padding">8dp</dimen>
+</resources>

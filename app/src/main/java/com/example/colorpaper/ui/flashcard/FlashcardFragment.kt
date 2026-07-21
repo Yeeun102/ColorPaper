@@ -45,7 +45,7 @@ class FlashcardFragment : Fragment() {
                 }
                 val studyFragment = FlashcardStudyFragment().apply { arguments = bundle }
                 parentFragmentManager.beginTransaction()
-                    .replace(R.id.main, studyFragment)
+                    .replace(R.id.fragment_container, studyFragment)
                     .addToBackStack(null)
                     .commit()
             },
@@ -65,7 +65,7 @@ class FlashcardFragment : Fragment() {
 
         binding.btnCreateSet.setOnClickListener {
             parentFragmentManager.beginTransaction()
-                .replace(R.id.main, FlashcardCreateFragment())
+                .replace(R.id.fragment_container, FlashcardCreateFragment())
                 .addToBackStack(null)
                 .commit()
         }

@@ -4,7 +4,16 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import com.example.colorpaper.data.model.*
+import com.example.colorpaper.data.model.CommentEntity
+import com.example.colorpaper.data.model.DiaryEntity
+import com.example.colorpaper.data.model.DiaryTagEntity
+import com.example.colorpaper.data.model.FlashcardItem
+import com.example.colorpaper.data.model.FlashcardSet
+import com.example.colorpaper.data.model.FriendEntity
+import com.example.colorpaper.data.model.InteractionEntity
+import com.example.colorpaper.data.model.TagEntity
+import com.example.colorpaper.data.model.TodoEntity
+import com.example.colorpaper.data.model.UserEntity
 
 @Database(
     entities = [
@@ -22,7 +31,6 @@ import com.example.colorpaper.data.model.*
     version = 3,
     exportSchema = false
 )
-
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun flashcardDao(): FlashcardDao
