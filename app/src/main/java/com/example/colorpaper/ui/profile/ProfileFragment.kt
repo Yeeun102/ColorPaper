@@ -80,7 +80,7 @@ class ProfileFragment : Fragment() {
                 if (mySharedSets.isEmpty()) {
                     Toast.makeText(context, "공유 중인 단어장이 없습니다.", Toast.LENGTH_SHORT).show()
                 } else {
-                    val titles = mySharedSets.joinToString { it.title }
+                    val titles = mySharedSets.joinToString { it.folderName }
                     Toast.makeText(context, "공유 단어장: $titles", Toast.LENGTH_LONG).show()
                 }
             }
