@@ -72,12 +72,15 @@ class DiaryDetailFragment : Fragment() {
         }
 
         // 과거 기록이므로 편집 기능(추가 버튼, 저장 버튼) 제거 및 숨김 규칙 적용
-        binding.btnSaveDetail.visibility = View.GONE
+        binding.btnSaveDetail.visibility = View.VISIBLE
         binding.btnToolbarAddDetail.isEnabled = false
         binding.btnToolbarAddDetail.alpha = 0.3f
 
         // 기존 일기 및 저장된 댓글 로드
         loadDiaryAndComments()
+        binding.btnSaveDetail.setOnClickListener {
+            saveAllCommentsPositions()
+        }
 
         // 💡 [정리 완료] 중복 메서드를 지우고 이벤트 리스너 내부를 정교하게 픽스했습니다.
         binding.btnToolbarCommentDetail.setOnClickListener {
@@ -107,26 +110,22 @@ class DiaryDetailFragment : Fragment() {
             } catch (e: Exception) {
                 tvTime.text = targetDate
             }
-
+            commentView.tag = randomColor
+            makeViewDraggable(commentView)
             // 4. 등록 버튼(TextView)을 누르면 입력된 값을 가져와서 Room DB에 최종 저장!
             btnCommentDone.setOnClickListener {
                 val text = etCommentContent.text.toString().trim()
                 if (text.isNotBlank()) {
-                    // 💡 신규 댓글 DB 적재 함수 호출
-                    insertCommentToDb(text, randomColor)
-
-                    // 현재 등록 완료된 시간으로 뷰 갱신
                     val currentTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
                     tvTime.text = currentTime
 
                     // 완벽하게 락(Lock) 걸기: 수정 불가 상태로 전환 및 포커스 강제 해제
                     etCommentContent.isEnabled = false
                     etCommentContent.clearFocus()
-
-                    // 등록 버튼 흔적도 없이 사라지게 만들기
                     btnCommentDone.visibility = View.GONE
 
-                    makeViewDraggable(commentView)
+                    insertCommentToDb(commentView, text, randomColor, currentTime)
+
                 } else {
                     Toast.makeText(requireContext(), "댓글 내용을 입력해 주세요.", Toast.LENGTH_SHORT).show()
                 }
@@ -158,30 +157,80 @@ class DiaryDetailFragment : Fragment() {
         }
     }
 
-    // 💡 [부족한 부분 보완] Room 데이터베이스에 셀프 댓글을 비동기로 찔러 넣는 핵심 메서드
-    private fun insertCommentToDb(commentText: String, colorName: String) {
-        val currentTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+    private fun insertCommentToDb(view: View, commentText: String, colorName: String, timestamp: String) {
+        val posX = view.translationX
+        val posY = view.translationY
 
-        // 💡 DiaryComment -> CommentEntity 변경
-        // userId, diaryId 기본값 바인딩 및 프로퍼티명 매칭
         val newComment = CommentEntity(
+            diaryId = 0,
+            userId = 1,
             date = targetDate,
             content = commentText,
             color = colorName,
-            timestamp = currentTime,
-            userId = 1,  // 기본 유저 ID (필요시 실제 유저 ID)
-            diaryId = 0  // 필요시 연동할 부모 다이어리 ID
+            timestamp = timestamp,
+            posX = posX,
+            posY = posY
         )
 
         lifecycleScope.launch(Dispatchers.IO) {
             val db = AppDatabase.getDatabase(requireContext())
+            val savedId = db.diaryDao().insertComment(newComment)
 
-            // 💡 DAO 메서드 호출 (팀원 DAO 구조에 맞춰 insertComment 사용)
-            db.diaryDao().insertComment(newComment)
-
-            // 메인 UI 스레드에서 완료 알림 처리
             withContext(Dispatchers.Main) {
-                Toast.makeText(requireContext(), "셀프 댓글이 안전하게 등록되었습니다.", Toast.LENGTH_SHORT).show()
+                // 뷰에 저장된 commentId 세팅 (이후 위치 업데이트를 위해 저장)
+                view.setTag(R.id.ivCommentBg, savedId.toInt())
+                Toast.makeText(requireContext(), "셀프 댓글이 등록되었습니다.", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun saveAllCommentsPositions() {
+        val container = binding.layoutCommentsContainer
+        val childCount = container.childCount
+
+        if (childCount == 0) {
+            Toast.makeText(requireContext(), "저장할 댓글이 없습니다.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            val db = AppDatabase.getDatabase(requireContext())
+
+            withContext(Dispatchers.Main) {
+                for (i in 0 until childCount) {
+                    val commentView = container.getChildAt(i)
+                    val etCommentContent = commentView.findViewById<EditText>(R.id.etCommentContent) ?: continue
+                    val tvTime = commentView.findViewById<TextView>(R.id.tvCommentTime) ?: continue
+
+                    val text = etCommentContent.text.toString().trim()
+                    if (text.isNotBlank()) {
+                        val existingCommentId = (commentView.getTag(R.id.ivCommentBg) as? Int) ?: 0
+                        val colorName = (commentView.tag as? String) ?: "blue"
+                        val posX = commentView.translationX
+                        val posY = commentView.translationY
+                        val timeStr = tvTime.text.toString()
+
+                        val updatedComment = CommentEntity(
+                            commentId = existingCommentId,
+                            diaryId = 0,
+                            userId = 1,
+                            date = targetDate,
+                            content = text,
+                            color = colorName,
+                            timestamp = timeStr,
+                            posX = posX,
+                            posY = posY
+                        )
+
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            val savedId = db.diaryDao().insertComment(updatedComment)
+                            withContext(Dispatchers.Main) {
+                                commentView.setTag(R.id.ivCommentBg, savedId.toInt())
+                            }
+                        }
+                    }
+                }
+                Toast.makeText(requireContext(), "댓글 위치가 저장되었습니다!", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -199,6 +248,9 @@ class DiaryDetailFragment : Fragment() {
         // 일기 원본 색상 SVG 매핑
         val resId = postItResourceMap[diary.color] ?: R.drawable.post_yellow
         ivBg.setImageResource(resId)
+
+        view.translationX = diary.positionX
+        view.translationY = diary.positionY
 
         binding.layoutDetailDiaryContainer.addView(view)
     }
@@ -219,6 +271,12 @@ class DiaryDetailFragment : Fragment() {
 
         val resId = commentResourceMap[comment.color] ?: R.drawable.comment_blue
         ivCommentBg.setImageResource(resId)
+
+        view.setTag(R.id.ivCommentBg, comment.commentId)
+        view.tag = comment.color
+
+        view.translationX = comment.posX
+        view.translationY = comment.posY
 
         // 이미 등록 완료된 댓글이므로 수정 및 터치 반응 원천 차단
         etCommentContent.isEnabled = false

@@ -13,7 +13,7 @@
         android:id="@+id/tvDetailDateTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="2026-06-30"
+        android:text="@string/example_date"
         android:textSize="18sp"
         android:textStyle="bold"
         android:textColor="#333333"
@@ -87,7 +87,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginBottom="12dp"
-        app:layout_constraintBottom_toTopOf="@id/layoutToolbarDecorateDetail"
+        app:layout_constraintTop_toBottomOf="@id/ivFixedDiaryPageDetail"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
@@ -105,7 +105,7 @@
 
         <Button
             android:id="@+id/btnSaveDetail"
-            android:layout_width="70dp"
+            android:layout_width="wrap_content"
             android:layout_height="36dp"
             android:text="@string/save"
             app:layout_constraintEnd_toEndOf="parent"
@@ -122,7 +122,7 @@
         android:orientation="horizontal"
         android:gravity="center"
         android:layout_marginBottom="8dp"
-        app:layout_constraintBottom_toTopOf="@id/layoutToolbarNavDetail"
+        app:layout_constraintTop_toBottomOf="@id/layoutMetaActionsDetail"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
@@ -133,7 +133,7 @@
             android:layout_weight="1"
             android:background="?attr/selectableItemBackground"
             android:src="@android:drawable/ic_input_add"
-            android:contentDescription="과거일기 추가 불가" />
+            android:contentDescription="@string/cannot_add_past" />
 
         <ImageButton
             android:id="@+id/btnToolbarPenDetail"
@@ -141,7 +141,8 @@
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:background="?attr/selectableItemBackground"
-            android:src="@android:drawable/ic_menu_edit" />
+            android:src="@android:drawable/ic_menu_edit"
+            android:contentDescription="@string/highlight"/>
 
         <ImageButton
             android:id="@+id/btnToolbarTextDetail"
@@ -149,7 +150,8 @@
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:background="?attr/selectableItemBackground"
-            android:src="@android:drawable/ic_menu_sort_alphabetically" />
+            android:src="@android:drawable/ic_menu_sort_alphabetically"
+            android:contentDescription="@string/enterText"/>
 
         <ImageButton
             android:id="@+id/btnToolbarCommentDetail"
@@ -158,29 +160,8 @@
             android:layout_weight="1"
             android:background="?attr/selectableItemBackground"
             android:src="@android:drawable/sym_action_chat"
-            android:contentDescription="셀프 댓글 작성 창 열기" />
+            android:contentDescription="@string/open_self_comment" />
     </LinearLayout>
 
-
-    <!-- 하단 툴바 2: 네비게이션 공용 링 -->
-    <LinearLayout
-        android:id="@+id/layoutToolbarNavDetail"
-        android:layout_width="0dp"
-        android:layout_height="50dp"
-        android:background="@android:color/darker_gray"
-        android:orientation="horizontal"
-        android:gravity="center"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <!--
-        <ImageView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:src="@android:drawable/ic_menu_agenda" />
-        <ImageView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:src="@android:drawable/ic_menu_book" />
-        <ImageView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:src="@android:drawable/ic_menu_gallery" />
-        <ImageView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:src="@android:drawable/ic_menu_myplaces" />
-        <ImageView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:src="@android:drawable/ic_menu_manage" />
-        -->
-    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

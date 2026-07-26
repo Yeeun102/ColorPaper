@@ -8,8 +8,8 @@ import android.view.ViewGroup
 import androidx.lifecycle.lifecycleScope
 import com.example.colorpaper.R
 import com.example.colorpaper.databinding.FragmentFlashcardStudyBinding
-import com.example.colorpaper.data.model.FlashcardItem
 import com.example.colorpaper.data.local.AppDatabase
+import com.example.colorpaper.data.model.WordEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -21,7 +21,7 @@ class FlashcardStudyFragment : Fragment() {
 
     private var isFlipped = false
 
-    private var cardList: List<FlashcardItem> = emptyList()
+    private var cardList: List<WordEntity> = emptyList()
     private var currentCardIndex = 0
 
     override fun onCreateView(
@@ -36,14 +36,16 @@ class FlashcardStudyFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val setId = arguments?.getLong("SET_ID", -1) ?: -1
+        val folderId = arguments?.getInt("SET_ID", -1) ?: -1
         val setTitle = arguments?.getString("SET_TITLE") ?: "#알 수 없음"
         binding.tvSetTitle.text = setTitle
 
         lifecycleScope.launch {
-            val dao = AppDatabase.getDatabase(requireContext()).flashcardDao()
+            val db = AppDatabase.getDatabase(requireContext())
+
             cardList = withContext(Dispatchers.IO) {
-                dao.getItemsBySetId(setId)
+                // Folder ID(단어장 ID)에 해당하는 WordEntity 목록을 가져옵니다.
+                db.flashcardDao().getItemsBySetId(folderId.toLong())
             }
 
             currentCardIndex = 0
@@ -85,11 +87,11 @@ class FlashcardStudyFragment : Fragment() {
         val currentCard = cardList[currentCardIndex]
 
         if (isFlipped) {
-            binding.tvCardContent.text = currentCard.answer
+            binding.tvCardContent.text = currentCard.wordAnswer
             binding.tvFlipHint.text = "정답 확인 완료"
             binding.layoutEmojiButtons.visibility = View.VISIBLE
         } else {
-            binding.tvCardContent.text = currentCard.question
+            binding.tvCardContent.text = currentCard.wordQuestion
             binding.tvFlipHint.text = getString(R.string.seeFlashcardBack) // 앞면일 땐 원상복구
             binding.layoutEmojiButtons.visibility = View.GONE
         }
@@ -139,7 +141,7 @@ class FlashcardStudyFragment : Fragment() {
             else -> 1
         }
 
-        println("카드 [${currentCard.question}] 변경 사항 -> 다음 주기: ${nextInterval}일 뒤, 난이도 계수: $newEaseFactor")
+        println("카드 [${currentCard.wordQuestion}] 변경 사항 -> 다음 주기: ${nextInterval}일 뒤, 난이도 계수: $newEaseFactor")
 
         currentCardIndex++
         showCard()

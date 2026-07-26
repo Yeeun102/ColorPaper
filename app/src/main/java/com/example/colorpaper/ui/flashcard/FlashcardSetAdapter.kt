@@ -1,17 +1,18 @@
 package com.example.colorpaper.ui.flashcard
 
+
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.example.colorpaper.databinding.ItemFlashcardSetBinding
-import com.example.colorpaper.data.model.FlashcardSet
+import com.example.colorpaper.data.model.FolderEntity
 import androidx.core.graphics.toColorInt
 import androidx.recyclerview.widget.DiffUtil
 
 class FlashcardSetAdapter(
-    private var setList: List<FlashcardSet>,
-    private val onStartClick: (FlashcardSet) -> Unit,
-    private val onItemLongClick: (FlashcardSet) -> Unit
+    private var setList: List<FolderEntity>,
+    private val onStartClick: (FolderEntity) -> Unit,
+    private val onItemLongClick: (FolderEntity) -> Unit
 ) : RecyclerView.Adapter<FlashcardSetAdapter.ViewHolder>() {
 
     class ViewHolder(val binding: ItemFlashcardSetBinding) :
@@ -30,7 +31,7 @@ class FlashcardSetAdapter(
         val item = setList[position]
 
         // 1. 엔티티 데이터(FlashcardSet)를 XML 뷰에 바인딩
-        holder.binding.tvSetTitle.text = item.title
+        holder.binding.tvSetTitle.text = item.folderName
 
         holder.binding.root.setOnLongClickListener {
             onItemLongClick(item) // 💡 길게 누르면 롱클릭 이벤트 전달
@@ -54,7 +55,7 @@ class FlashcardSetAdapter(
     override fun getItemCount(): Int = setList.size
 
     // 외부(Fragment 등)에서 리스트 데이터를 갱신할 때 사용하는 함수
-    fun updateData(newSets: List<FlashcardSet>) {
+    fun updateData(newSets: List<FolderEntity>) {
         // 1. 계산기(Callback)를 돌려 구 리스트와 신 리스트의 차이점을 분석합니다.
         val diffCallback = object : DiffUtil.Callback() {
             override fun getOldListSize(): Int = setList.size
@@ -62,7 +63,7 @@ class FlashcardSetAdapter(
 
             // 고유 고리 ID(setId)가 같은지 비교해서 같은 아이템인지 판단합니다.
             override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
-                return setList[oldItemPosition].setId == newSets[newItemPosition].setId
+                return setList[oldItemPosition].folderId == newSets[newItemPosition].folderId
             }
 
             // 아이템 내부 데이터(내용물)까지 완전히 똑같은지 비교합니다.

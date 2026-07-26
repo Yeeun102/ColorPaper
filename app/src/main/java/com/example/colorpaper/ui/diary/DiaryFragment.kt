@@ -12,8 +12,6 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.EditText
 import android.widget.LinearLayout
-import androidx.core.content.ContextCompat
-import android.util.TypedValue
 import androidx.lifecycle.lifecycleScope
 import android.widget.Toast
 import com.example.colorpaper.R
@@ -44,33 +42,41 @@ class DiaryFragment : Fragment() {
 
     private var currentActivePostIt: View? = null // 현재 설정 중인 타겟 포스트잇 뷰
     private var currentSelectedColor: String = "yellow" // 기본값 노랑
-    private var tempSelectedEmotion: String = "" // 팝업창에서 임시 선택한 감정 텍스트
+    private var tempSelectedEmotions = mutableListOf<String>() // 팝업창에서 임시 선택한 감정 텍스트
     private val selectedEmotions = mutableListOf<String>()
 
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     private val displayFormat = SimpleDateFormat("M월 d일", Locale.getDefault())
     private var selectedDateCalendar = Calendar.getInstance()
 
-    private fun setupSingleChoiceGroup(buttons: List<TextView>, defaultSelectedIndex: Int = 0) {
-        // 1. 각 버튼의 초기 XML 원본 배경을 tag에 보관
-        buttons.forEach { btn ->
-            btn.tag = btn.background
-        }
+    private var emotionResMap: Map<TextView, Int> = emptyMap()
 
-        // 2. 초기 선택값 및 클릭 이벤트 처리
-        buttons.forEachIndexed { index, textView ->
-            if (index == defaultSelectedIndex) {
-                textView.setBackgroundColor("#FFF59D".toColorInt()) // 선택 항목 하이라이트
+    private fun setupSingleChoiceGroup(
+        buttonResMap: Map<TextView, Int>,
+        defaultSelectedView: TextView
+    ) {
+        val buttons = buttonResMap.keys.toList()
+
+        buttons.forEach { textView ->
+            val resId = buttonResMap[textView] ?: 0
+
+            // 초기 세팅
+            if (textView == defaultSelectedView) {
+                textView.setBackgroundColor("#FFF59D".toColorInt())
             } else {
-                textView.background = textView.tag as? android.graphics.drawable.Drawable // 원래 XML 배경으로 복원
+                if (resId != 0) textView.setBackgroundResource(resId) else textView.background = null
             }
 
+            // 클릭 시 이벤트
             textView.setOnClickListener {
-                // 모든 버튼을 각자의 원래 XML 배경으로 복원
                 buttons.forEach { btn ->
-                    btn.background = btn.tag as? android.graphics.drawable.Drawable
+                    val btnResId = buttonResMap[btn] ?: 0
+                    if (btnResId != 0) {
+                        btn.setBackgroundResource(btnResId)
+                    } else {
+                        btn.background = null
+                    }
                 }
-                // 눌린 버튼만 하이라이트 색상 적용
                 textView.setBackgroundColor("#FFF59D".toColorInt())
             }
         }
@@ -85,6 +91,21 @@ class DiaryFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        emotionResMap = mapOf(
+            binding.emo1 to R.drawable.bg_happy,
+            binding.emo2 to R.drawable.bg_excited,
+            binding.emo3 to R.drawable.bg_satisfied,
+            binding.emo4 to R.drawable.bg_relaxed,
+            binding.emo5 to R.drawable.bg_annoyed,
+            binding.emo6 to R.drawable.bg_exhausted,
+            binding.emo7 to R.drawable.bg_angry,
+            binding.emo8 to R.drawable.bg_sleepy,
+            binding.emo9 to R.drawable.bg_depressed,
+            binding.emo10 to R.drawable.bg_upset,
+            binding.emo11 to R.drawable.bg_anxious,
+            binding.emo12 to R.drawable.bg_sad
+        )
 
         // 초기 날짜 텍스트 세팅 및 오늘 데이터 로드
         updateDateText()
@@ -101,7 +122,7 @@ class DiaryFragment : Fragment() {
 
             // 기본값 초기화 후 새 필드 생성
             currentSelectedColor = "yellow"
-            tempSelectedEmotion = ""
+            resetPostItSettingUI()
             addNewPostItField(currentSelectedColor)
         }
 
@@ -119,11 +140,22 @@ class DiaryFragment : Fragment() {
         // 4. 팝업 내부의 감정 칩 리스너 매핑 (#기뻐요 예시 및 기타 감정 확장 구조)
         val emotionClicker = View.OnClickListener { v ->
             if (v is TextView) {
-                tempSelectedEmotion = v.text.toString().replace("#", "")
-                // 선택한 칩에 투명 노란색 피드백 유도 (나중에 원하는 드로어블로 대체 가능)
-                v.setBackgroundColor("#FFF59D".toColorInt())
+                val emotionText = v.text.toString().replace("#", "")
+                val origResId = emotionResMap[v] ?: 0
+
+                if (tempSelectedEmotions.contains(emotionText)) {
+                    tempSelectedEmotions.remove(emotionText)
+                    if (origResId != 0) v.setBackgroundResource(origResId) else v.background = null
+                } else {
+                    tempSelectedEmotions.add(emotionText)
+                    v.setBackgroundColor("#FFF59D".toColorInt()) // 선택 피드백
+                }
             }
         }
+        emotionResMap.keys.forEach { textView ->
+            textView.setOnClickListener(emotionClicker)
+        }
+
         binding.emo1.setOnClickListener(emotionClicker)
         binding.emo2.setOnClickListener(emotionClicker)
         binding.emo3.setOnClickListener(emotionClicker)
@@ -140,75 +172,57 @@ class DiaryFragment : Fragment() {
         // 5. 감정 팝업창에서 '확인' 누르면 칩 형태로 설정창에 주입
         binding.btnEmotionPopupConfirm.setOnClickListener {
             binding.layoutEmotionPopup.visibility = View.GONE
-            if (tempSelectedEmotion.isNotBlank()) {
-                if (!selectedEmotions.contains(tempSelectedEmotion)) {
-                    selectedEmotions.add(tempSelectedEmotion)
-                }
-                binding.layoutSelectedEmotionsContainer.removeAllViews()
+            selectedEmotions.clear()
+            selectedEmotions.addAll(tempSelectedEmotions)
 
-                for (emotion in selectedEmotions) {
-                    val emotionChip = TextView(requireContext()).apply {
-                        text = getString(R.string.emotion_chip_format, emotion)
-                        setBackgroundColor("#FFF59D".toColorInt())
-                        setPadding(16, 4, 16, 4)
-                        setTextColor(android.graphics.Color.BLACK)
-                        textSize = 12f
-
-                        // 마진 추가
-                        val params = LinearLayout.LayoutParams(
-                            LinearLayout.LayoutParams.WRAP_CONTENT,
-                            LinearLayout.LayoutParams.WRAP_CONTENT
-                        ).apply { marginEnd = 8 }
-                        layoutParams = params
-                    }
-                    binding.layoutSelectedEmotionsContainer.addView(emotionChip)
-                }
-                binding.btnSelectEmotion.visibility = View.GONE // 감정 선택 완료 시 선택 버튼 숨김
-            }
+            renderSelectedEmotionsInSetting()
         }
         val tagSelectListener = View.OnClickListener { v ->
             if (v is TextView) {
                 val tagName = v.text.toString().replace("#", "")
                 if (selectedTags.contains(tagName)) {
                     selectedTags.remove(tagName)
-                    // 선택 해제 시: 저장해둔 원래 배경으로 복원 (없으면 기본값)
-                    v.background = v.tag as? android.graphics.drawable.Drawable ?: ContextCompat.getDrawable(requireContext(), R.drawable.bg_comment_btn)
+                    v.background = null // 해제 시 투명 배경으로 복원
                 } else {
                     selectedTags.add(tagName)
-                    // 선택 시: 노란색 강조
                     v.setBackgroundColor("#FFF59D".toColorInt())
                 }
             }
         }
-
-// 태그 버튼들의 원본 배경을 tag에 백업 후 리스너 등록
-        binding.chipTagDaily.tag = binding.chipTagDaily.background
         binding.chipTagDaily.setOnClickListener(tagSelectListener)
-
-        binding.chipTagWork.tag = binding.chipTagWork.background
         binding.chipTagWork.setOnClickListener(tagSelectListener)
 
-        // 💡 [신규] + 버튼 클릭 시 새 태그 입력 대화상자(AlertDialog) 띄우기
         binding.btnAddCustomTag.setOnClickListener {
             showAddTagDialog()
         }
 
         // 1. 반복주기 그룹 선택 반응 설정 (기본값: 안함)
         setupSingleChoiceGroup(
-            listOf(binding.btnRepeatAuto, binding.btnRepeatUser, binding.btnRepeatNone),
-            defaultSelectedIndex = 2
+            mapOf(
+                binding.btnRepeatAuto to R.drawable.bg_repeatauto,
+                binding.btnRepeatUser to R.drawable.bg_repeatuser,
+                binding.btnRepeatNone to R.drawable.bg_repeatnone
+            ),
+            defaultSelectedView = binding.btnRepeatNone
         )
 
         // 2. 종료일자 그룹 선택 반응 설정 (기본값: 안함)
         setupSingleChoiceGroup(
-            listOf(binding.btnEndDateNone, binding.btnEndDateUser),
-            defaultSelectedIndex = 0
+            mapOf(
+                binding.btnEndDateNone to R.drawable.bg_repeatnone,
+                binding.btnEndDateUser to R.drawable.bg_repeatuser
+            ),
+            defaultSelectedView = binding.btnEndDateNone
         )
 
         // 3. 공개범위 그룹 선택 반응 설정 (기본값: 전체공개)
         setupSingleChoiceGroup(
-            listOf(binding.btnVisibilityPublic, binding.btnVisibilityFriendOnly, binding.btnVisibilityPrivate),
-            defaultSelectedIndex = 0
+            mapOf(
+                binding.btnVisibilityPublic to R.drawable.bg_public,
+                binding.btnVisibilityFriendOnly to R.drawable.bg_friendonly,
+                binding.btnVisibilityPrivate to R.drawable.bg_private
+            ),
+            defaultSelectedView = binding.btnVisibilityPublic
         )
 
         // 6. [핵심] 설정창에서 '저장' 클릭 시 완전 잠금, DB 실제 적재, 자유 드래그 기믹 가동
@@ -222,15 +236,10 @@ class DiaryFragment : Fragment() {
                     etContent.isEnabled = false
                     etContent.isFocusable = false
                     etContent.clearFocus()
-
-                    // DB 최종 저장 처리 호출
-                    saveCurrentDiary(contentText, currentSelectedColor, tempSelectedEmotion)
-
                     // 메모지 위치를 자유롭게 옮길 수 있도록 드래그 리스너 부착
                     makeViewDraggable(postIt)
-
-                    binding.layoutPostItSetting.visibility = View.GONE
-                    currentActivePostIt = null
+                    // DB 최종 저장 처리 호출
+                    saveCurrentDiaryWithPosition()
                 } else {
                     Toast.makeText(requireContext(), "내용을 입력해야 저장할 수 있습니다.", Toast.LENGTH_SHORT).show()
                 }
@@ -265,19 +274,81 @@ class DiaryFragment : Fragment() {
             saveCurrentDiaryWithPosition()
         }
 
-        // 6. 단일 선택 그룹 리스너 설정
+        initSingleChoiceGroups()
+    }
+
+    private fun initSingleChoiceGroups() {
         setupSingleChoiceGroup(
-            listOf(binding.btnRepeatAuto, binding.btnRepeatUser, binding.btnRepeatNone),
-            defaultSelectedIndex = 2
+            mapOf(
+                binding.btnRepeatAuto to R.drawable.bg_repeatauto,
+                binding.btnRepeatUser to R.drawable.bg_repeatuser,
+                binding.btnRepeatNone to R.drawable.bg_repeatnone
+            ),
+            defaultSelectedView = binding.btnRepeatNone
         )
+
         setupSingleChoiceGroup(
-            listOf(binding.btnEndDateNone, binding.btnEndDateUser),
-            defaultSelectedIndex = 0
+            mapOf(
+                binding.btnEndDateNone to R.drawable.bg_repeatnone,
+                binding.btnEndDateUser to R.drawable.bg_repeatuser
+            ),
+            defaultSelectedView = binding.btnEndDateNone
         )
+
         setupSingleChoiceGroup(
-            listOf(binding.btnVisibilityPublic, binding.btnVisibilityFriendOnly, binding.btnVisibilityPrivate),
-            defaultSelectedIndex = 0
+            mapOf(
+                binding.btnVisibilityPublic to R.drawable.bg_public,
+                binding.btnVisibilityFriendOnly to R.drawable.bg_friendonly,
+                binding.btnVisibilityPrivate to R.drawable.bg_private
+            ),
+            defaultSelectedView = binding.btnVisibilityPublic
         )
+    }
+
+    private fun resetPostItSettingUI() {
+        currentSelectedColor = "yellow"
+        selectedEmotions.clear()
+        tempSelectedEmotions.clear()
+        selectedTags.clear()
+
+        // 1. 태그 상태 원복
+        binding.chipTagDaily.background = null
+        binding.chipTagWork.background = null
+        binding.layoutDynamicTagsContainer.removeAllViews()
+
+        // 2. 선택된 감정 컨테이너 초기화 및 '선택' 버튼 다시 표시
+        binding.layoutSelectedEmotionsContainer.removeAllViews()
+        binding.btnSelectEmotion.visibility = View.VISIBLE
+
+        // 3. 반복, 종료일, 공개범위 단일 선택 버튼 그룹 기본값으로 리셋
+        initSingleChoiceGroups()
+    }
+
+    // 설정창 내 선택된 감정 칩들 뿌리기
+    private fun renderSelectedEmotionsInSetting() {
+        binding.layoutSelectedEmotionsContainer.removeAllViews()
+
+        if (selectedEmotions.isNotEmpty()) {
+            for (emotion in selectedEmotions) {
+                val emotionChip = TextView(requireContext()).apply {
+                    text = getString(R.string.emotion_chip_format, emotion)
+                    setBackgroundColor("#FFF59D".toColorInt())
+                    setPadding(16, 4, 16, 4)
+                    setTextColor(android.graphics.Color.BLACK)
+                    textSize = 12f
+
+                    val params = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply { marginEnd = 8 }
+                    layoutParams = params
+                }
+                binding.layoutSelectedEmotionsContainer.addView(emotionChip)
+            }
+            binding.btnSelectEmotion.visibility = View.GONE
+        } else {
+            binding.btnSelectEmotion.visibility = View.VISIBLE
+        }
     }
 
     // 설정창에서 색상 클릭 시 현재 활성화된 포스트잇의 이미지 에셋을 교체하는 함수
@@ -366,9 +437,21 @@ class DiaryFragment : Fragment() {
     private fun restoreTags(diary: DiaryEntity) {
         if (diary.tag.isNotBlank()) {
             val tags = diary.tag.split(",")
-            for (tagName in tags) {
-                addCustomTagChip(tagName) // 기존 화면 구성 함수 재활용
-                selectedTags.add(tagName) // 상태 복원
+            for (rawTag in tags) {
+                val tagName = rawTag.trim().replace("#", "")
+                if (tagName.isBlank()) continue
+
+                selectedTags.add(tagName)
+
+                // XML에 이미 존재하는 기본 고정 태그면 하이라이트만 켜줌
+                when (tagName) {
+                    "일상" -> binding.chipTagDaily.setBackgroundColor("#FFF59D".toColorInt())
+                    "업무" -> binding.chipTagWork.setBackgroundColor("#FFF59D".toColorInt())
+                    else -> {
+                        // 사용자 정의 태그만 동적으로 생성
+                        addCustomTagChip(tagName)
+                    }
+                }
             }
         }
     }
@@ -379,7 +462,12 @@ class DiaryFragment : Fragment() {
             val postIts = withContext(Dispatchers.IO) {
                 db.diaryDao().getPostItsByDate(dateKey)
             }
+
+            // 💡 [수정] 다이어리 컨테이너와 동적 태그 컨테이너 초기화
             binding.layoutDiaryContainer.removeAllViews()
+            binding.layoutDynamicTagsContainer.removeAllViews()
+            selectedTags.clear()
+
             if (postIts.isEmpty()) {
                 binding.tvEmptyHint.visibility = View.VISIBLE
             } else {
@@ -438,88 +526,66 @@ class DiaryFragment : Fragment() {
         binding.layoutPostItSetting.visibility = View.VISIBLE
     }
 
-    // 💡 [구현 완료] 설정 완료 시 비동기로 Room DB에 물리 적재하는 핵심 로직
-    private fun saveCurrentDiary(content: String, color: String, emotion: String) {
-        val dateKey = dateFormat.format(selectedDateCalendar.time)
-
-        // 선택된 태그 세트를 "일상,업무,운동" 형태의 문자열로 변환
-        val tagsString = selectedTags.joinToString(",")
-
-        val newDiary = DiaryEntity(
-            createdAt = dateKey,
-            content = content,
-            color = color,
-            emotionStamp = emotion,
-            tag = tagsString, // 💡 DiaryEntity의 tag 컬럼에 직접 저장
-            userId = 1
-        )
-
-        lifecycleScope.launch(Dispatchers.IO) {
-            val db = AppDatabase.getDatabase(requireContext())
-            db.diaryDao().insertPostIt(newDiary)
-
-            withContext(Dispatchers.Main) {
-                Toast.makeText(requireContext(), "기록이 안전하게 저장되었습니다.", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
     private fun saveCurrentDiaryWithPosition() {
         val dateKey = dateFormat.format(selectedDateCalendar.time)
         val tagsString = selectedTags.joinToString(",")
-
         val emotionsString = selectedEmotions.joinToString(",")
-        // 현재 작업 중인 활성 포스트잇이 있거나 컨테이너에 배치된 뷰가 있는지 확인
-        val targetView = currentActivePostIt ?: binding.layoutDiaryContainer.getChildAt(0)
 
-        if (targetView == null) {
+        val container = binding.layoutDiaryContainer
+        val childCount = container.childCount
+
+        if (childCount == 0 || (childCount == 1 && container.getChildAt(0) is TextView && container.getChildAt(0).id == R.id.tvEmptyHint)) {
             Toast.makeText(requireContext(), "저장할 메모지 내용이 없습니다.", Toast.LENGTH_SHORT).show()
             return
         }
 
-        val etContent = targetView.findViewById<EditText>(R.id.etPostItContent)
-        val contentText = etContent.text.toString().trim()
-
-        if (contentText.isBlank()) {
-            Toast.makeText(requireContext(), "내용을 입력해야 저장할 수 있습니다.", Toast.LENGTH_SHORT).show()
-            return
-        }
-        val existingDiaryId = (targetView.getTag(R.id.ivPostItBg) as? Int) ?: 0
-        val postItColor = (targetView.tag as? String) ?: currentSelectedColor
-
-        // 💡 이동된 좌표값(translationX, translationY) 추출
-        val posX = targetView.translationX
-        val posY = targetView.translationY
-
-        val newDiary = DiaryEntity(
-            diaryId = existingDiaryId,
-            createdAt = dateKey,
-            content = contentText,
-            color = postItColor,
-            tag = tagsString,
-            emotionStamp = emotionsString,
-            isHighlighted = isHighlightedState,
-            visibility = currentVisibility,
-            positionX = posX,
-            positionY = posY,
-            userId = 1
-        )
-
+        // 💡 [수정] 백그라운드 스레드에서 순차적으로 저장 후 ID 반영
         lifecycleScope.launch(Dispatchers.IO) {
             val db = AppDatabase.getDatabase(requireContext())
-            // DB에 저장 (OnConflictStrategy.REPLACE에 의해 diaryId가 같으면 덮어씌워짐!)
-            val savedId = db.diaryDao().insertPostIt(newDiary)
+
+            for (i in 0 until childCount) {
+                // 메인 스레드에서 UI 뷰 데이터 추출
+                val childView = withContext(Dispatchers.Main) { container.getChildAt(i) }
+                if (childView is TextView && childView.id == R.id.tvEmptyHint) continue
+
+                val etContent = childView.findViewById<EditText>(R.id.etPostItContent) ?: continue
+                val contentText = etContent.text.toString().trim()
+
+                if (contentText.isNotBlank()) {
+                    val existingDiaryId = (childView.getTag(R.id.ivPostItBg) as? Int) ?: 0
+                    val postItColor = (childView.tag as? String) ?: currentSelectedColor
+                    val posX = childView.translationX
+                    val posY = childView.translationY
+
+                    val newDiary = DiaryEntity(
+                        diaryId = existingDiaryId, // 0이면 INSERT, 기존 ID면 UPDATE
+                        createdAt = dateKey,
+                        content = contentText,
+                        color = postItColor,
+                        tag = tagsString,
+                        emotionStamp = emotionsString,
+                        isHighlighted = isHighlightedState,
+                        visibility = currentVisibility,
+                        positionX = posX,
+                        positionY = posY,
+                        userId = 1
+                    )
+
+                    // DB 저장 수행 후 발급된 ID 세팅
+                    val savedId = db.diaryDao().insertPostIt(newDiary)
+
+                    withContext(Dispatchers.Main) {
+                        childView.setTag(R.id.ivPostItBg, savedId.toInt())
+                        etContent.isEnabled = false
+                        etContent.clearFocus()
+                        makeViewDraggable(childView)
+                    }
+                }
+            }
 
             withContext(Dispatchers.Main) {
                 Toast.makeText(requireContext(), "저장되었습니다!", Toast.LENGTH_SHORT).show()
-
-                // 💡 [핵심 3] 신규 생성된 ID를 뷰에 다시 기록하여 다음 저장 때 복제 방지
-                targetView.setTag(R.id.ivPostItBg, savedId.toInt())
-
-                etContent.isEnabled = false
-                etContent.clearFocus()
-                makeViewDraggable(targetView)
                 binding.layoutPostItSetting.visibility = View.GONE
-
                 currentActivePostIt = null
                 selectedEmotions.clear()
             }
@@ -564,7 +630,6 @@ class DiaryFragment : Fragment() {
         builder.show()
     }
 
-    // 💡 텍스트를 받아 동적으로 태그 TextView 칩을 만들어 컨테이너에 추가하는 메서드
     private fun addCustomTagChip(tagName: String) {
         val density = resources.displayMetrics.density
         val heightInPx = (26 * density).toInt()
@@ -589,10 +654,11 @@ class DiaryFragment : Fragment() {
             setOnClickListener {
                 if (selectedTags.contains(tagName)) {
                     selectedTags.remove(tagName)
+                    // 해제 시 투명 배경으로 안전하게 원상복구
                     setBackgroundColor(android.graphics.Color.TRANSPARENT)
                 } else {
                     selectedTags.add(tagName)
-                    setBackgroundColor("#FFF59D".toColorInt()) // 선택 색상
+                    setBackgroundColor("#FFF59D".toColorInt())
                 }
             }
         }

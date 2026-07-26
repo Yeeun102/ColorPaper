@@ -11,5 +11,7 @@ data class CommentEntity(
     @ColumnInfo(name = "content") val content: String,
     @ColumnInfo(name = "color") val color: String = "orange", // 💡 [기존 코드 통합] 댓글 포스트잇 색상
     @ColumnInfo(name = "timestamp") val timestamp: String = "",
-    @ColumnInfo(name = "created_at") val createdAt: Long = System.currentTimeMillis()
+    @ColumnInfo(name = "created_at") val createdAt: Long = System.currentTimeMillis(),
+    @ColumnInfo(name = "position_x") val posX: Float = 0f,
+    @ColumnInfo(name = "position_y") val posY: Float = 0F
 )

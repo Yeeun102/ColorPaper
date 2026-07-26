@@ -14,8 +14,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.example.colorpaper.R
-import com.example.colorpaper.data.model.FlashcardItem
-import com.example.colorpaper.data.model.FlashcardSet
+import com.example.colorpaper.data.model.FolderEntity
+import com.example.colorpaper.data.model.WordEntity
 import com.example.colorpaper.databinding.FragmentFlashcardCreateBinding
 import com.example.colorpaper.data.local.AppDatabase
 import java.io.BufferedReader
@@ -125,24 +125,24 @@ class FlashcardCreateFragment : Fragment() {
             val dao = AppDatabase.getDatabase(requireContext()).flashcardDao()
 
             withContext(Dispatchers.IO) {
-                val newSet = FlashcardSet(
+                val newFolder = FolderEntity(
                     userId = 1, // Using 1 for now as seen in ProfileEditFragment
-                    title = if (setTitle.startsWith("#")) setTitle else "#$setTitle",
+                    folderName = if (setTitle.startsWith("#")) setTitle else "#$setTitle",
                     visibility = visibility
                 )
-                val generatedSetId = dao.insertSet(newSet)
+                val generatedFolderId = dao.insertFolder(newFolder).toInt()
 
-                val itemsToInsert = mutableListOf<FlashcardItem>()
+                val itemsToInsert = mutableListOf<WordEntity>()
                 for (view in cardViewsList) {
                     val question = view.findViewById<EditText>(R.id.etQuestion).text.toString().trim()
                     val answer = view.findViewById<EditText>(R.id.etAnswer).text.toString().trim()
 
                     if (question.isNotEmpty() && answer.isNotEmpty()) {
                         itemsToInsert.add(
-                            FlashcardItem(
-                                setId = generatedSetId,
-                                question = question,
-                                answer = answer
+                            WordEntity(
+                                folderId = generatedFolderId,
+                                wordQuestion = question,
+                                wordAnswer = answer
                             )
                         )
                     }

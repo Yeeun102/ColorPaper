@@ -7,18 +7,18 @@ import androidx.room.RoomDatabase
 import com.example.colorpaper.data.model.CommentEntity
 import com.example.colorpaper.data.model.DiaryEntity
 import com.example.colorpaper.data.model.DiaryTagEntity
-import com.example.colorpaper.data.model.FlashcardItem
-import com.example.colorpaper.data.model.FlashcardSet
+import com.example.colorpaper.data.model.FolderEntity
 import com.example.colorpaper.data.model.FriendEntity
 import com.example.colorpaper.data.model.InteractionEntity
 import com.example.colorpaper.data.model.TagEntity
 import com.example.colorpaper.data.model.TodoEntity
 import com.example.colorpaper.data.model.UserEntity
+import com.example.colorpaper.data.model.WordEntity
 
 @Database(
     entities = [
-        FlashcardSet::class,
-        FlashcardItem::class,
+        FolderEntity::class,
+        WordEntity::class,
         UserEntity::class,
         TodoEntity::class,
         DiaryEntity::class,
@@ -35,8 +35,6 @@ abstract class AppDatabase : RoomDatabase() {
 
     abstract fun flashcardDao(): FlashcardDao
     abstract fun userDao(): UserDao
-    abstract fun diaryDao(): DiaryDao
-
     abstract fun diaryDao(): DiaryDao
 
     companion object {

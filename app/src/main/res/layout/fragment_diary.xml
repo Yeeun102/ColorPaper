@@ -23,7 +23,7 @@
             android:id="@+id/tvDateTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="6월 30일"
+            android:text="@string/example_date"
             android:textSize="18sp"
             android:textStyle="bold"
             android:textColor="#333333" />
@@ -96,7 +96,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginBottom="12dp"
-        app:layout_constraintBottom_toTopOf="@id/layoutToolbarDecorate"
+        app:layout_constraintTop_toBottomOf="@id/ivFixedDiaryPage"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
@@ -138,6 +138,55 @@
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent"/>
     </androidx.constraintlayout.widget.ConstraintLayout>
+    <!-- 하단 툴바 1: 꾸미기 용도 (포스트잇추가, 형광펜, 텍스트, 이모지, 댓글) -->
+    <LinearLayout
+        android:id="@+id/layoutToolbarDecorate"
+        android:layout_width="0dp"
+        android:layout_height="50dp"
+        android:background="@android:color/darker_gray"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginBottom="8dp"
+        app:layout_constraintTop_toBottomOf="@id/layoutMetaActions"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ImageButton
+            android:id="@+id/btnToolbarAdd"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackground"
+            android:src="@android:drawable/ic_input_add"
+            android:contentDescription="@string/createEmptyPostit" />
+
+        <ImageButton
+            android:id="@+id/btnToolbarPen"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackground"
+            android:src="@android:drawable/ic_menu_edit"
+            android:contentDescription="@string/highlight" />
+
+        <ImageButton
+            android:id="@+id/btnToolbarText"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackground"
+            android:src="@android:drawable/ic_menu_sort_alphabetically"
+            android:contentDescription="@string/enterText" />
+
+        <ImageButton
+            android:id="@+id/btnToolbarComment"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackground"
+            android:src="@android:drawable/sym_action_chat"
+            android:contentDescription="@string/self_comment" />
+    </LinearLayout>
 
     <LinearLayout
         android:id="@+id/layoutPostItSetting"
@@ -147,8 +196,8 @@
         android:background="@drawable/bg_comment_btn"
         android:padding="16dp"
         android:visibility="gone"
-        android:layout_marginBottom="8dp"
-        app:layout_constraintBottom_toTopOf="@id/layoutToolbarDecorate"
+        app:layout_constraintBottom_toBottomOf="parent"
+        android:layout_marginBottom="200dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         tools:visibility="visible">
@@ -395,7 +444,7 @@
         android:padding="16dp"
         android:visibility="gone"
         android:elevation="8dp"
-        app:layout_constraintBottom_toTopOf="@id/layoutToolbarDecorate"
+        app:layout_constraintTop_toTopOf="@id/layoutPostItSetting"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         tools:visibility="visible">
@@ -440,76 +489,6 @@
             <TextView android:id="@+id/emo11" android:layout_width="0dp" android:layout_weight="1" android:layout_height="26dp" android:text="#불안해요" android:gravity="center" android:background="@drawable/bg_anxious" android:layout_marginEnd="4dp" android:textSize="11sp"/>
             <TextView android:id="@+id/emo12" android:layout_width="0dp" android:layout_weight="1" android:layout_height="26dp" android:text="#슬퍼요" android:gravity="center" android:background="@drawable/bg_sad" android:textSize="11sp"/>
         </LinearLayout>
-    </LinearLayout>
-
-    <!-- 하단 툴바 1: 꾸미기 용도 (포스트잇추가, 형광펜, 텍스트, 이모지, 댓글) -->
-    <LinearLayout
-        android:id="@+id/layoutToolbarDecorate"
-        android:layout_width="0dp"
-        android:layout_height="50dp"
-        android:background="@android:color/darker_gray"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:layout_marginBottom="8dp"
-        app:layout_constraintBottom_toTopOf="@id/layoutToolbarNav"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <ImageButton
-            android:id="@+id/btnToolbarAdd"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:background="?attr/selectableItemBackground"
-            android:src="@android:drawable/ic_input_add"
-            android:contentDescription="@string/createEmptyPostit" />
-
-        <ImageButton
-            android:id="@+id/btnToolbarPen"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:background="?attr/selectableItemBackground"
-            android:src="@android:drawable/ic_menu_edit"
-            android:contentDescription="@string/highlight" />
-
-        <ImageButton
-            android:id="@+id/btnToolbarText"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:background="?attr/selectableItemBackground"
-            android:src="@android:drawable/ic_menu_sort_alphabetically"
-            android:contentDescription="@string/enterText" />
-
-        <ImageButton
-            android:id="@+id/btnToolbarComment"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:background="?attr/selectableItemBackground"
-            android:src="@android:drawable/sym_action_chat"
-            android:contentDescription="셀프댓글(오늘 비활성화)" />
-    </LinearLayout>
-
-    <!-- 하단 툴바 2: 대메뉴 이동 네비게이션 링 -->
-    <LinearLayout
-        android:id="@+id/layoutToolbarNav"
-        android:layout_width="0dp"
-        android:layout_height="50dp"
-        android:background="@android:color/darker_gray"
-        android:orientation="horizontal"
-        android:gravity="center"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-        <!--
-        <ImageView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:src="@android:drawable/ic_menu_agenda" />
-        <ImageView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:src="@android:drawable/ic_menu_book" />
-        <ImageView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:src="@android:drawable/ic_menu_gallery" />
-        <ImageView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:src="@android:drawable/ic_menu_myplaces" />
-        <ImageView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:src="@android:drawable/ic_menu_manage" />
-   -->
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -11,7 +11,7 @@ import android.view.ViewGroup
 import com.example.colorpaper.R
 import com.example.colorpaper.databinding.FragmentFlashcardBinding
 import com.example.colorpaper.data.local.AppDatabase
-import com.example.colorpaper.data.model.FlashcardSet
+import com.example.colorpaper.data.model.FolderEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -40,8 +40,8 @@ class FlashcardFragment : Fragment() {
             onStartClick = { selectedSet ->
                 // 기존 클릭 시 학습 화면 이동 로직
                 val bundle = Bundle().apply {
-                    putLong("SET_ID", selectedSet.setId)
-                    putString("SET_TITLE", selectedSet.title)
+                    putInt("SET_ID", selectedSet.folderId)
+                    putString("SET_TITLE", selectedSet.folderName)
                 }
                 val studyFragment = FlashcardStudyFragment().apply { arguments = bundle }
                 parentFragmentManager.beginTransaction()
@@ -91,10 +91,10 @@ class FlashcardFragment : Fragment() {
         }
     }
 
-private fun showDeleteDialog(flashcardSet: FlashcardSet) {
+private fun showDeleteDialog(flashcardSet: FolderEntity) {
     android.app.AlertDialog.Builder(requireContext())
         .setTitle("단어장 삭제")
-        .setMessage("${flashcardSet.title} 단어장을 정말 삭제하시겠습니까?\n내부 카드들도 함께 삭제됩니다.")
+        .setMessage("${flashcardSet.folderName} 단어장을 정말 삭제하시겠습니까?\n내부 카드들도 함께 삭제됩니다.")
         .setPositiveButton("삭제") { _, _ ->
 
             lifecycleScope.launch {
