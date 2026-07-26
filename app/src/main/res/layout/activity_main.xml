@@ -1,19 +1,84 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".MainActivity">
+    android:background="@color/theme_rose_background">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Hello World!"
-        app:layout_constraintBottom_toBottomOf="parent"
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/fragment_container"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toTopOf="@id/bottom_navigation_bar"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/bottom_navigation_bar"
+        android:layout_width="0dp"
+        android:layout_height="@dimen/bottom_nav_height"
+        android:layout_marginStart="@dimen/bottom_nav_horizontal_margin"
+        android:layout_marginEnd="@dimen/bottom_nav_horizontal_margin"
+        android:layout_marginBottom="@dimen/bottom_nav_bottom_margin"
+        app:cardBackgroundColor="@color/theme_rose_checklist"
+        app:cardCornerRadius="@dimen/bottom_nav_corner_radius"
+        app:cardElevation="3dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:strokeColor="@color/theme_rose_stroke"
+        app:strokeWidth="1dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingHorizontal="8dp">
+
+            <LinearLayout android:id="@+id/nav_flashcard" style="@style/HomeBottomNavItem">
+                <ImageView
+                    android:id="@+id/icon_flashcard"
+                    style="@style/HomeBottomNavIcon"
+                    android:contentDescription="리마인드"
+                    android:src="@drawable/ic_nav_reminder" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/nav_diary" style="@style/HomeBottomNavItem">
+                <ImageView
+                    android:id="@+id/icon_diary"
+                    style="@style/HomeBottomNavIcon"
+                    android:contentDescription="암기카드"
+                    android:src="@drawable/ic_nav_book" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/nav_home" style="@style/HomeBottomNavItem">
+                <ImageView
+                    android:id="@+id/icon_home"
+                    style="@style/HomeBottomNavIcon"
+                    android:contentDescription="홈"
+                    android:src="@drawable/ic_nav_home" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/nav_profile" style="@style/HomeBottomNavItem">
+                <ImageView
+                    android:id="@+id/icon_profile"
+                    style="@style/HomeBottomNavIcon"
+                    android:contentDescription="프로필"
+                    android:src="@drawable/ic_nav_profile" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/nav_setting" style="@style/HomeBottomNavItem">
+                <ImageView
+                    android:id="@+id/icon_setting"
+                    style="@style/HomeBottomNavIcon"
+                    android:contentDescription="설정"
+                    android:src="@drawable/ic_nav_setting" />
+            </LinearLayout>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

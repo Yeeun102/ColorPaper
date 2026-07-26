@@ -2,4 +2,46 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="home_theme">#927878</color>
+    <color name="home_widget_stroke">#705C5C</color>
+    <color name="home_widget_calendar">#E1E1E1</color>
+    <color name="home_widget_checklist">#E8CECE</color>
+    <color name="home_widget_todo">#F3EAEA</color>
+    <color name="home_widget_years_ago">#E3CDCD</color>
+    <color name="home_widget_reminder">#927878</color>
+    <color name="home_switch_off">#B9B5B5</color>
+
+    <!-- Theme palettes: add a new palette here, then map it in ThemeManager. -->
+    <color name="theme_rose_background">#FAF8F8</color>
+    <color name="theme_rose_accent">#927878</color>
+    <color name="theme_rose_stroke">#705C5C</color>
+    <color name="theme_rose_text">#443838</color>
+    <color name="theme_rose_switch_off">#B9B5B5</color>
+    <color name="theme_rose_calendar">#E1E1E1</color>
+    <color name="theme_rose_checklist">#E8CECE</color>
+    <color name="theme_rose_todo">#F3EAEA</color>
+    <color name="theme_rose_years_ago">#E3CDCD</color>
+    <color name="theme_rose_reminder">#CEB0B0</color>
+
+    <color name="theme_sage_background">#F7F9F5</color>
+    <color name="theme_sage_accent">#71806B</color>
+    <color name="theme_sage_stroke">#566251</color>
+    <color name="theme_sage_text">#354032</color>
+    <color name="theme_sage_switch_off">#B7BDB4</color>
+    <color name="theme_sage_calendar">#E4E8E1</color>
+    <color name="theme_sage_checklist">#DDE7D8</color>
+    <color name="theme_sage_todo">#EDF2EA</color>
+    <color name="theme_sage_years_ago">#D3DFCF</color>
+    <color name="theme_sage_reminder">#B9C9B2</color>
+
+    <color name="theme_sky_background">#F6F9FB</color>
+    <color name="theme_sky_accent">#687F91</color>
+    <color name="theme_sky_stroke">#4D6272</color>
+    <color name="theme_sky_text">#30424F</color>
+    <color name="theme_sky_switch_off">#B5BCC2</color>
+    <color name="theme_sky_calendar">#E1E7EB</color>
+    <color name="theme_sky_checklist">#D8E6EE</color>
+    <color name="theme_sky_todo">#EAF1F5</color>
+    <color name="theme_sky_years_ago">#CFDEE7</color>
+    <color name="theme_sky_reminder">#B5CBD8</color>
 </resources>
