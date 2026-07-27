@@ -1,6 +1,8 @@
 package com.example.colorpaper.ui.diary
 
 import android.annotation.SuppressLint
+import android.app.DatePickerDialog
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -9,14 +11,17 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.EditText
+import android.widget.Button
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import androidx.core.graphics.toColorInt
 import com.example.colorpaper.R
 import com.example.colorpaper.databinding.FragmentDiaryDetailBinding
 import com.example.colorpaper.data.local.AppDatabase
 import com.example.colorpaper.data.model.DiaryEntity
 import com.example.colorpaper.data.model.CommentEntity
+import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -44,6 +49,28 @@ class DiaryDetailFragment : Fragment() {
     )
 
     private var targetDate: String = ""
+    private var currentVisibility: String = "전체공개"
+
+    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+
+    private var buttonColorMap: Map<Button, Int> = emptyMap()
+
+    private fun applyCustomButtonState(button: Button, isSelected: Boolean, originalColor: Int = 0) {
+        if (button is MaterialButton) {
+            val density = resources.displayMetrics.density
+            val defaultColor = if (originalColor != 0) originalColor else (buttonColorMap[button] ?: "#E4D0D0".toColorInt())
+
+            if (isSelected) {
+                button.backgroundTintList = ColorStateList.valueOf("#FFF59D".toColorInt())
+                button.strokeColor = ColorStateList.valueOf("#000000".toColorInt())
+                button.strokeWidth = (2 * density).toInt()
+            } else {
+                button.backgroundTintList = ColorStateList.valueOf(defaultColor)
+                button.strokeColor = ColorStateList.valueOf("#000000".toColorInt())
+                button.strokeWidth = (1 * density).toInt()
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,30 +87,56 @@ class DiaryDetailFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        try {
-            val sourceDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(targetDate)
-            if (sourceDate != null) {
-                binding.tvDetailDateTitle.text = SimpleDateFormat("M월 d일", Locale.getDefault()).format(sourceDate)
-            } else {
-                binding.tvDetailDateTitle.text = targetDate
-            }
-        } catch (e: Exception) {
-            binding.tvDetailDateTitle.text = targetDate
+        buttonColorMap = mapOf(
+            binding.btnVisibilityDetail to "#E4D0D0".toColorInt(),
+            binding.btnSaveDetail to "#867070".toColorInt()
+        )
+
+        updateTitleDateText()
+
+        binding.btnDatePickerDetail.setOnClickListener {
+            showDatePicker()
         }
 
         // 과거 기록이므로 편집 기능(추가 버튼, 저장 버튼) 제거 및 숨김 규칙 적용
         binding.btnSaveDetail.visibility = View.VISIBLE
+
         binding.btnToolbarAddDetail.isEnabled = false
         binding.btnToolbarAddDetail.alpha = 0.3f
 
         // 기존 일기 및 저장된 댓글 로드
         loadDiaryAndComments()
+
         binding.btnSaveDetail.setOnClickListener {
             saveAllCommentsPositions()
         }
 
-        // 💡 [정리 완료] 중복 메서드를 지우고 이벤트 리스너 내부를 정교하게 픽스했습니다.
+        binding.btnVisibilityDetail.setOnClickListener {
+            if (currentVisibility == "전체공개") {
+                currentVisibility = "비공개"
+                binding.btnVisibilityDetail.text = getString(R.string.flashcard_private)
+                applyCustomButtonState(binding.btnVisibilityDetail, isSelected = true)
+            } else {
+                currentVisibility = "전체공개"
+                binding.btnVisibilityDetail.text = getString(R.string.flashcard_public)
+                applyCustomButtonState(binding.btnVisibilityDetail, isSelected = false)
+            }
+        }
+
+        val todayStr = dateFormat.format(Date())
+        val isFutureDate = targetDate > todayStr
+
+        if (isFutureDate) {
+            binding.btnToolbarCommentDetail.alpha = 0.3f
+        } else {
+            binding.btnToolbarCommentDetail.alpha = 1.0f
+        }
+
         binding.btnToolbarCommentDetail.setOnClickListener {
+            if (isFutureDate) {
+                Toast.makeText(requireContext(), "미래의 일기에는 댓글을 작성할 수 없습니다.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
             // 1. 4가지 색상 파일 중 하나를 무작위로 고름
             val randomColor = listOf("orange", "yellow", "green", "blue").random()
 
@@ -100,31 +153,20 @@ class DiaryDetailFragment : Fragment() {
             val btnCommentDone = commentView.findViewById<TextView>(R.id.btnCommentDone)
             val tvTime = commentView.findViewById<TextView>(R.id.tvCommentTime)
 
-            try {
-                val parsedDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(targetDate)
-                if (parsedDate != null) {
-                    tvTime.text = SimpleDateFormat("yyyy.MM.dd", Locale.getDefault()).format(parsedDate)
-                } else {
-                    tvTime.text = targetDate
-                }
-            } catch (e: Exception) {
-                tvTime.text = targetDate
-            }
+            val todayDateStr = dateFormat.format(Date())
+            tvTime.text = todayDateStr
+
             commentView.tag = randomColor
             makeViewDraggable(commentView)
             // 4. 등록 버튼(TextView)을 누르면 입력된 값을 가져와서 Room DB에 최종 저장!
             btnCommentDone.setOnClickListener {
                 val text = etCommentContent.text.toString().trim()
                 if (text.isNotBlank()) {
-                    val currentTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
-                    tvTime.text = currentTime
-
-                    // 완벽하게 락(Lock) 걸기: 수정 불가 상태로 전환 및 포커스 강제 해제
                     etCommentContent.isEnabled = false
                     etCommentContent.clearFocus()
                     btnCommentDone.visibility = View.GONE
 
-                    insertCommentToDb(commentView, text, randomColor, currentTime)
+                    insertCommentToDb(commentView, text, randomColor, todayDateStr)
 
                 } else {
                     Toast.makeText(requireContext(), "댓글 내용을 입력해 주세요.", Toast.LENGTH_SHORT).show()
@@ -133,7 +175,61 @@ class DiaryDetailFragment : Fragment() {
 
             // 5. 생성된 따끈따끈한 댓글 포스트잇을 화면 컨테이너에 즉시 추가
             binding.layoutCommentsContainer.addView(commentView)
+            commentView.bringToFront()
+            binding.layoutCommentsContainer.bringToFront()
         }
+    }
+
+    private fun updateTitleDateText() {
+        try {
+            val sourceDate = dateFormat.parse(targetDate)
+            if (sourceDate != null) {
+                binding.tvDetailDateTitle.text = SimpleDateFormat("M월 d일", Locale.getDefault()).format(sourceDate)
+            } else {
+                binding.tvDetailDateTitle.text = targetDate
+            }
+        } catch (e: Exception) {
+            binding.tvDetailDateTitle.text = targetDate
+        }
+    }
+
+    private fun showDatePicker() {
+        val cal = Calendar.getInstance()
+        try {
+            val parsedDate = dateFormat.parse(targetDate)
+            if (parsedDate != null) cal.time = parsedDate
+        } catch (_: Exception) {}
+
+        DatePickerDialog(
+            requireContext(),
+            { _, year, month, dayOfMonth ->
+                val targetCal = Calendar.getInstance().apply {
+                    set(year, month, dayOfMonth)
+                }
+
+                val todayStr = dateFormat.format(Date())
+                val selectedStr = dateFormat.format(targetCal.time)
+
+                if (selectedStr == todayStr) {
+                    // 오늘 날짜 선택 시 메인 다이어리 화면(DiaryFragment)으로 원복
+                    parentFragmentManager.popBackStack()
+                } else {
+                    // 다른 과거/미래 날짜 선택 시 새로운 DiaryDetailFragment로 교체
+                    val detailFragment = DiaryDetailFragment().apply {
+                        arguments = Bundle().apply {
+                            putString("TARGET_DATE", selectedStr)
+                        }
+                    }
+                    parentFragmentManager.beginTransaction()
+                        .replace(R.id.main, detailFragment)
+                        .addToBackStack(null)
+                        .commit()
+                }
+            },
+            cal.get(Calendar.YEAR),
+            cal.get(Calendar.MONTH),
+            cal.get(Calendar.DAY_OF_MONTH)
+        ).show()
     }
 
     private fun loadDiaryAndComments() {
@@ -208,7 +304,7 @@ class DiaryDetailFragment : Fragment() {
                         val colorName = (commentView.tag as? String) ?: "blue"
                         val posX = commentView.translationX
                         val posY = commentView.translationY
-                        val timeStr = tvTime.text.toString()
+                        val commentDate = tvTime.text.toString()
 
                         val updatedComment = CommentEntity(
                             commentId = existingCommentId,
@@ -217,7 +313,7 @@ class DiaryDetailFragment : Fragment() {
                             date = targetDate,
                             content = text,
                             color = colorName,
-                            timestamp = timeStr,
+                            timestamp = commentDate,
                             posX = posX,
                             posY = posY
                         )
@@ -240,8 +336,10 @@ class DiaryDetailFragment : Fragment() {
         val view = inflater.inflate(R.layout.item_diary_postit, binding.layoutDetailDiaryContainer, false)
 
         val ivBg = view.findViewById<ImageView>(R.id.ivPostItBg)
+        val tvDate = view.findViewById<TextView>(R.id.tvPostItDate)
         val etContent = view.findViewById<TextView>(R.id.etPostItContent)
 
+        tvDate.text = diary.createdAt
         etContent.text = diary.content
         etContent.isEnabled = false
 
@@ -267,7 +365,7 @@ class DiaryDetailFragment : Fragment() {
 
         // 기존 데이터 셋업 (CommentEntity 프로퍼티 바인딩)
         etCommentContent.setText(comment.content)
-        tvTime.text = comment.timestamp
+        tvTime.text = comment.timestamp.ifBlank { comment.date }
 
         val resId = commentResourceMap[comment.color] ?: R.drawable.comment_blue
         ivCommentBg.setImageResource(resId)

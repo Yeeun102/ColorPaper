@@ -3,6 +3,7 @@ package com.example.colorpaper.data.local
 import androidx.room.*
 import com.example.colorpaper.data.model.DiaryEntity
 import com.example.colorpaper.data.model.CommentEntity
+import com.example.colorpaper.data.model.HighlightEntity
 
 @Dao
 interface DiaryDao {
@@ -29,4 +30,13 @@ interface DiaryDao {
 
     @Delete
     suspend fun deleteDiary(diary: DiaryEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertHighlight(highlight: HighlightEntity)
+
+    @Query("SELECT * FROM highlight_table WHERE date = :date")
+    suspend fun getHighlightsByDate(date: String): List<HighlightEntity>
+
+    @Query("SELECT * FROM highlight_table ORDER BY highlightId DESC")
+    suspend fun getAllHighlights(): List<HighlightEntity> // 다른 화면에서 모아볼 때 사용
 }

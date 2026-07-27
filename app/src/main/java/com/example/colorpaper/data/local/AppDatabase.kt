@@ -9,6 +9,7 @@ import com.example.colorpaper.data.model.DiaryEntity
 import com.example.colorpaper.data.model.DiaryTagEntity
 import com.example.colorpaper.data.model.FolderEntity
 import com.example.colorpaper.data.model.FriendEntity
+import com.example.colorpaper.data.model.HighlightEntity
 import com.example.colorpaper.data.model.InteractionEntity
 import com.example.colorpaper.data.model.TagEntity
 import com.example.colorpaper.data.model.TodoEntity
@@ -26,9 +27,10 @@ import com.example.colorpaper.data.model.WordEntity
         InteractionEntity::class,
         FriendEntity::class,
         TagEntity::class,
-        DiaryTagEntity::class
+        DiaryTagEntity::class,
+        HighlightEntity::class
     ],
-    version = 3,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

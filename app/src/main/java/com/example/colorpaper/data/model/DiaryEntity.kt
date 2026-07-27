@@ -17,5 +17,6 @@ data class DiaryEntity(
     @ColumnInfo(name = "last_reminded_at") val lastRemindedAt: Long = 0, // 💡 마지막 알림 발송 시간 (망각곡선용)
     @ColumnInfo(name = "created_at") val createdAt: String, // 💡 "2026-07-20" (캘린더 매핑용 문자열)
     @ColumnInfo(name = "position_x") val positionX: Float = 0f,
-    @ColumnInfo(name = "position_y") val positionY: Float = 0f
+    @ColumnInfo(name = "position_y") val positionY: Float = 0f,
+    @ColumnInfo (name = "highlight_ranges") val highlightRanges: String = ""
 )
