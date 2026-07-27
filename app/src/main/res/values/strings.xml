@@ -55,4 +55,8 @@
     <string name="dialog_add_tag_hint">태그명을 입력하세요 (예: 운동)</string>
     <string name="action_add">추가</string>
     <string name="action_cancel">취소</string>
+    <string name="example_date">2026-06-30</string>
+    <string name="cannot_add_past">과거일기 추가 불가</string>
+    <string name="open_self_comment">셀프 댓글 작성 창 열기</string>
+    <string name="self_comment">셀프댓글(오늘 비활성화)</string>
 </resources>

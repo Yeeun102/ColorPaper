@@ -2,12 +2,19 @@ package com.example.colorpaper.ui.diary
 
 import android.annotation.SuppressLint
 import android.app.DatePickerDialog
+import android.content.res.ColorStateList
 import android.os.Bundle
+import android.graphics.Color
 import androidx.fragment.app.Fragment
+import android.text.Spanned
+import android.text.Spannable
+import android.text.SpannableString
+import android.text.style.BackgroundColorSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.MotionEvent
+import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.EditText
@@ -18,6 +25,8 @@ import com.example.colorpaper.R
 import com.example.colorpaper.databinding.FragmentDiaryBinding
 import com.example.colorpaper.data.local.AppDatabase
 import com.example.colorpaper.data.model.DiaryEntity
+import com.example.colorpaper.data.model.HighlightEntity
+import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -49,35 +58,43 @@ class DiaryFragment : Fragment() {
     private val displayFormat = SimpleDateFormat("M월 d일", Locale.getDefault())
     private var selectedDateCalendar = Calendar.getInstance()
 
-    private var emotionResMap: Map<TextView, Int> = emptyMap()
+    private var emotionColorMap: Map<Button, Int> = emptyMap()
+    private var buttonColorMap: Map<Button, Int> = emptyMap()
+
+
+    // 💡 버튼 선택(하이라이트 + 2dp 테두리) 및 원상복구 제어 유틸 함수
+    private fun applyCustomButtonState(button: Button, isSelected: Boolean, originalColor: Int = 0) {
+        if (button is MaterialButton) {
+            val density = resources.displayMetrics.density
+            val defaultColor = if (originalColor != 0) originalColor else (buttonColorMap[button] ?: "#EDEDED".toColorInt())
+
+            if (isSelected) {
+                button.backgroundTintList = ColorStateList.valueOf("#FFF59D".toColorInt())
+                button.strokeColor = ColorStateList.valueOf("#000000".toColorInt())
+                button.strokeWidth = (2 * density).toInt()
+            } else {
+                button.backgroundTintList = ColorStateList.valueOf(defaultColor)
+                button.strokeColor = ColorStateList.valueOf("#000000".toColorInt())
+                button.strokeWidth = (1 * density).toInt()
+            }
+        }
+    }
 
     private fun setupSingleChoiceGroup(
-        buttonResMap: Map<TextView, Int>,
-        defaultSelectedView: TextView
+        buttons: List<Button>,
+        defaultSelectedView: Button
     ) {
-        val buttons = buttonResMap.keys.toList()
+        buttons.forEach { button ->
+            // Set initial state
+            val isDefault = (button == defaultSelectedView)
+            applyCustomButtonState(button, isSelected = isDefault)
 
-        buttons.forEach { textView ->
-            val resId = buttonResMap[textView] ?: 0
-
-            // 초기 세팅
-            if (textView == defaultSelectedView) {
-                textView.setBackgroundColor("#FFF59D".toColorInt())
-            } else {
-                if (resId != 0) textView.setBackgroundResource(resId) else textView.background = null
-            }
-
-            // 클릭 시 이벤트
-            textView.setOnClickListener {
+            // Set click listener
+            button.setOnClickListener {
                 buttons.forEach { btn ->
-                    val btnResId = buttonResMap[btn] ?: 0
-                    if (btnResId != 0) {
-                        btn.setBackgroundResource(btnResId)
-                    } else {
-                        btn.background = null
-                    }
+                    applyCustomButtonState(btn, isSelected = false)
                 }
-                textView.setBackgroundColor("#FFF59D".toColorInt())
+                applyCustomButtonState(button, isSelected = true)
             }
         }
     }
@@ -92,38 +109,57 @@ class DiaryFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        emotionResMap = mapOf(
-            binding.emo1 to R.drawable.bg_happy,
-            binding.emo2 to R.drawable.bg_excited,
-            binding.emo3 to R.drawable.bg_satisfied,
-            binding.emo4 to R.drawable.bg_relaxed,
-            binding.emo5 to R.drawable.bg_annoyed,
-            binding.emo6 to R.drawable.bg_exhausted,
-            binding.emo7 to R.drawable.bg_angry,
-            binding.emo8 to R.drawable.bg_sleepy,
-            binding.emo9 to R.drawable.bg_depressed,
-            binding.emo10 to R.drawable.bg_upset,
-            binding.emo11 to R.drawable.bg_anxious,
-            binding.emo12 to R.drawable.bg_sad
+        buttonColorMap = mapOf(
+            binding.chipTagDaily to "#FFCDCD".toColorInt(),
+            binding.chipTagWork to "#EECDFF".toColorInt(),
+            binding.btnSelectEmotion to "#EDEDED".toColorInt(),
+            binding.btnRepeatAuto to "#ECECEC".toColorInt(),
+            binding.btnRepeatUser to "#D2FFDA".toColorInt(),
+            binding.btnRepeatNone to "#F0E2B4".toColorInt(),
+            binding.btnEndDateNone to "#F0E2B4".toColorInt(),
+            binding.btnEndDateUser to "#D2FFDA".toColorInt(),
+            binding.btnVisibilityPublic to "#DFD5FF".toColorInt(),
+            binding.btnVisibilityFriendOnly to "#D7E7FF".toColorInt(),
+            binding.btnVisibilityPrivate to "#FFD7D7".toColorInt()
         )
 
+        emotionColorMap = mapOf(
+            binding.emo1 to "#FFFDD0".toColorInt(),
+            binding.emo2 to "#FFB348".toColorInt(),
+            binding.emo3 to "#FFA4C8".toColorInt(),
+            binding.emo4 to "#E1FF48".toColorInt(),
+            binding.emo5 to "#BEFFBA".toColorInt(),
+            binding.emo6 to "#FFDDBD".toColorInt(),
+            binding.emo7 to "#FF0004".toColorInt(),
+            binding.emo8 to "#C0E1D2".toColorInt(),
+            binding.emo9 to "#BACFFF".toColorInt(),
+            binding.emo10 to "#DFBAFF".toColorInt(),
+            binding.emo11 to "#DC73FF".toColorInt(),
+            binding.emo12 to "#C7F0FF".toColorInt()
+        )
         // 초기 날짜 텍스트 세팅 및 오늘 데이터 로드
         updateDateText()
         loadTodayDiary()
-
         // 상단 달력 버튼 리스너 세팅
         binding.btnDatePicker.setOnClickListener {
             showDatePicker()
         }
-
         // 1. 플러스 버튼 누르면 새 메모지 생성 및 개별 설정창 노출
         binding.btnToolbarAdd.setOnClickListener {
             binding.tvEmptyHint.visibility = View.GONE
-
             // 기본값 초기화 후 새 필드 생성
             currentSelectedColor = "yellow"
             resetPostItSettingUI()
             addNewPostItField(currentSelectedColor)
+        }
+        // 💡 2. 형광펜 버튼 (btnToolbarPen) 클릭 처리
+        binding.btnToolbarPen.setOnClickListener {
+            applyHighlightToSelectedText()
+        }
+
+        // 💡 3. 텍스트 추가 버튼 (btnToolbarText) 클릭 처리
+        binding.btnToolbarText.setOnClickListener {
+            showAddDirectTextDialog()
         }
 
         // 2. 설정창 내부 색상 서클 클릭 시 -> 실시간 메모지 SVG 파일 교체
@@ -134,26 +170,36 @@ class DiaryFragment : Fragment() {
 
         // 3. 설정창 내부에서 '감정 선택하기' 클릭 시 팝업 활성화
         binding.btnSelectEmotion.setOnClickListener {
-            binding.layoutEmotionPopup.visibility = View.VISIBLE
+            openEmotionPopup()
         }
 
         // 4. 팝업 내부의 감정 칩 리스너 매핑 (#기뻐요 예시 및 기타 감정 확장 구조)
         val emotionClicker = View.OnClickListener { v ->
-            if (v is TextView) {
+            if (v is Button) {
                 val emotionText = v.text.toString().replace("#", "")
-                val origResId = emotionResMap[v] ?: 0
+                val defaultColor = emotionColorMap[v] ?: "#EDEDED".toColorInt()
 
                 if (tempSelectedEmotions.contains(emotionText)) {
                     tempSelectedEmotions.remove(emotionText)
-                    if (origResId != 0) v.setBackgroundResource(origResId) else v.background = null
+                    // 선택 해제: 본래 고유 색상 + 1dp 테두리로 원상복귀
+                    applyEmotionButtonState(v, isSelected = false, originalColor = defaultColor)
                 } else {
                     tempSelectedEmotions.add(emotionText)
-                    v.setBackgroundColor("#FFF59D".toColorInt()) // 선택 피드백
+                    // 선택: 노란색 배경 + 2dp 테두리 피드백
+                    applyEmotionButtonState(v, isSelected = true)
                 }
             }
         }
-        emotionResMap.keys.forEach { textView ->
-            textView.setOnClickListener(emotionClicker)
+        emotionColorMap.keys.forEach { button ->
+            button.setOnClickListener(emotionClicker)
+        }
+
+        binding.btnEmotionPopupConfirm.setOnClickListener {
+            binding.layoutEmotionPopup.visibility = View.GONE
+            selectedEmotions.clear()
+            selectedEmotions.addAll(tempSelectedEmotions)
+
+            renderSelectedEmotionsInSetting()
         }
 
         binding.emo1.setOnClickListener(emotionClicker)
@@ -178,14 +224,14 @@ class DiaryFragment : Fragment() {
             renderSelectedEmotionsInSetting()
         }
         val tagSelectListener = View.OnClickListener { v ->
-            if (v is TextView) {
+            if (v is Button) {
                 val tagName = v.text.toString().replace("#", "")
                 if (selectedTags.contains(tagName)) {
                     selectedTags.remove(tagName)
-                    v.background = null // 해제 시 투명 배경으로 복원
+                    applyCustomButtonState(v, isSelected = false)
                 } else {
                     selectedTags.add(tagName)
-                    v.setBackgroundColor("#FFF59D".toColorInt())
+                    applyCustomButtonState(v, isSelected = true)
                 }
             }
         }
@@ -195,35 +241,6 @@ class DiaryFragment : Fragment() {
         binding.btnAddCustomTag.setOnClickListener {
             showAddTagDialog()
         }
-
-        // 1. 반복주기 그룹 선택 반응 설정 (기본값: 안함)
-        setupSingleChoiceGroup(
-            mapOf(
-                binding.btnRepeatAuto to R.drawable.bg_repeatauto,
-                binding.btnRepeatUser to R.drawable.bg_repeatuser,
-                binding.btnRepeatNone to R.drawable.bg_repeatnone
-            ),
-            defaultSelectedView = binding.btnRepeatNone
-        )
-
-        // 2. 종료일자 그룹 선택 반응 설정 (기본값: 안함)
-        setupSingleChoiceGroup(
-            mapOf(
-                binding.btnEndDateNone to R.drawable.bg_repeatnone,
-                binding.btnEndDateUser to R.drawable.bg_repeatuser
-            ),
-            defaultSelectedView = binding.btnEndDateNone
-        )
-
-        // 3. 공개범위 그룹 선택 반응 설정 (기본값: 전체공개)
-        setupSingleChoiceGroup(
-            mapOf(
-                binding.btnVisibilityPublic to R.drawable.bg_public,
-                binding.btnVisibilityFriendOnly to R.drawable.bg_friendonly,
-                binding.btnVisibilityPrivate to R.drawable.bg_private
-            ),
-            defaultSelectedView = binding.btnVisibilityPublic
-        )
 
         // 6. [핵심] 설정창에서 '저장' 클릭 시 완전 잠금, DB 실제 적재, 자유 드래그 기믹 가동
         binding.btnSettingSave.setOnClickListener {
@@ -245,13 +262,12 @@ class DiaryFragment : Fragment() {
                 }
             }
         }
-        /*
+
         // (1) 공개여부 토글 버튼
         binding.btnVisibility.setOnClickListener {
             currentVisibility = if (currentVisibility == "전체공개") "비공개" else "전체공개"
             binding.btnVisibility.text = currentVisibility
         }
-        */
 
         // (2) [수정] 인스타그램식 하이라이트 토글 버튼
         binding.btnHighlightState.setOnClickListener {
@@ -259,12 +275,10 @@ class DiaryFragment : Fragment() {
             isHighlightedState = !isHighlightedState
 
             if (isHighlightedState) {
-                // 선택 시 시각적 하이라이트 피드백 (노란색 강조)
-                binding.btnHighlightState.setBackgroundColor("#FFF59D".toColorInt())
+                applyCustomButtonState(binding.btnHighlightState, isSelected = true)
                 Toast.makeText(requireContext(), "하이라이트에 등록하도록 설정되었습니다.", Toast.LENGTH_SHORT).show()
             } else {
-                // 해제 시 투명 배경으로 복원
-                binding.btnHighlightState.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                applyCustomButtonState(binding.btnHighlightState, isSelected = false)
                 Toast.makeText(requireContext(), "하이라이트 등록이 해제되었습니다.", Toast.LENGTH_SHORT).show()
             }
         }
@@ -277,30 +291,48 @@ class DiaryFragment : Fragment() {
         initSingleChoiceGroups()
     }
 
+    private fun applyEmotionButtonState(button: Button, isSelected: Boolean, originalColor: Int = 0) {
+        if (button is MaterialButton) {
+            val density = resources.displayMetrics.density
+            if (isSelected) {
+                button.backgroundTintList = ColorStateList.valueOf("#FFF59D".toColorInt())
+                button.strokeColor = ColorStateList.valueOf("#000000".toColorInt())
+                button.strokeWidth = (2 * density).toInt()
+            } else {
+                button.backgroundTintList = ColorStateList.valueOf(originalColor)
+                button.strokeColor = ColorStateList.valueOf("#000000".toColorInt())
+                button.strokeWidth = (1 * density).toInt()
+            }
+        }
+    }
+
+    private fun openEmotionPopup() {
+        tempSelectedEmotions.clear()
+        tempSelectedEmotions.addAll(selectedEmotions)
+
+        emotionColorMap.forEach { (button, defaultColor) ->
+            val emotionText = button.text.toString().replace("#", "")
+            val isSelected = tempSelectedEmotions.contains(emotionText)
+            applyCustomButtonState(button, isSelected = isSelected, originalColor = defaultColor)
+        }
+        binding.layoutEmotionPopup.visibility = View.VISIBLE
+    }
+
     private fun initSingleChoiceGroups() {
         setupSingleChoiceGroup(
-            mapOf(
-                binding.btnRepeatAuto to R.drawable.bg_repeatauto,
-                binding.btnRepeatUser to R.drawable.bg_repeatuser,
-                binding.btnRepeatNone to R.drawable.bg_repeatnone
-            ),
+            listOf(binding.btnRepeatAuto, binding.btnRepeatUser, binding.btnRepeatNone),
             defaultSelectedView = binding.btnRepeatNone
         )
 
+        // 2. End Date (Default: None)
         setupSingleChoiceGroup(
-            mapOf(
-                binding.btnEndDateNone to R.drawable.bg_repeatnone,
-                binding.btnEndDateUser to R.drawable.bg_repeatuser
-            ),
+            listOf(binding.btnEndDateNone, binding.btnEndDateUser),
             defaultSelectedView = binding.btnEndDateNone
         )
 
+        // 3. Visibility (Default: Public)
         setupSingleChoiceGroup(
-            mapOf(
-                binding.btnVisibilityPublic to R.drawable.bg_public,
-                binding.btnVisibilityFriendOnly to R.drawable.bg_friendonly,
-                binding.btnVisibilityPrivate to R.drawable.bg_private
-            ),
+            listOf(binding.btnVisibilityPublic, binding.btnVisibilityFriendOnly, binding.btnVisibilityPrivate),
             defaultSelectedView = binding.btnVisibilityPublic
         )
     }
@@ -312,8 +344,8 @@ class DiaryFragment : Fragment() {
         selectedTags.clear()
 
         // 1. 태그 상태 원복
-        binding.chipTagDaily.background = null
-        binding.chipTagWork.background = null
+        applyCustomButtonState(binding.chipTagDaily, isSelected = false)
+        applyCustomButtonState(binding.chipTagWork, isSelected = false)
         binding.layoutDynamicTagsContainer.removeAllViews()
 
         // 2. 선택된 감정 컨테이너 초기화 및 '선택' 버튼 다시 표시
@@ -334,7 +366,7 @@ class DiaryFragment : Fragment() {
                     text = getString(R.string.emotion_chip_format, emotion)
                     setBackgroundColor("#FFF59D".toColorInt())
                     setPadding(16, 4, 16, 4)
-                    setTextColor(android.graphics.Color.BLACK)
+                    setTextColor(Color.BLACK)
                     textSize = 12f
 
                     val params = LinearLayout.LayoutParams(
@@ -370,6 +402,9 @@ class DiaryFragment : Fragment() {
         view.setOnTouchListener { v, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
+                    if (v.tag != "DECORATION_TEXT") {
+                        currentActivePostIt = v
+                    }
                     // 터치 시작 시점의 손가락 좌표 기억
                     lastX = event.rawX
                     lastY = event.rawY
@@ -468,16 +503,50 @@ class DiaryFragment : Fragment() {
             binding.layoutDynamicTagsContainer.removeAllViews()
             selectedTags.clear()
 
+            applyCustomButtonState(binding.chipTagDaily, isSelected = false)
+            applyCustomButtonState(binding.chipTagWork, isSelected = false)
+
             if (postIts.isEmpty()) {
                 binding.tvEmptyHint.visibility = View.VISIBLE
             } else {
                 binding.tvEmptyHint.visibility = View.GONE
                 for (postIt in postIts) {
-                    inflateSavedPostIt(postIt)
-                    restoreTags(postIt)
+                    if (postIt.content.startsWith("[DECO]:")) {
+                        // 꾸미기 텍스트 복원
+                        val decText = postIt.content.replace("[DECO]:", "")
+                        restoreDecorateTextView(decText, postIt.positionX, postIt.positionY, postIt.diaryId)
+                    } else {
+                        // 포스트잇 복원
+                        inflateSavedPostIt(postIt)
+                        restoreTags(postIt)
+                    }
                 }
             }
         }
+    }
+
+    private fun restoreDecorateTextView(textStr: String, posX: Float, posY: Float, diaryId: Int) {
+        val decorateTextView = TextView(requireContext()).apply {
+            text = textStr
+            textSize = 16f
+            setTextColor(Color.BLACK)
+            setBackgroundColor(Color.TRANSPARENT)
+            setPadding(16, 8, 16, 8)
+            tag = "DECORATION_TEXT"
+
+            // 💡 불러온 좌표 고정 적용
+            translationX = posX
+            translationY = posY
+            setTag(R.id.ivPostItBg, diaryId)
+
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        }
+        makeViewDraggable(decorateTextView)
+        binding.layoutDiaryContainer.addView(decorateTextView)
+        decorateTextView.bringToFront()
     }
 
     private fun inflateSavedPostIt(diary: DiaryEntity) {
@@ -491,8 +560,9 @@ class DiaryFragment : Fragment() {
         tvDate.text = diary.createdAt
         etContent.setText(diary.content)
 
+        applyHighlightRangesToEditText(etContent, diary.highlightRanges)
         // 락 걸기 및 드래그 리스너 사전 부여 (기존 저장되어 로드된 항목이므로)
-        etContent.isEnabled = false
+        setupPostItEditTextTouch(etContent, postItView)
 
         postItView.setTag(R.id.ivPostItBg, diary.diaryId) // diaryId 저장
         postItView.tag = diary.color                     // 색상 저장
@@ -513,17 +583,23 @@ class DiaryFragment : Fragment() {
 
         val ivBg = postItView.findViewById<ImageView>(R.id.ivPostItBg)
         val tvDate = postItView.findViewById<TextView>(R.id.tvPostItDate)
+        val etContent = postItView.findViewById<EditText>(R.id.etPostItContent)
 
-        // 💡 고정 더미 대신 사용자가 선택해둔 상단 바의 실제 텍스트 값 맵핑
         tvDate.text = binding.tvDateTitle.text.toString()
         ivBg.setImageResource(postItResourceMap[colorName] ?: R.drawable.post_yellow)
 
+        setupPostItEditTextTouch(etContent, postItView)
         postItView.tag = colorName
+        makeViewDraggable(postItView)
 
         binding.layoutDiaryContainer.addView(postItView)
+        postItView.bringToFront()
+        binding.layoutDiaryContainer.bringToFront()
+
         currentActivePostIt = postItView // 제어 대상 지정
 
         binding.layoutPostItSetting.visibility = View.VISIBLE
+        binding.layoutPostItSetting.bringToFront()
     }
 
     private fun saveCurrentDiaryWithPosition() {
@@ -548,37 +624,67 @@ class DiaryFragment : Fragment() {
                 val childView = withContext(Dispatchers.Main) { container.getChildAt(i) }
                 if (childView is TextView && childView.id == R.id.tvEmptyHint) continue
 
-                val etContent = childView.findViewById<EditText>(R.id.etPostItContent) ?: continue
-                val contentText = etContent.text.toString().trim()
+                if (childView is TextView && childView.tag == "DECORATION_TEXT") {
+                    val decText = childView.text.toString().trim()
+                    if (decText.isNotBlank()) {
+                        val posX = childView.translationX
+                        val posY = childView.translationY
 
-                if (contentText.isNotBlank()) {
-                    val existingDiaryId = (childView.getTag(R.id.ivPostItBg) as? Int) ?: 0
-                    val postItColor = (childView.tag as? String) ?: currentSelectedColor
-                    val posX = childView.translationX
-                    val posY = childView.translationY
+                        val decDiaryEntity = DiaryEntity(
+                            diaryId = (childView.getTag(R.id.ivPostItBg) as? Int) ?: 0,
+                            createdAt = dateKey,
+                            content = "[DECO]:$decText", // 꾸미기 텍스트 구분용 프리픽스
+                            color = "transparent",
+                            tag = "",
+                            emotionStamp = "",
+                            isHighlighted = false,
+                            visibility = currentVisibility,
+                            positionX = posX,
+                            positionY = posY,
+                            userId = 1,
+                            highlightRanges = ""
+                        )
+                        val savedId = db.diaryDao().insertPostIt(decDiaryEntity)
+                        withContext(Dispatchers.Main) {
+                            childView.setTag(R.id.ivPostItBg, savedId.toInt())
+                        }
+                    }
+                }
+                // B. 일반 포스트잇일 경우
+                else {
+                    val etContent = childView.findViewById<EditText>(R.id.etPostItContent) ?: continue
+                    val contentText = etContent.text.toString().trim()
 
-                    val newDiary = DiaryEntity(
-                        diaryId = existingDiaryId, // 0이면 INSERT, 기존 ID면 UPDATE
-                        createdAt = dateKey,
-                        content = contentText,
-                        color = postItColor,
-                        tag = tagsString,
-                        emotionStamp = emotionsString,
-                        isHighlighted = isHighlightedState,
-                        visibility = currentVisibility,
-                        positionX = posX,
-                        positionY = posY,
-                        userId = 1
-                    )
+                    if (contentText.isNotBlank()) {
+                        val existingDiaryId = (childView.getTag(R.id.ivPostItBg) as? Int) ?: 0
+                        val postItColor = (childView.tag as? String) ?: currentSelectedColor
+                        val posX = childView.translationX
+                        val posY = childView.translationY
 
-                    // DB 저장 수행 후 발급된 ID 세팅
-                    val savedId = db.diaryDao().insertPostIt(newDiary)
+                        val highlightRanges = withContext(Dispatchers.Main) {
+                            getHighlightRangesFromEditText(etContent)
+                        }
 
-                    withContext(Dispatchers.Main) {
-                        childView.setTag(R.id.ivPostItBg, savedId.toInt())
-                        etContent.isEnabled = false
-                        etContent.clearFocus()
-                        makeViewDraggable(childView)
+                        val newDiary = DiaryEntity(
+                            diaryId = existingDiaryId,
+                            createdAt = dateKey,
+                            content = contentText,
+                            color = postItColor,
+                            tag = tagsString,
+                            emotionStamp = emotionsString,
+                            isHighlighted = isHighlightedState,
+                            visibility = currentVisibility,
+                            positionX = posX,
+                            positionY = posY,
+                            userId = 1,
+                            highlightRanges = highlightRanges
+                        )
+
+                        val savedId = db.diaryDao().insertPostIt(newDiary)
+
+                        withContext(Dispatchers.Main) {
+                            childView.setTag(R.id.ivPostItBg, savedId.toInt())
+                        }
                     }
                 }
             }
@@ -586,7 +692,6 @@ class DiaryFragment : Fragment() {
             withContext(Dispatchers.Main) {
                 Toast.makeText(requireContext(), "저장되었습니다!", Toast.LENGTH_SHORT).show()
                 binding.layoutPostItSetting.visibility = View.GONE
-                currentActivePostIt = null
                 selectedEmotions.clear()
             }
         }
@@ -632,15 +737,20 @@ class DiaryFragment : Fragment() {
 
     private fun addCustomTagChip(tagName: String) {
         val density = resources.displayMetrics.density
-        val heightInPx = (26 * density).toInt()
+        val heightInPx = (32 * density).toInt()
         val marginEndInPx = (8 * density).toInt()
+        val paddingPx = (10 * density).toInt()
 
-        val newTagChip = TextView(requireContext()).apply {
+        val newTagBtn = MaterialButton(requireContext()).apply {
             text = getString(R.string.emotion_chip_format, tagName)
-            gravity = android.view.Gravity.CENTER
-            setPadding((12 * density).toInt(), 0, (12 * density).toInt(), 0)
-            setBackgroundColor(android.graphics.Color.TRANSPARENT)
-            setTextColor(android.graphics.Color.BLACK)
+            textSize = 12f
+            setTextColor(Color.BLACK)
+
+            setPadding(paddingPx, 0, paddingPx, 0)
+
+            minHeight = 0
+            insetTop = 0
+            insetBottom = 0
 
             val params = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -650,20 +760,205 @@ class DiaryFragment : Fragment() {
             }
             layoutParams = params
 
+            applyCustomButtonState(this, isSelected = true)
+
             // 선택 클릭 피드백 적용
             setOnClickListener {
                 if (selectedTags.contains(tagName)) {
                     selectedTags.remove(tagName)
                     // 해제 시 투명 배경으로 안전하게 원상복구
-                    setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                    applyCustomButtonState(this, isSelected = false)
                 } else {
                     selectedTags.add(tagName)
-                    setBackgroundColor("#FFF59D".toColorInt())
+                    applyCustomButtonState(this, isSelected = true)
                 }
             }
         }
 
-        binding.layoutDynamicTagsContainer.addView(newTagChip)
+        binding.layoutDynamicTagsContainer.addView(newTagBtn)
+    }
+
+    private fun applyHighlightToSelectedText() {
+        val activeView = currentActivePostIt
+        if (activeView == null) {
+            Toast.makeText(requireContext(), "형광펜을 칠할 포스트잇을 먼저 선택해 주세요.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val etContent = activeView.findViewById<EditText>(R.id.etPostItContent)
+        if (etContent == null) {
+            Toast.makeText(requireContext(), "포스트잇 내 텍스트 영역을 찾을 수 없습니다.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val start = etContent.selectionStart
+        val end = etContent.selectionEnd
+
+        // 블록 지정이 되어있는지 확인 (start와 end가 같으면 블록 지정 안 됨)
+        if (start < 0 || end < 0 || start == end) {
+            Toast.makeText(requireContext(), "형광펜을 칠할 텍스트 영역을 드래그하여 선택해 주세요.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val editableText = etContent.text
+        val highlightedPart = editableText.substring(start, end)
+
+        // 텍스트에 형광펜 배경색(노란색) Spannable 적용
+        val spannable = if (editableText is Spannable) editableText else SpannableString(editableText)
+        spannable.setSpan(
+            BackgroundColorSpan("#FFF59D".toColorInt()),
+            start,
+            end,
+            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+        etContent.setText(spannable)
+        etContent.setSelection(end)
+
+        // 선택된 날짜 및 텍스트 DB 적재
+        val dateKey = dateFormat.format(selectedDateCalendar.time)
+        val existingDiaryId = (activeView.getTag(R.id.ivPostItBg) as? Int) ?: 0
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            val db = AppDatabase.getDatabase(requireContext())
+            db.diaryDao().insertHighlight(
+                HighlightEntity(
+                    diaryId = existingDiaryId,
+                    date = dateKey,
+                    highlightedText = highlightedPart
+                )
+            )
+            withContext(Dispatchers.Main) {
+                Toast.makeText(requireContext(), "'${highlightedPart}' 형광펜 텍스트가 저장되었습니다!", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    // =========================================================================
+    // 📝 3. 텍스트 추가 기능: 일기장 컨테이너 자체에 꾸미기용 텍스트 추가
+    // =========================================================================
+    private fun showAddDirectTextDialog() {
+        val builder = android.app.AlertDialog.Builder(requireContext())
+        builder.setTitle("일기장에 텍스트 추가")
+
+        val input = EditText(requireContext()).apply {
+            hint = "일기장을 꾸밀 문구를 입력하세요"
+            setSingleLine()
+        }
+
+        val container = android.widget.FrameLayout(requireContext()).apply {
+            val params = android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            params.leftMargin = 50
+            params.rightMargin = 50
+            layoutParams = params
+            addView(input)
+        }
+        builder.setView(container)
+
+        builder.setPositiveButton("추가") { dialog, _ ->
+            val textContent = input.text.toString().trim()
+            if (textContent.isNotBlank()) {
+                addDecorateTextViewToContainer(textContent)
+            } else {
+                Toast.makeText(requireContext(), "내용을 입력해 주세요.", Toast.LENGTH_SHORT).show()
+            }
+            dialog.dismiss()
+        }
+
+        builder.setNegativeButton("취소") { dialog, _ ->
+            dialog.cancel()
+        }
+
+        builder.show()
+    }
+
+    // 일기장 컨테이너에 자유 배치 텍스트 뷰 꽂아넣기
+    private fun addDecorateTextViewToContainer(textStr: String) {
+        val decorateTextView = TextView(requireContext()).apply {
+            text = textStr
+            textSize = 16f
+            setTextColor(Color.BLACK)
+            // 배경을 살짝 투명하게 하거나 깔끔하게 처리
+            setBackgroundColor(Color.TRANSPARENT)
+            setPadding(16, 8, 16, 8)
+            tag = "DECORATION_TEXT"
+
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        }
+        // 자유 이동 드래그 리스너 할당
+        makeViewDraggable(decorateTextView)
+
+        // 컨테이너에 뷰 추가 및 맨 앞으로 노출
+        binding.layoutDiaryContainer.addView(decorateTextView)
+        decorateTextView.bringToFront()
+
+        Toast.makeText(requireContext(), "텍스트가 추가되었습니다. 원하는 위치로 드래그해 보세요!", Toast.LENGTH_SHORT).show()
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun setupPostItEditTextTouch(etContent: EditText, postItView: View) {
+        etContent.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    // 이 포스트잇을 현재 활성화 포스트잇으로 지정 (형광펜 대상)
+                    currentActivePostIt = postItView
+                    // 상위 드래그 리스너가 텍스트 드래그 이벤트를 가로채지 못하도록 방어
+                    etContent.parent?.requestDisallowInterceptTouchEvent(true)
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    etContent.parent?.requestDisallowInterceptTouchEvent(false)
+                }
+            }
+            false // false를 리턴해야 EditText 본연의 텍스트 드래그/커서 지정 동작이 수행됨
+        }
+    }
+
+    // 💡 EditText에 적용된 형광펜 스팬들의 (시작-끝) 범위를 "0-5,10-15" 형태의 문자열로 변환
+    private fun getHighlightRangesFromEditText(etContent: EditText): String {
+        val spannable = etContent.text as? Spannable ?: return ""
+        val spans = spannable.getSpans(0, spannable.length, BackgroundColorSpan::class.java)
+        val rangeList = mutableListOf<String>()
+
+        for (span in spans) {
+            val start = spannable.getSpanStart(span)
+            val end = spannable.getSpanEnd(span)
+            if (start in 0..<end) {
+                rangeList.add("$start-$end")
+            }
+        }
+        return rangeList.joinToString(",")
+    }
+
+    // 💡 저장된 "0-5,10-15" 문자열 정보를 읽어와 EditText 텍스트에 노란색 형광펜 적용
+    private fun applyHighlightRangesToEditText(etContent: EditText, rangesStr: String) {
+        if (rangesStr.isBlank()) return
+
+        val text = etContent.text.toString()
+        val spannable = SpannableString(text)
+        val pairs = rangesStr.split(",")
+
+        for (pair in pairs) {
+            val parts = pair.split("-")
+            if (parts.size == 2) {
+                val start = parts[0].toIntOrNull() ?: continue
+                val end = parts[1].toIntOrNull() ?: continue
+
+                if (start in 0..text.length && end in start..text.length) {
+                    spannable.setSpan(
+                        BackgroundColorSpan("#FFF59D".toColorInt()),
+                        start,
+                        end,
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                }
+            }
+        }
+        etContent.setText(spannable)
     }
 
     override fun onDestroyView() {
