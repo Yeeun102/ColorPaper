@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.colorpaper.R
+import com.example.colorpaper.MainActivity
 import com.example.colorpaper.data.model.WidgetEntity
 import com.example.colorpaper.data.local.AppDatabase
 import com.example.colorpaper.data.model.ReminderAnswerEntity
@@ -24,9 +25,11 @@ import com.example.colorpaper.reminder.ReminderIntents
 import com.example.colorpaper.reminder.MaskingText
 import com.example.colorpaper.reminder.ReminderMessageFactory
 import com.example.colorpaper.reminder.ReminderSchedulePolicy
+import com.example.colorpaper.ui.calendar.EmotionStampFormatter
 import com.example.colorpaper.ui.theme.ThemeManager
 import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Calendar
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -62,7 +65,9 @@ class HomeFragment : Fragment() {
 
         dateTitle.text = SimpleDateFormat("M월 d일", Locale.KOREAN).format(Date())
         allWidgets = defaultWidgets()
-        adapter = HomeWidgetAdapter(emptyList(), palette)
+        adapter = HomeWidgetAdapter(emptyList(), palette) { dateKey ->
+            (requireActivity() as? MainActivity)?.openDiaryDate(dateKey)
+        }
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
         recyclerView.adapter = adapter
 
@@ -95,6 +100,56 @@ class HomeFragment : Fragment() {
         val reminderStage = arguments?.getInt(ReminderIntents.EXTRA_STAGE, -1) ?: -1
         if (reminderDiaryId > 0 && reminderStage >= 0) {
             showReminderDialog(reminderDiaryId, reminderStage)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::adapter.isInitialized) loadWeeklyCalendar()
+    }
+
+    private fun loadWeeklyCalendar() {
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN)
+        val weekStart = Calendar.getInstance().apply {
+            val offset = (get(Calendar.DAY_OF_WEEK) - Calendar.MONDAY + 7) % 7
+            add(Calendar.DAY_OF_MONTH, -offset)
+        }
+        val weekdayLabels = listOf("월", "화", "수", "목", "금", "토", "일")
+        val todayKey = dateFormat.format(Date())
+        val days = weekdayLabels.mapIndexed { index, label ->
+            val date = (weekStart.clone() as Calendar).apply {
+                add(Calendar.DAY_OF_MONTH, index)
+            }
+            val dateKey = dateFormat.format(date.time)
+            WeekDayMood(
+                weekday = label,
+                month = date.get(Calendar.MONTH) + 1,
+                dayOfMonth = date.get(Calendar.DAY_OF_MONTH),
+                dateKey = dateKey,
+                isToday = dateKey == todayKey,
+                isFuture = dateKey > todayKey
+            )
+        }
+        adapter.updateCalendarDays(days)
+        val appContext = requireContext().applicationContext
+        viewLifecycleOwner.lifecycleScope.launch {
+            val diaries = withContext(Dispatchers.IO) {
+                AppDatabase.getDatabase(appContext).diaryDao().getDiariesBetween(
+                    startDate = days.first().dateKey,
+                    endDate = days.last().dateKey
+                )
+            }
+            val emotionsByDate = diaries.groupBy { it.createdAt }.mapValues { (_, records) ->
+                EmotionStampFormatter.format(
+                    records.map { it.emotionStamp.orEmpty() },
+                    maxCount = 1
+                )
+            }
+            adapter.updateCalendarDays(
+                days.map { day ->
+                    day.copy(emotionEmoji = emotionsByDate[day.dateKey].orEmpty())
+                }
+            )
         }
     }
 

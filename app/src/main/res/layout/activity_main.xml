@@ -51,8 +51,8 @@
                 <ImageView
                     android:id="@+id/icon_diary"
                     style="@style/HomeBottomNavIcon"
-                    android:contentDescription="월간 달력"
-                    android:src="@drawable/ic_nav_calendar" />
+                    android:contentDescription="개별 날짜 메모"
+                    android:src="@drawable/ic_nav_book" />
             </LinearLayout>
 
             <LinearLayout android:id="@+id/nav_home" style="@style/HomeBottomNavItem">

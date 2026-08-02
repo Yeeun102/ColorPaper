@@ -19,7 +19,8 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import com.example.colorpaper.ui.diary.DiaryFragment
-import com.example.colorpaper.ui.calendar.MonthlyCalendarFragment
+import com.example.colorpaper.ui.diary.DiaryDetailFragment
+import com.example.colorpaper.ui.diary.DiaryDayFragmentFactory
 import com.example.colorpaper.ui.flashcard.FlashcardFragment
 import com.example.colorpaper.ui.home.HomeFragment
 import com.example.colorpaper.ui.profile.ProfileFragment
@@ -97,7 +98,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun bindNavigation() {
         findViewById<View>(R.id.nav_diary).setOnClickListener {
-            showScreen(MonthlyCalendarFragment(), R.id.nav_diary)
+            showScreen(DiaryFragment(), R.id.nav_diary)
         }
         findViewById<View>(R.id.nav_flashcard).setOnClickListener {
             showScreen(FlashcardFragment(), R.id.nav_flashcard)
@@ -122,6 +123,10 @@ class MainActivity : AppCompatActivity() {
             .replace(R.id.fragment_container, fragment)
             .commit()
         selectNavigation(selectedId)
+    }
+
+    fun openDiaryDate(dateKey: String) {
+        showScreen(DiaryDayFragmentFactory.create(dateKey), R.id.nav_diary)
     }
 
     private fun applyThemeToNavigation() {
@@ -163,7 +168,7 @@ class MainActivity : AppCompatActivity() {
     private fun currentNavigationId(): Int = when (
         supportFragmentManager.findFragmentById(R.id.fragment_container)
     ) {
-        is DiaryFragment, is MonthlyCalendarFragment -> R.id.nav_diary
+        is DiaryFragment, is DiaryDetailFragment -> R.id.nav_diary
         is FlashcardFragment -> R.id.nav_flashcard
         is ProfileFragment -> R.id.nav_profile
         is SettingFragment -> R.id.nav_setting

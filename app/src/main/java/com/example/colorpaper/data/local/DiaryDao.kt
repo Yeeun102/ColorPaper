@@ -23,6 +23,9 @@ interface DiaryDao {
     @Query("SELECT * FROM diaries WHERE created_at LIKE :yearMonth || '%' ORDER BY created_at ASC")
     suspend fun getDiariesForMonth(yearMonth: String): List<DiaryEntity>
 
+    @Query("SELECT * FROM diaries WHERE created_at BETWEEN :startDate AND :endDate ORDER BY created_at ASC")
+    suspend fun getDiariesBetween(startDate: String, endDate: String): List<DiaryEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertDiary(diary: DiaryEntity)
 

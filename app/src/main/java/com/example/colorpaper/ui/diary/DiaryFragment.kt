@@ -726,14 +726,22 @@ class DiaryFragment : Fragment() {
                         }
                         val reminderWasChanged = shouldApplyReminderSelection &&
                             reminderCycle != existingDiary?.reviewCycleDays
+                        val existingReminderAnchor = existingDiary?.reminderAnchorAt ?: 0L
                         val reminderAnchor = when {
                             reminderCycle == ReminderSchedulePolicy.DISABLED -> 0L
-                            reminderWasChanged || existingDiary?.reminderAnchorAt == 0L ->
+                            reminderWasChanged || existingReminderAnchor == 0L ->
                                 System.currentTimeMillis()
-                            else -> existingDiary.reminderAnchorAt
+                            else -> existingReminderAnchor
                         }
                         val reminderStage = if (reminderWasChanged) 0 else {
                             existingDiary?.reminderStage ?: 0
+                        }
+                        val savedEmotions = when {
+                            childView !== currentActivePostIt ->
+                                existingDiary?.emotionStamp.orEmpty()
+                            emotionsString.isNotBlank() || existingDiary == null ->
+                                emotionsString
+                            else -> existingDiary.emotionStamp.orEmpty()
                         }
                         val postItColor = (childView.tag as? String) ?: currentSelectedColor
                         val posX = childView.translationX
@@ -749,7 +757,7 @@ class DiaryFragment : Fragment() {
                             content = contentText,
                             color = postItColor,
                             tag = tagsString,
-                            emotionStamp = emotionsString,
+                            emotionStamp = savedEmotions,
                             isHighlighted = isHighlightedState,
                             visibility = currentVisibility,
                             reviewCycleDays = reminderCycle,
