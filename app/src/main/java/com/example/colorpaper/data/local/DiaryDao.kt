@@ -4,20 +4,42 @@ import androidx.room.*
 import com.example.colorpaper.data.model.DiaryEntity
 import com.example.colorpaper.data.model.CommentEntity
 import com.example.colorpaper.data.model.HighlightEntity
+import com.example.colorpaper.data.model.ReminderAnswerEntity
 
 @Dao
 interface DiaryDao {
+    @Query("SELECT * FROM diaries WHERE diary_id = :diaryId LIMIT 1")
+    suspend fun getDiaryById(diaryId: Int): DiaryEntity?
+
+    @Query("SELECT * FROM diaries WHERE review_cycle_days != 0")
+    suspend fun getReminderEnabledDiaries(): List<DiaryEntity>
+
     @Query("SELECT * FROM diaries WHERE user_id = :userId")
     suspend fun getDiariesByUserId(userId: Int): List<DiaryEntity>
 
     @Query("SELECT * FROM diaries WHERE user_id = :userId AND visibility = :visibility")
     suspend fun getDiariesByVisibility(userId: Int, visibility: String): List<DiaryEntity>
 
+    @Query("SELECT * FROM diaries WHERE created_at LIKE :yearMonth || '%' ORDER BY created_at ASC")
+    suspend fun getDiariesForMonth(yearMonth: String): List<DiaryEntity>
+
+    @Query("SELECT * FROM diaries WHERE created_at BETWEEN :startDate AND :endDate ORDER BY created_at ASC")
+    suspend fun getDiariesBetween(startDate: String, endDate: String): List<DiaryEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertDiary(diary: DiaryEntity)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPostIt(diary: DiaryEntity): Long
+
+    @Query("UPDATE diaries SET last_reminded_at = :triggeredAt, reminder_stage = :nextStage WHERE diary_id = :diaryId")
+    suspend fun markReminderTriggered(diaryId: Int, triggeredAt: Long, nextStage: Int)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun saveReminderAnswer(answer: ReminderAnswerEntity)
+
+    @Query("SELECT * FROM reminder_answers WHERE diary_id = :diaryId AND reminder_stage = :stage LIMIT 1")
+    suspend fun getReminderAnswer(diaryId: Int, stage: Int): ReminderAnswerEntity?
 
     @Query("SELECT * FROM diaries WHERE created_at = :targetDate")
     fun getPostItsByDate(targetDate: String): List<DiaryEntity>

@@ -13,8 +13,10 @@ data class DiaryEntity(
     @ColumnInfo(name = "is_highlighted") val isHighlighted: Boolean = false,
     @ColumnInfo(name = "visibility") val visibility: String = "PRIVATE", // PRIVATE, PUBLIC(친구공유)
     @ColumnInfo(name = "theme_id") val themeId: Int = 0,
-    @ColumnInfo(name = "review_cycle_days") val reviewCycleDays: Int = 0, // 💡 복습 주기 (0: 설정안함, 1: 1일후, 7: 7일후 등)
+    @ColumnInfo(name = "review_cycle_days") val reviewCycleDays: Int = 0, // -1: 망각 곡선, 0: 사용 안 함, 양수: 사용자 지정 주기
     @ColumnInfo(name = "last_reminded_at") val lastRemindedAt: Long = 0, // 💡 마지막 알림 발송 시간 (망각곡선용)
+    @ColumnInfo(name = "reminder_anchor_at") val reminderAnchorAt: Long = 0,
+    @ColumnInfo(name = "reminder_stage") val reminderStage: Int = 0,
     @ColumnInfo(name = "created_at") val createdAt: String, // 💡 "2026-07-20" (캘린더 매핑용 문자열)
     @ColumnInfo(name = "position_x") val positionX: Float = 0f,
     @ColumnInfo(name = "position_y") val positionY: Float = 0f,

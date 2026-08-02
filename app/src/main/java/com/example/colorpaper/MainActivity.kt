@@ -1,5 +1,8 @@
 package com.example.colorpaper
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
@@ -7,6 +10,7 @@ import android.view.View
 import android.widget.ImageView
 import android.widget.LinearLayout
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -15,14 +19,21 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import com.example.colorpaper.ui.diary.DiaryFragment
+import com.example.colorpaper.ui.diary.DiaryDetailFragment
+import com.example.colorpaper.ui.diary.DiaryDayFragmentFactory
 import com.example.colorpaper.ui.flashcard.FlashcardFragment
 import com.example.colorpaper.ui.home.HomeFragment
 import com.example.colorpaper.ui.profile.ProfileFragment
 import com.example.colorpaper.ui.setting.SettingFragment
 import com.example.colorpaper.ui.theme.ThemeManager
+import com.example.colorpaper.reminder.ReminderIntents
 import com.google.android.material.card.MaterialCardView
 
 class MainActivity : AppCompatActivity() {
+
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { }
 
     private var selectedNavigationId = R.id.nav_home
 
@@ -50,11 +61,38 @@ class MainActivity : AppCompatActivity() {
         applyThemeToNavigation()
         bindNavigation()
         bindBackNavigation()
+        requestNotificationPermissionIfNeeded()
 
         if (savedInstanceState == null) {
-            showScreen(HomeFragment(), R.id.nav_home)
+            showScreen(homeFragmentFromIntent(intent), R.id.nav_home)
         } else {
             selectNavigation(currentNavigationId())
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val diaryId = intent.getIntExtra(ReminderIntents.EXTRA_DIARY_ID, -1)
+        if (diaryId > 0) showScreen(homeFragmentFromIntent(intent), R.id.nav_home)
+    }
+
+    private fun homeFragmentFromIntent(intent: Intent): HomeFragment {
+        val diaryId = intent.getIntExtra(ReminderIntents.EXTRA_DIARY_ID, -1)
+        val stage = intent.getIntExtra(ReminderIntents.EXTRA_STAGE, -1)
+        return if (diaryId > 0 && stage >= 0) {
+            HomeFragment.newInstance(diaryId, stage)
+        } else {
+            HomeFragment()
+        }
+    }
+
+    private fun requestNotificationPermissionIfNeeded() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 
@@ -85,6 +123,10 @@ class MainActivity : AppCompatActivity() {
             .replace(R.id.fragment_container, fragment)
             .commit()
         selectNavigation(selectedId)
+    }
+
+    fun openDiaryDate(dateKey: String) {
+        showScreen(DiaryDayFragmentFactory.create(dateKey), R.id.nav_diary)
     }
 
     private fun applyThemeToNavigation() {
@@ -126,7 +168,7 @@ class MainActivity : AppCompatActivity() {
     private fun currentNavigationId(): Int = when (
         supportFragmentManager.findFragmentById(R.id.fragment_container)
     ) {
-        is DiaryFragment -> R.id.nav_diary
+        is DiaryFragment, is DiaryDetailFragment -> R.id.nav_diary
         is FlashcardFragment -> R.id.nav_flashcard
         is ProfileFragment -> R.id.nav_profile
         is SettingFragment -> R.id.nav_setting

@@ -51,7 +51,7 @@
                 <ImageView
                     android:id="@+id/icon_diary"
                     style="@style/HomeBottomNavIcon"
-                    android:contentDescription="암기카드"
+                    android:contentDescription="개별 날짜 메모"
                     android:src="@drawable/ic_nav_book" />
             </LinearLayout>
 
