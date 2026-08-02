@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FAF8F8"
+    android:paddingStart="16dp"
+    android:paddingTop="16dp"
+    android:paddingEnd="16dp">
+
+    <LinearLayout
+        android:id="@+id/layout_calendar_header"
+        android:layout_width="0dp"
+        android:layout_height="52dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:id="@+id/btn_calendar_previous"
+            android:layout_width="52dp"
+            android:layout_height="match_parent"
+            android:contentDescription="@string/calendar_previous_month"
+            android:gravity="center"
+            android:text="‹"
+            android:textSize="34sp" />
+
+        <TextView
+            android:id="@+id/tv_calendar_month"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:textColor="#443838"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            tools:text="2026년 8월" />
+
+        <TextView
+            android:id="@+id/btn_calendar_next"
+            android:layout_width="52dp"
+            android:layout_height="match_parent"
+            android:contentDescription="@string/calendar_next_month"
+            android:gravity="center"
+            android:text="›"
+            android:textSize="34sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/layout_calendar_weekdays"
+        android:layout_width="0dp"
+        android:layout_height="36dp"
+        android:orientation="horizontal"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/layout_calendar_header">
+
+        <TextView style="@style/CalendarWeekday" android:text="일" android:textColor="#C25B5B" />
+        <TextView style="@style/CalendarWeekday" android:text="월" />
+        <TextView style="@style/CalendarWeekday" android:text="화" />
+        <TextView style="@style/CalendarWeekday" android:text="수" />
+        <TextView style="@style/CalendarWeekday" android:text="목" />
+        <TextView style="@style/CalendarWeekday" android:text="금" />
+        <TextView style="@style/CalendarWeekday" android:text="토" android:textColor="#5478A5" />
+    </LinearLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_calendar_days"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:clipToPadding="false"
+        android:paddingBottom="112dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/layout_calendar_weekdays"
+        tools:listitem="@layout/item_calendar_day" />
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/card_calendar_selection"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginBottom="16dp"
+        android:visibility="gone"
+        app:cardCornerRadius="18dp"
+        app:cardElevation="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:strokeWidth="1dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/tv_calendar_selection_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textColor="#443838"
+                android:textSize="17sp"
+                android:textStyle="bold"
+                tools:text="8월 1일 😊" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_calendar_record"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:text="@string/calendar_write_record"
+                android:textColor="#FFFFFF" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
