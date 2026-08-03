@@ -262,13 +262,15 @@ class DiaryFragment : Fragment() {
 
                 if (contentText.isNotBlank()) {
                     // 더이상 텍스트 수정 못하도록 원천 차단
-                    etContent.isEnabled = false
-                    etContent.isFocusable = false
+                    //etContent.isEnabled = false
+                    //etContent.isFocusable = false
                     etContent.clearFocus()
                     // 메모지 위치를 자유롭게 옮길 수 있도록 드래그 리스너 부착
                     makeViewDraggable(postIt)
                     // DB 최종 저장 처리 호출
-                    saveCurrentDiaryWithPosition()
+                    //saveCurrentDiaryWithPosition()
+                    binding.layoutPostItSetting.visibility = View.GONE
+                    Toast.makeText(requireContext(), "포스트잇 설정이 적용되었습니다.", Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(requireContext(), "내용을 입력해야 저장할 수 있습니다.", Toast.LENGTH_SHORT).show()
                 }
@@ -623,6 +625,9 @@ class DiaryFragment : Fragment() {
         // 락 걸기 및 드래그 리스너 사전 부여 (기존 저장되어 로드된 항목이므로)
         setupPostItEditTextTouch(etContent, postItView)
 
+        etContent.isEnabled = false
+        etContent.isFocusable = false
+
         postItView.setTag(R.id.ivPostItBg, diary.diaryId) // diaryId 저장
         postItView.tag = diary.color                     // 색상 저장
         val colorKey = diary.color.lowercase(Locale.getDefault()).trim()
@@ -646,6 +651,10 @@ class DiaryFragment : Fragment() {
 
         tvDate.text = binding.tvDateTitle.text.toString()
         ivBg.setImageResource(postItResourceMap[colorName] ?: R.drawable.post_yellow)
+
+        etContent.isEnabled = true
+        etContent.isFocusable = true
+        etContent.isFocusableInTouchMode = true
 
         setupPostItEditTextTouch(etContent, postItView)
         postItView.tag = colorName
@@ -785,6 +794,9 @@ class DiaryFragment : Fragment() {
 
                         withContext(Dispatchers.Main) {
                             childView.setTag(R.id.ivPostItBg, savedId.toInt())
+                            etContent.isEnabled = false
+                            etContent.isFocusable = false
+                            etContent.clearFocus()
                         }
                     }
                 }

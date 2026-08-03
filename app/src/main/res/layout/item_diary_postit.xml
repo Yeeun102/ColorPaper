@@ -48,7 +48,7 @@
         app:layout_constraintStart_toStartOf="@id/ivPostItBg"
         app:layout_constraintEnd_toEndOf="@id/ivPostItBg"/>
 
-    <!-- 와이어프레임 우측 하단의 삭제/설정용 카메라 혹은 이미지 버튼 -->
+    <!-- 와이어프레임 우측 하단의 삭제/설정용 카메라 혹은 이미지 버튼
     <ImageButton
         android:id="@+id/btnPostItMenu"
         android:layout_width="32dp"
@@ -59,6 +59,6 @@
         android:layout_marginBottom="16dp"
         app:layout_constraintBottom_toBottomOf="@id/ivPostItBg"
         app:layout_constraintEnd_toEndOf="@id/ivPostItBg"
-        android:contentDescription="@string/postit_menu" />
+        android:contentDescription="@string/postit_menu" />-->
 
 </androidx.constraintlayout.widget.ConstraintLayout>
