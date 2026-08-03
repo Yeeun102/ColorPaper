@@ -22,7 +22,7 @@
         android:id="@+id/tvPostItDate"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="today"
+        android:text="@string/today"
         android:textSize="14sp"
         android:textColor="#333333"
         android:layout_marginTop="16dp"
@@ -41,6 +41,7 @@
         android:background="@android:color/transparent"
         android:gravity="top|start"
         android:hint="@string/entryHint"
+        android:autofillHints="@string/entryHint"
         android:textSize="15sp"
         android:textColor="#222222"
         app:layout_constraintTop_toBottomOf="@id/tvPostItDate"
@@ -48,7 +49,7 @@
         app:layout_constraintStart_toStartOf="@id/ivPostItBg"
         app:layout_constraintEnd_toEndOf="@id/ivPostItBg"/>
 
-    <!-- 와이어프레임 우측 하단의 삭제/설정용 카메라 혹은 이미지 버튼 -->
+    <!-- 와이어프레임 우측 하단의 삭제/설정용 카메라 혹은 이미지 버튼
     <ImageButton
         android:id="@+id/btnPostItMenu"
         android:layout_width="32dp"
@@ -59,6 +60,6 @@
         android:layout_marginBottom="16dp"
         app:layout_constraintBottom_toBottomOf="@id/ivPostItBg"
         app:layout_constraintEnd_toEndOf="@id/ivPostItBg"
-        android:contentDescription="@string/postit_menu" />
+        android:contentDescription="@string/postit_menu" />-->
 
 </androidx.constraintlayout.widget.ConstraintLayout>

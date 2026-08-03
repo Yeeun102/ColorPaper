@@ -87,7 +87,7 @@ class FlashcardFragment : Fragment() {
             withContext(Dispatchers.Main) {
                 adapter.updateData(sets)
             }
-            adapter.updateData(sets)
+            //adapter.updateData(sets)
         }
     }
 

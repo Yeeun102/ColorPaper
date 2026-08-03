@@ -53,10 +53,13 @@ class FlashcardCreateFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         addCardField()
-        addCardField()
 
         binding.btnNextCard.setOnClickListener {
-            addCardField()
+            if (canAddNewCard()) {
+                addCardField()
+            } else {
+                Toast.makeText(requireContext(), "현재 카드의 질문과 정답을 먼저 입력해 주세요.", Toast.LENGTH_SHORT).show()
+            }
         }
 
         binding.btnImportCsv.setOnClickListener {
@@ -70,6 +73,15 @@ class FlashcardCreateFragment : Fragment() {
         binding.btnSave.setOnClickListener {
             saveFlashcardSet()
         }
+    }
+    private fun canAddNewCard(): Boolean {
+        if (cardViewsList.isEmpty()) return true
+
+        val lastCardView = cardViewsList.last()
+        val question = lastCardView.findViewById<EditText>(R.id.etQuestion).text.toString().trim()
+        val answer = lastCardView.findViewById<EditText>(R.id.etAnswer).text.toString().trim()
+
+        return question.isNotBlank() && answer.isNotBlank()
     }
 
     private fun addCardField(initialQuestion: String = "", initialAnswer: String = "") {
@@ -115,6 +127,28 @@ class FlashcardCreateFragment : Fragment() {
         val setTitle = binding.etSetTitle.text.toString().trim()
         if (setTitle.isEmpty()) {
             Toast.makeText(requireContext(), "단어장 제목을 입력해 주세요.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val itemsToInsert = mutableListOf<WordEntity>()
+        for (view in cardViewsList) {
+            val question = view.findViewById<EditText>(R.id.etQuestion).text.toString().trim()
+            val answer = view.findViewById<EditText>(R.id.etAnswer).text.toString().trim()
+
+            if (question.isNotEmpty() && answer.isNotEmpty()) {
+                itemsToInsert.add(
+                    WordEntity(
+                        folderId = 0, // 아래 DB 저장 시 적절한 folderId로 대체됨
+                        wordQuestion = question,
+                        wordAnswer = answer
+                    )
+                )
+            }
+        }
+
+        // 💡 2. 입력된 카드가 1개도 없는 경우 저장 차단
+        if (itemsToInsert.isEmpty()) {
+            Toast.makeText(requireContext(), "최소 1개 이상의 카드에 질문과 정답을 입력해야 저장할 수 있습니다.", Toast.LENGTH_SHORT).show()
             return
         }
 

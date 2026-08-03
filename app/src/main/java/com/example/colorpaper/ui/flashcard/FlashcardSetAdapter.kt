@@ -68,7 +68,13 @@ class FlashcardSetAdapter(
 
             // 아이템 내부 데이터(내용물)까지 완전히 똑같은지 비교합니다.
             override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
-                return setList[oldItemPosition] == newSets[newItemPosition]
+                val isOldEven = oldItemPosition % 2 == 0
+                val isNewEven = newItemPosition % 2 == 0
+
+                val isDataSame = setList[oldItemPosition] == newSets[newItemPosition]
+                val isPositionParitySame = (isOldEven == isNewEven)
+
+                return isDataSame && isPositionParitySame
             }
         }
 
