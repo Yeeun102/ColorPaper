@@ -59,4 +59,26 @@
     <string name="cannot_add_past">과거일기 추가 불가</string>
     <string name="open_self_comment">셀프 댓글 작성 창 열기</string>
     <string name="self_comment">셀프댓글(오늘 비활성화)</string>
+    <string name="reminder_channel_name">기록 리마인드</string>
+    <string name="reminder_channel_description">망각 곡선에 맞춰 지난 기록을 다시 알려줍니다.</string>
+    <string name="reminder_dialog_title">리마인드</string>
+    <string name="reminder_question_format">%1$d일 전 하던 고민, 해결됐나요?</string>
+    <string name="reminder_answer_hint">지금의 생각과 결과를 남겨보세요.</string>
+    <string name="reminder_save">답변 저장</string>
+    <string name="reminder_later">나중에</string>
+    <string name="reminder_answer_required">답변을 입력해 주세요.</string>
+    <string name="reminder_answer_saved">리마인드 답변을 저장했습니다.</string>
+    <string name="reminder_custom_cycle_title">사용자 지정 리마인드</string>
+    <string name="reminder_custom_cycle_hint">며칠 간격으로 알림을 받을까요?</string>
+    <string name="reminder_custom_cycle_error">1일 이상의 숫자를 입력해 주세요.</string>
+    <string name="calendar_previous_month">이전 달</string>
+    <string name="calendar_next_month">다음 달</string>
+    <string name="calendar_write_record">이 날 기록하기</string>
+    <string name="calendar_selected_date_format">%1$d일 %2$s</string>
+    <string name="masking_touch_mode">터치하여 정답 확인</string>
+    <string name="masking_input_mode">직접 입력</string>
+    <string name="masking_answer_hint">빈칸이 여러 개면 쉼표로 구분</string>
+    <string name="masking_check">확인</string>
+    <string name="masking_correct">정답이에요!</string>
+    <string name="masking_incorrect">다시 떠올려 보세요.</string>
 </resources>

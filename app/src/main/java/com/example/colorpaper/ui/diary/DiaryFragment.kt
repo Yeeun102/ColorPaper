@@ -19,6 +19,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.text.InputType
 import androidx.lifecycle.lifecycleScope
 import android.widget.Toast
 import com.example.colorpaper.R
@@ -26,6 +27,8 @@ import com.example.colorpaper.databinding.FragmentDiaryBinding
 import com.example.colorpaper.data.local.AppDatabase
 import com.example.colorpaper.data.model.DiaryEntity
 import com.example.colorpaper.data.model.HighlightEntity
+import com.example.colorpaper.reminder.ReminderSchedulePolicy
+import com.example.colorpaper.reminder.ReminderScheduler
 import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -40,6 +43,8 @@ class DiaryFragment : Fragment() {
     private val selectedTags = mutableSetOf<String>()
     private var isHighlightedState: Boolean = false
     private var currentVisibility: String = "PRIVATE"
+    private var selectedReminderCycleDays: Int = ReminderSchedulePolicy.DISABLED
+    private var reminderSelectionTouched: Boolean = false
 
     // 컴파일 타임에 검증 가능한 SVG 에셋 리소스 맵
     private val postItResourceMap = mapOf(
@@ -108,6 +113,12 @@ class DiaryFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        arguments?.getString(ARG_INITIAL_DATE)?.let { initialDate ->
+            dateFormat.parse(initialDate)?.let { selectedDate ->
+                selectedDateCalendar.time = selectedDate
+            }
+        }
 
         buttonColorMap = mapOf(
             binding.chipTagDaily to "#FFCDCD".toColorInt(),
@@ -320,10 +331,7 @@ class DiaryFragment : Fragment() {
     }
 
     private fun initSingleChoiceGroups() {
-        setupSingleChoiceGroup(
-            listOf(binding.btnRepeatAuto, binding.btnRepeatUser, binding.btnRepeatNone),
-            defaultSelectedView = binding.btnRepeatNone
-        )
+        setupReminderChoiceGroup()
 
         // 2. End Date (Default: None)
         setupSingleChoiceGroup(
@@ -338,8 +346,56 @@ class DiaryFragment : Fragment() {
         )
     }
 
+    private fun setupReminderChoiceGroup() {
+        val buttons = listOf(binding.btnRepeatAuto, binding.btnRepeatUser, binding.btnRepeatNone)
+
+        fun select(selected: Button) {
+            buttons.forEach { applyCustomButtonState(it, it == selected) }
+        }
+
+        select(binding.btnRepeatNone)
+        binding.btnRepeatAuto.setOnClickListener {
+            selectedReminderCycleDays = ReminderSchedulePolicy.AUTO_CURVE
+            reminderSelectionTouched = true
+            select(binding.btnRepeatAuto)
+        }
+        binding.btnRepeatNone.setOnClickListener {
+            selectedReminderCycleDays = ReminderSchedulePolicy.DISABLED
+            reminderSelectionTouched = true
+            select(binding.btnRepeatNone)
+        }
+        binding.btnRepeatUser.setOnClickListener {
+            val input = EditText(requireContext()).apply {
+                hint = getString(R.string.reminder_custom_cycle_hint)
+                inputType = InputType.TYPE_CLASS_NUMBER
+                setPadding(48, 16, 48, 16)
+            }
+            android.app.AlertDialog.Builder(requireContext())
+                .setTitle(R.string.reminder_custom_cycle_title)
+                .setView(input)
+                .setNegativeButton(R.string.action_cancel, null)
+                .setPositiveButton(R.string.confirm) { _, _ ->
+                    val days = input.text.toString().toIntOrNull()
+                    if (days != null && days > 0) {
+                        selectedReminderCycleDays = days
+                        reminderSelectionTouched = true
+                        select(binding.btnRepeatUser)
+                    } else {
+                        Toast.makeText(
+                            requireContext(),
+                            R.string.reminder_custom_cycle_error,
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+                .show()
+        }
+    }
+
     private fun resetPostItSettingUI() {
         currentSelectedColor = "yellow"
+        selectedReminderCycleDays = ReminderSchedulePolicy.DISABLED
+        reminderSelectionTouched = false
         selectedEmotions.clear()
         tempSelectedEmotions.clear()
         selectedTags.clear()
@@ -660,6 +716,36 @@ class DiaryFragment : Fragment() {
 
                     if (contentText.isNotBlank()) {
                         val existingDiaryId = (childView.getTag(R.id.ivPostItBg) as? Int) ?: 0
+                        val existingDiary = if (existingDiaryId > 0) {
+                            db.diaryDao().getDiaryById(existingDiaryId)
+                        } else null
+                        val isReminderTarget = childView === currentActivePostIt
+                        val shouldApplyReminderSelection = isReminderTarget &&
+                            (existingDiary == null || reminderSelectionTouched)
+                        val reminderCycle = if (shouldApplyReminderSelection) {
+                            selectedReminderCycleDays
+                        } else {
+                            existingDiary?.reviewCycleDays ?: ReminderSchedulePolicy.DISABLED
+                        }
+                        val reminderWasChanged = shouldApplyReminderSelection &&
+                            reminderCycle != existingDiary?.reviewCycleDays
+                        val existingReminderAnchor = existingDiary?.reminderAnchorAt ?: 0L
+                        val reminderAnchor = when {
+                            reminderCycle == ReminderSchedulePolicy.DISABLED -> 0L
+                            reminderWasChanged || existingReminderAnchor == 0L ->
+                                System.currentTimeMillis()
+                            else -> existingReminderAnchor
+                        }
+                        val reminderStage = if (reminderWasChanged) 0 else {
+                            existingDiary?.reminderStage ?: 0
+                        }
+                        val savedEmotions = when {
+                            childView !== currentActivePostIt ->
+                                existingDiary?.emotionStamp.orEmpty()
+                            emotionsString.isNotBlank() || existingDiary == null ->
+                                emotionsString
+                            else -> existingDiary.emotionStamp.orEmpty()
+                        }
                         val postItColor = (childView.tag as? String) ?: currentSelectedColor
                         val posX = childView.translationX
                         val posY = childView.translationY
@@ -674,9 +760,15 @@ class DiaryFragment : Fragment() {
                             content = contentText,
                             color = postItColor,
                             tag = tagsString,
-                            emotionStamp = emotionsString,
+                            emotionStamp = savedEmotions,
                             isHighlighted = isHighlightedState,
                             visibility = currentVisibility,
+                            reviewCycleDays = reminderCycle,
+                            lastRemindedAt = if (reminderWasChanged) 0L else {
+                                existingDiary?.lastRemindedAt ?: 0L
+                            },
+                            reminderAnchorAt = reminderAnchor,
+                            reminderStage = reminderStage,
                             positionX = posX,
                             positionY = posY,
                             userId = 1,
@@ -684,6 +776,12 @@ class DiaryFragment : Fragment() {
                         )
 
                         val savedId = db.diaryDao().insertPostIt(newDiary)
+                        val savedDiary = newDiary.copy(diaryId = savedId.toInt())
+                        if (reminderCycle == ReminderSchedulePolicy.DISABLED) {
+                            ReminderScheduler.cancel(requireContext(), savedId.toInt())
+                        } else {
+                            ReminderScheduler.schedule(requireContext(), savedDiary)
+                        }
 
                         withContext(Dispatchers.Main) {
                             childView.setTag(R.id.ivPostItBg, savedId.toInt())
@@ -967,5 +1065,13 @@ class DiaryFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    companion object {
+        private const val ARG_INITIAL_DATE = "initial_diary_date"
+
+        fun newInstance(dateKey: String) = DiaryFragment().apply {
+            arguments = Bundle().apply { putString(ARG_INITIAL_DATE, dateKey) }
+        }
     }
 }
