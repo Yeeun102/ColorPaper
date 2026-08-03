@@ -28,6 +28,8 @@ import com.example.colorpaper.ui.setting.SettingFragment
 import com.example.colorpaper.ui.theme.ThemeManager
 import com.example.colorpaper.reminder.ReminderIntents
 import com.google.android.material.card.MaterialCardView
+import android.util.Log
+import com.google.firebase.firestore.FirebaseFirestore
 
 class MainActivity : AppCompatActivity() {
 
@@ -68,6 +70,12 @@ class MainActivity : AppCompatActivity() {
         } else {
             selectNavigation(currentNavigationId())
         }
+
+        val db = FirebaseFirestore.getInstance()
+        val testUser = hashMapOf("userId" to 1, "nickname" to "개발자")
+        db.collection("users").add(testUser)
+            .addOnSuccessListener { Log.d("FIREBASE_TEST", "성공! ID: ${it.id}") }
+            .addOnFailureListener { Log.e("FIREBASE_TEST", "실패", it) }
     }
 
     override fun onNewIntent(intent: Intent) {

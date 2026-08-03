@@ -22,7 +22,11 @@ class ProfileEditFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        val view = inflater.inflate(R.layout.fragment_profile_edit, container, false)
+        return inflater.inflate(R.layout.fragment_profile_edit, container, false)
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
 
         val ivBack = view.findViewById<ImageView>(R.id.ivBack)
         val ivEditProfileImage = view.findViewById<ImageView>(R.id.ivEditProfileImage)
@@ -32,61 +36,58 @@ class ProfileEditFragment : Fragment() {
 
         val db = AppDatabase.getDatabase(requireContext())
 
-        // 1. 기존에 저장된 내 정보(user_id = 1)가 있다면 입력창에 미리 세팅해주기
+        // 1. 기존 정보 초기화 (내 정보 user_id = 1)
         viewLifecycleOwner.lifecycleScope.launch {
             val myInfo = db.userDao().getUserById(1)
             if (myInfo != null) {
                 etNickname.setText(myInfo.nickname)
-                etUserCode.setText(myInfo.userCode) // 새로 도입한 userCode를 입력칸에 바인딩
+                etUserCode.setText(myInfo.userCode)
             }
         }
 
-        // 2. 뒤로가기 버튼 클릭 시 화면 탈출
+        // 2. 뒤로가기
         ivBack.setOnClickListener {
             parentFragmentManager.popBackStack()
         }
 
-        // 3. 프로필 이미지 변경 클릭 시 알림
+        // 3. 프로필 이미지 변경 클릭
         ivEditProfileImage.setOnClickListener {
-            Toast.makeText(context, "갤러리 열기 기능 준비 중!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), "갤러리 열기 기능 준비 중!", Toast.LENGTH_SHORT).show()
         }
 
-        // 4. 저장 버튼 클릭 시 -> 입력값 무결성 체크 후 Room DB 업데이트
+        // 4. 저장 버튼 클릭
         btnSave.setOnClickListener {
             val inputNickname = etNickname.text.toString().trim()
             val inputUserCode = etUserCode.text.toString().trim()
 
             if (inputNickname.isEmpty() || inputUserCode.isEmpty()) {
-                Toast.makeText(context, "빈칸을 모두 채워주세요!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), "빈칸을 모두 채워주세요!", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
+            // 중복 클릭 방지
+            btnSave.isEnabled = false
+
             viewLifecycleOwner.lifecycleScope.launch {
-                // 기존 데이터 가져와서 누락되는 컬럼 방지
                 val existingUser = db.userDao().getUserById(1)
 
                 val updatedUser = UserEntity(
-                    userId = 1, // 기존 1번 유저 정보를 교체
-                    userCode = inputUserCode, // 새로 입력받은 사용자 ID 세팅
+                    userId = 1,
+                    userCode = inputUserCode,
                     email = existingUser?.email ?: "default@email.com",
                     passwordHash = existingUser?.passwordHash ?: "default_hash",
-                    nickname = inputNickname, // 새로 입력받은 닉네임 세팅
+                    nickname = inputNickname,
                     profileImageUrl = existingUser?.profileImageUrl,
                     membershipStatus = existingUser?.membershipStatus ?: "FREE",
                     pushEnabled = existingUser?.pushEnabled ?: true,
                     createdAt = existingUser?.createdAt ?: System.currentTimeMillis()
                 )
 
-                // DB에 반영
                 db.userDao().insertUser(updatedUser)
 
-                Toast.makeText(context, "프로필이 성공적으로 저장되었습니다!", Toast.LENGTH_SHORT).show()
-
-                // 저장이 완료되었으므로 이전 프로필 홈 화면으로 자동 복귀
+                Toast.makeText(requireContext(), "프로필이 성공적으로 저장되었습니다!", Toast.LENGTH_SHORT).show()
                 parentFragmentManager.popBackStack()
             }
         }
-
-        return view
     }
 }
