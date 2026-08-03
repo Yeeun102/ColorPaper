@@ -120,7 +120,8 @@ class DiaryFragment : Fragment() {
             binding.btnEndDateUser to "#D2FFDA".toColorInt(),
             binding.btnVisibilityPublic to "#DFD5FF".toColorInt(),
             binding.btnVisibilityFriendOnly to "#D7E7FF".toColorInt(),
-            binding.btnVisibilityPrivate to "#FFD7D7".toColorInt()
+            binding.btnVisibilityPrivate to "#FFD7D7".toColorInt(),
+            binding.btnHighlightState to "#D5B4B4".toColorInt()
         )
 
         emotionColorMap = mapOf(
@@ -511,10 +512,12 @@ class DiaryFragment : Fragment() {
             } else {
                 binding.tvEmptyHint.visibility = View.GONE
                 for (postIt in postIts) {
-                    if (postIt.content.startsWith("[DECO]:")) {
+                    val isDecoText = postIt.content.startsWith("[DECO]:")
                         // 꾸미기 텍스트 복원
-                        val decText = postIt.content.replace("[DECO]:", "")
-                        restoreDecorateTextView(decText, postIt.positionX, postIt.positionY, postIt.diaryId)
+                    if (isDecoText) {
+                        // [DECO]: 머리말을 잘라내고 순수 텍스트만 추출
+                        val pureText = postIt.content.replace("[DECO]:", "")
+                        restoreDecorateTextView(pureText, postIt.positionX, postIt.positionY, postIt.diaryId)
                     } else {
                         // 포스트잇 복원
                         inflateSavedPostIt(postIt)
