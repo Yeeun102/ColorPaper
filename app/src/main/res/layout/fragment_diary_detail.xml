@@ -18,7 +18,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/lineHeader">
+        app:layout_constraintBottom_toTopOf="@id/lineHeaderDetail">
     <!-- [상단 바] 과거 날짜 고정 영역 -->
         <TextView
             android:id="@+id/tvDetailDateTitle"
@@ -75,8 +75,9 @@
             android:clipChildren="false"
             android:clipToPadding="false"
             android:paddingLeft="20dp"
-            android:paddingTop="0dp"
+            android:paddingTop="50dp"
             android:paddingRight="20dp"
+            android:paddingBottom="150dp"
             app:layout_constraintBottom_toBottomOf="@id/ivFixedDiaryPageDetail"
             app:layout_constraintEnd_toEndOf="@id/ivFixedDiaryPageDetail"
             app:layout_constraintStart_toStartOf="@id/ivFixedDiaryPageDetail"

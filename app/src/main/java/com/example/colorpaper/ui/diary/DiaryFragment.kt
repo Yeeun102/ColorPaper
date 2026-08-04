@@ -46,6 +46,8 @@ class DiaryFragment : Fragment() {
     private var selectedReminderCycleDays: Int = ReminderSchedulePolicy.DISABLED
     private var reminderSelectionTouched: Boolean = false
 
+    private var selectedReminderEndDate: Int = 0 // 0: 없음, YYYYMMDD: 사용자 지정 날짜
+
     // 컴파일 타임에 검증 가능한 SVG 에셋 리소스 맵
     private val postItResourceMap = mapOf(
         "orange" to R.drawable.post_orange,
@@ -334,12 +336,7 @@ class DiaryFragment : Fragment() {
 
     private fun initSingleChoiceGroups() {
         setupReminderChoiceGroup()
-
-        // 2. End Date (Default: None)
-        setupSingleChoiceGroup(
-            listOf(binding.btnEndDateNone, binding.btnEndDateUser),
-            defaultSelectedView = binding.btnEndDateNone
-        )
+        setupEndDateChoiceGroup()
 
         // 3. Visibility (Default: Public)
         setupSingleChoiceGroup(
@@ -394,10 +391,76 @@ class DiaryFragment : Fragment() {
         }
     }
 
+    private fun setupEndDateChoiceGroup() {
+        val btnNone = binding.btnEndDateNone
+        val btnUser = binding.btnEndDateUser
+
+        // 초기 상태 세팅 (기본값: 없음 선택)
+        if (selectedReminderEndDate == 0) {
+            applyCustomButtonState(btnNone, isSelected = true)
+            applyCustomButtonState(btnUser, isSelected = false)
+            btnUser.text = "사용자 지정"
+        } else {
+            applyCustomButtonState(btnNone, isSelected = false)
+            applyCustomButtonState(btnUser, isSelected = true)
+        }
+
+        // 1. '없음' 버튼 클릭
+        btnNone.setOnClickListener {
+            selectedReminderEndDate = 0
+            applyCustomButtonState(btnNone, isSelected = true)
+            applyCustomButtonState(btnUser, isSelected = false)
+            btnUser.text = "사용자 지정"
+        }
+
+        // 2. '사용자 지정' 버튼 클릭 시 DatePicker 띄우기
+        btnUser.setOnClickListener {
+            val cal = Calendar.getInstance()
+
+            // 이미 선택된 날짜가 있다면 DatePicker 초기 위치로 세팅
+            if (selectedReminderEndDate > 0) {
+                val yyyy = selectedReminderEndDate / 10000
+                val mm = (selectedReminderEndDate % 10000) / 100 - 1
+                val dd = selectedReminderEndDate % 100
+                cal.set(yyyy, mm, dd)
+            }
+
+            DatePickerDialog(
+                requireContext(),
+                { _, year, month, dayOfMonth ->
+                    val targetCal = Calendar.getInstance().apply {
+                        set(year, month, dayOfMonth)
+                    }
+
+                    // YYYYMMDD 형태의 Int 생성 (예: 20260804)
+                    val yyyy = targetCal.get(Calendar.YEAR)
+                    val mm = targetCal.get(Calendar.MONTH) + 1
+                    val dd = targetCal.get(Calendar.DAY_OF_MONTH)
+                    selectedReminderEndDate = yyyy * 10000 + mm * 100 + dd
+
+                    // 버튼 텍스트 변경 (예: "2026-08-04")
+                    val displayStr = String.format(Locale.getDefault(), "%d-%02d-%02d", yyyy, mm, dd)
+                    btnUser.text = displayStr
+
+                    // 사용자 지정 버튼 선택 하이라이트
+                    applyCustomButtonState(btnNone, isSelected = false)
+                    applyCustomButtonState(btnUser, isSelected = true)
+                },
+                cal.get(Calendar.YEAR),
+                cal.get(Calendar.MONTH),
+                cal.get(Calendar.DAY_OF_MONTH)
+            ).apply {
+                // 과거 날짜 선택 방지 (오늘부터 선택 가능)
+                datePicker.minDate = System.currentTimeMillis()
+            }.show()
+        }
+    }
+
     private fun resetPostItSettingUI() {
         currentSelectedColor = "yellow"
         selectedReminderCycleDays = ReminderSchedulePolicy.DISABLED
         reminderSelectionTouched = false
+        selectedReminderEndDate = 0
         selectedEmotions.clear()
         tempSelectedEmotions.clear()
         selectedTags.clear()
@@ -778,6 +841,7 @@ class DiaryFragment : Fragment() {
                             },
                             reminderAnchorAt = reminderAnchor,
                             reminderStage = reminderStage,
+                            reminderEndDate = selectedReminderEndDate,
                             positionX = posX,
                             positionY = posY,
                             userId = 1,

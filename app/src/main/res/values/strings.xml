@@ -82,4 +82,5 @@
     <string name="masking_correct">정답이에요!</string>
     <string name="masking_incorrect">다시 떠올려 보세요.</string>
     <string name="today">today</string>
+    <string name="no_flashcard">단어장이 없습니다.</string>
 </resources>
