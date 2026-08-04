@@ -85,9 +85,17 @@ class FlashcardFragment : Fragment() {
             }
 
             withContext(Dispatchers.Main) {
-                adapter.updateData(sets)
+                if (sets.isEmpty()) {
+                    // 단어장이 없으면 안내문구 노출, 리사이클러뷰 숨김
+                    binding.tvEmptyHint.visibility = View.VISIBLE
+                    binding.rvFlashcardSets.visibility = View.GONE
+                } else {
+                    // 단어장이 있으면 안내문구 숨김, 리사이클러뷰 노출
+                    binding.tvEmptyHint.visibility = View.GONE
+                    binding.rvFlashcardSets.visibility = View.VISIBLE
+                    adapter.updateData(sets)
+                }
             }
-            //adapter.updateData(sets)
         }
     }
 

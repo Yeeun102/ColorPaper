@@ -13,6 +13,10 @@ import android.widget.TextView
 import android.widget.EditText
 import android.widget.Button
 import android.widget.Toast
+import android.graphics.Color
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.BackgroundColorSpan
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.core.graphics.toColorInt
@@ -157,7 +161,12 @@ class DiaryDetailFragment : Fragment() {
             tvTime.text = todayDateStr
 
             commentView.tag = randomColor
-            makeViewDraggable(commentView)
+
+            etCommentContent.isEnabled = true
+            etCommentContent.isFocusable = true
+            etCommentContent.isFocusableInTouchMode = true
+            etCommentContent.requestFocus()
+
             // 4. 등록 버튼(TextView)을 누르면 입력된 값을 가져와서 Room DB에 최종 저장!
             btnCommentDone.setOnClickListener {
                 val text = etCommentContent.text.toString().trim()
@@ -166,6 +175,7 @@ class DiaryDetailFragment : Fragment() {
                     etCommentContent.clearFocus()
                     btnCommentDone.visibility = View.GONE
 
+                    makeViewDraggable(commentView)
                     insertCommentToDb(commentView, text, randomColor, todayDateStr)
 
                 } else {
@@ -242,7 +252,16 @@ class DiaryDetailFragment : Fragment() {
             // 일기 데이터 그리기 (편집 불가능 구조)
             binding.layoutDetailDiaryContainer.removeAllViews()
             for (postIt in postIts) {
-                renderReadOnlyPostIt(postIt)
+                val isDecoText = postIt.content.startsWith("[DECO]:")
+
+                if (isDecoText) {
+                    // 💡 꾸미기 텍스트는 [DECO]: 를 떼고 투명 TextView로 그려줌
+                    val pureText = postIt.content.replace("[DECO]:", "")
+                    renderReadOnlyDecoText(pureText, postIt.positionX, postIt.positionY)
+                } else {
+                    // 일반 일기 포스트잇 그려줌
+                    renderReadOnlyPostIt(postIt)
+                }
             }
 
             // 셀프 댓글 데이터 그리기 (계단식 뷰 스택)
@@ -251,6 +270,27 @@ class DiaryDetailFragment : Fragment() {
                 renderCommentPostIt(comment)
             }
         }
+    }
+
+    private fun renderReadOnlyDecoText(textStr: String, posX: Float, posY: Float) {
+        val decorateTextView = TextView(requireContext()).apply {
+            text = textStr
+            textSize = 16f
+            setTextColor(Color.BLACK)
+            setBackgroundColor(Color.TRANSPARENT)
+            setPadding(16, 8, 16, 8)
+
+            // 위치 지정
+            translationX = posX
+            translationY = posY
+
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        }
+
+        binding.layoutDetailDiaryContainer.addView(decorateTextView)
     }
 
     private fun insertCommentToDb(view: View, commentText: String, colorName: String, timestamp: String) {
@@ -340,8 +380,16 @@ class DiaryDetailFragment : Fragment() {
         val etContent = view.findViewById<TextView>(R.id.etPostItContent)
 
         tvDate.text = diary.createdAt
-        etContent.text = diary.content
-        etContent.isEnabled = false
+
+        if (etContent is EditText) {
+            etContent.setText(diary.content)
+            // 형광펜 하이라이트가 있었다면 복원
+            applyHighlightRangesToEditText(etContent, diary.highlightRanges)
+            etContent.isEnabled = false
+            etContent.isFocusable = false
+        } else if (etContent is TextView) {
+            etContent.text = diary.content
+        }
 
         // 일기 원본 색상 SVG 매핑
         val resId = postItResourceMap[diary.color] ?: R.drawable.post_yellow
@@ -418,6 +466,32 @@ class DiaryDetailFragment : Fragment() {
             }
             true
         }
+    }
+
+    private fun applyHighlightRangesToEditText(etContent: EditText, rangesStr: String) {
+        if (rangesStr.isBlank()) return
+
+        val text = etContent.text.toString()
+        val spannable = SpannableString(text)
+        val pairs = rangesStr.split(",")
+
+        for (pair in pairs) {
+            val parts = pair.split("-")
+            if (parts.size == 2) {
+                val start = parts[0].toIntOrNull() ?: continue
+                val end = parts[1].toIntOrNull() ?: continue
+
+                if (start in 0..text.length && end in start..text.length) {
+                    spannable.setSpan(
+                        BackgroundColorSpan("#FFF59D".toColorInt()),
+                        start,
+                        end,
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                }
+            }
+        }
+        etContent.setText(spannable)
     }
 
     override fun onDestroyView() {
