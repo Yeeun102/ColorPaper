@@ -6,29 +6,32 @@ import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.ImageView
 import android.widget.LinearLayout
 import androidx.activity.OnBackPressedCallback
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.ColorUtils
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
-import com.example.colorpaper.ui.diary.DiaryFragment
-import com.example.colorpaper.ui.diary.DiaryDetailFragment
+import com.example.colorpaper.reminder.ReminderIntents
 import com.example.colorpaper.ui.diary.DiaryDayFragmentFactory
+import com.example.colorpaper.ui.diary.DiaryDetailFragment
+import com.example.colorpaper.ui.diary.DiaryFragment
 import com.example.colorpaper.ui.flashcard.FlashcardFragment
 import com.example.colorpaper.ui.home.HomeFragment
+import com.example.colorpaper.ui.login.LoginFragment
+import com.example.colorpaper.ui.login.RegisterFragment
 import com.example.colorpaper.ui.profile.ProfileFragment
 import com.example.colorpaper.ui.setting.SettingFragment
 import com.example.colorpaper.ui.theme.ThemeManager
-import com.example.colorpaper.reminder.ReminderIntents
 import com.google.android.material.card.MaterialCardView
-import android.util.Log
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
 class MainActivity : AppCompatActivity() {
@@ -65,8 +68,17 @@ class MainActivity : AppCompatActivity() {
         bindBackNavigation()
         requestNotificationPermissionIfNeeded()
 
+        // 🌟 진입 시 로그인 상태에 따른 화면 이동 처리
         if (savedInstanceState == null) {
-            showScreen(homeFragmentFromIntent(intent), R.id.nav_home)
+            val currentUser = FirebaseAuth.getInstance().currentUser
+
+            if (currentUser == null) {
+                // 비로그인 ➔ 로그인 화면 표시 (필요 시 RegisterFragment()로 변경 가능)
+                showScreen(LoginFragment(), R.id.nav_home)
+            } else {
+                // 로그인 완료 ➔ 메인 홈 화면 표시
+                showScreen(homeFragmentFromIntent(intent), R.id.nav_home)
+            }
         } else {
             selectNavigation(currentNavigationId())
         }
@@ -127,6 +139,15 @@ class MainActivity : AppCompatActivity() {
             null,
             androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE
         )
+
+        // 로그인/회원가입 화면일 때는 하단 네비게이션 바 숨김 처리
+        val bottomNav = findViewById<MaterialCardView>(R.id.bottom_navigation_bar)
+        if (fragment is LoginFragment || fragment is RegisterFragment) {
+            bottomNav?.visibility = View.GONE
+        } else {
+            bottomNav?.visibility = View.VISIBLE
+        }
+
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_container, fragment)
             .commit()
