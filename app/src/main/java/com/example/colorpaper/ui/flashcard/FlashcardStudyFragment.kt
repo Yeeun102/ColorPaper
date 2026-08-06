@@ -20,9 +20,10 @@ class FlashcardStudyFragment : Fragment() {
     private val binding get() = _binding!!
 
     private var isFlipped = false
-
-    private var cardList: List<WordEntity> = emptyList()
+    private val studyQueue = mutableListOf<WordEntity>()
     private var currentCardIndex = 0
+
+    private val failCountMap = mutableMapOf<Int, Int>()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -43,17 +44,22 @@ class FlashcardStudyFragment : Fragment() {
         lifecycleScope.launch {
             val db = AppDatabase.getDatabase(requireContext())
 
-            cardList = withContext(Dispatchers.IO) {
-                // Folder ID(단어장 ID)에 해당하는 WordEntity 목록을 가져옵니다.
+            val initialCards = withContext(Dispatchers.IO) {
                 db.flashcardDao().getItemsBySetId(folderId.toLong())
             }
 
+            studyQueue.clear()
+            studyQueue.addAll(initialCards)
             currentCardIndex = 0
             showCard()
         }
 
         binding.cardContainer.setOnClickListener { toggleFlip() }
         binding.tvFlipHint.setOnClickListener { toggleFlip() }
+
+        binding.btnExitStudy.setOnClickListener {
+            parentFragmentManager.popBackStack()
+        }
 
         binding.btnNextCard.setOnClickListener {
             currentCardIndex++
@@ -64,27 +70,27 @@ class FlashcardStudyFragment : Fragment() {
     }
 
     private fun toggleFlip() {
-        if (cardList.isNotEmpty() && currentCardIndex < cardList.size) {
+        if (studyQueue.isNotEmpty() && currentCardIndex < studyQueue.size) {
             isFlipped = !isFlipped
             updateCardUI()
         }
     }
 
     private fun showCard() {
-        if (cardList.isNotEmpty() && currentCardIndex < cardList.size) {
+        if (studyQueue.isNotEmpty() && currentCardIndex < studyQueue.size) {
             isFlipped = false // 새 카드는 항상 앞면부터
             updateCardUI()
         } else {
             binding.tvCardContent.text = "🎉 모든 카드를 학습했습니다!"
-            binding.tvFlipHint.text = "목록으로 돌아가려면 뒤로가기를 눌러주세요."
+            binding.tvFlipHint.text = "뒤로가기 또는 종료 버튼을 눌러주세요."
             binding.layoutEmojiButtons.visibility = View.GONE
             binding.btnNextCard.visibility = View.GONE
         }
     }
     private fun updateCardUI() {
-        if (cardList.isEmpty() || currentCardIndex >= cardList.size) return
+        if (studyQueue.isEmpty() || currentCardIndex >= studyQueue.size) return
 
-        val currentCard = cardList[currentCardIndex]
+        val currentCard = studyQueue[currentCardIndex]
 
         if (isFlipped) {
             binding.tvCardContent.text = currentCard.wordAnswer
@@ -123,26 +129,61 @@ class FlashcardStudyFragment : Fragment() {
      * Anki 피드백 반응(0~5점)에 따라 카드의 주기(Interval)와 난이도 계수(Ease Factor)를 계산하는 함수
      */
     private fun handleCardFeedback(quality: Int) {
-        if (cardList.isEmpty() || currentCardIndex >= cardList.size) return
+        if (studyQueue.isEmpty() || currentCardIndex >= studyQueue.size) return
 
-        val currentCard = cardList[currentCardIndex]
+        val currentCard = studyQueue[currentCardIndex]
+        val currentTime = System.currentTimeMillis()
+        val oneDayInMillis = 24 * 60 * 60 * 1000L
 
-        // 1. 새로운 Ease Factor(난이도 계수) 계산 (Anki SM-2 공식 응용)
-        // 2.5f 근처를 유지하되, 어려우면 낮아지고(자주 나옴) 쉬우면 높아짐(가끔 나옴)
+        // 1. 새로운 Ease Factor(난이도 계수) 계산
         var newEaseFactor = currentCard.easeFactor + (0.1f - (5 - quality) * (0.08f + (5 - quality) * 0.02f))
-        if (newEaseFactor < 1.3f) newEaseFactor = 1.3f // 최소값 방어선 보장
+        if (newEaseFactor < 1.3f) newEaseFactor = 1.3f // SM-2 최소 하한선
 
-        // 2. 피드백 점수별 다음 복습 주기(일 단위) 계산
-        val nextInterval: Int = when (quality) {
-            0 -> 1
-            2 -> 2
-            4 -> 3
-            5 -> 7
-            else -> 1
+        // 2. 피드백 결과에 따른 Repetitions(연속 성공 횟수) 및 Interval(복습 주기 일수) 계산
+        val newRepetitions: Int
+        val newInterval: Int
+
+        if (quality < 3) {
+            // [Again / Hard] 틀렸거나 어려웠던 경우 -> 연속 성공 초기화 및 1일 뒤 재복습
+            newRepetitions = 0
+            newInterval = 1
+
+            val currentFails = (failCountMap[currentCard.wordId] ?: 0) + 1
+            failCountMap[currentCard.wordId] = currentFails
+
+            // 💡 최대 3번까지만 세션 뒤로 재배치 (3번 넘게 틀리면 오늘 세션에서는 일단 제외)
+            if (currentFails < 3) {
+                studyQueue.add(currentCard)
+            }
+        } else {
+            // [Good / Easy] 맞춘 경우
+            newRepetitions = currentCard.repetitions + 1
+            newInterval = when (newRepetitions) {
+                1 -> 1
+                2 -> 6
+                else -> (currentCard.interval * newEaseFactor).toInt().coerceAtLeast(currentCard.interval + 1)
+            }
         }
 
-        println("카드 [${currentCard.wordQuestion}] 변경 사항 -> 다음 주기: ${nextInterval}일 뒤, 난이도 계수: $newEaseFactor")
+        // 3. 다음 복습 타임스탬프 계산 (현재 시간 + n일)
+        val newNextReviewAt = currentTime + (newInterval * oneDayInMillis)
 
+        // 4. 엔티티 객체 업데이트
+        val updatedCard = currentCard.copy(
+            interval = newInterval,
+            easeFactor = newEaseFactor,
+            repetitions = newRepetitions,
+            nextReviewAt = newNextReviewAt,
+            isMemorized = newRepetitions >= 2 // 2회 연속 성공 시 암기 완료 처리
+        )
+
+        // 5. 💡 [핵심] Room DB에 실제 업데이트 수행
+        lifecycleScope.launch(Dispatchers.IO) {
+            val dao = AppDatabase.getDatabase(requireContext()).flashcardDao()
+            dao.updateWord(updatedCard)
+        }
+
+        // 6. 다음 카드로 이동
         currentCardIndex++
         showCard()
     }

@@ -221,19 +221,13 @@ class DiaryDetailFragment : Fragment() {
                 val selectedStr = dateFormat.format(targetCal.time)
 
                 if (selectedStr == todayStr) {
-                    // 오늘 날짜 선택 시 메인 다이어리 화면(DiaryFragment)으로 원복
-                    parentFragmentManager.popBackStack()
-                } else {
-                    // 다른 과거/미래 날짜 선택 시 새로운 DiaryDetailFragment로 교체
-                    val detailFragment = DiaryDetailFragment().apply {
-                        arguments = Bundle().apply {
-                            putString("TARGET_DATE", selectedStr)
-                        }
-                    }
-                    parentFragmentManager.beginTransaction()
-                        .replace(R.id.main, detailFragment)
-                        .addToBackStack(null)
-                        .commit()
+                    // 💡 [핵심 1] 오늘 날짜 선택 시: 백스택에 쌓인 모든 상세 페이지를 비우고 메인(DiaryFragment)으로 깔끔하게 원복
+                    parentFragmentManager.popBackStack(null, androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE)
+                } else if (selectedStr != targetDate) {
+                    // 💡 [핵심 2] 다른 과거 날짜 선택 시: 프래그먼트를 새로 쌓지 않고 현재 화면에서 날짜만 교체 후 데이터 재로드!
+                    targetDate = selectedStr
+                    updateTitleDateText()
+                    loadDiaryAndComments()
                 }
             },
             cal.get(Calendar.YEAR),
