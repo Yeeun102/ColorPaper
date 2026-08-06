@@ -25,6 +25,7 @@ import com.example.colorpaper.databinding.FragmentDiaryDetailBinding
 import com.example.colorpaper.data.local.AppDatabase
 import com.example.colorpaper.data.model.DiaryEntity
 import com.example.colorpaper.data.model.CommentEntity
+import com.example.colorpaper.util.AuthUtils
 import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -58,6 +59,8 @@ class DiaryDetailFragment : Fragment() {
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
     private var buttonColorMap: Map<Button, Int> = emptyMap()
+
+
 
     private fun applyCustomButtonState(button: Button, isSelected: Boolean, originalColor: Int = 0) {
         if (button is MaterialButton) {
@@ -221,19 +224,13 @@ class DiaryDetailFragment : Fragment() {
                 val selectedStr = dateFormat.format(targetCal.time)
 
                 if (selectedStr == todayStr) {
-                    // 오늘 날짜 선택 시 메인 다이어리 화면(DiaryFragment)으로 원복
-                    parentFragmentManager.popBackStack()
-                } else {
-                    // 다른 과거/미래 날짜 선택 시 새로운 DiaryDetailFragment로 교체
-                    val detailFragment = DiaryDetailFragment().apply {
-                        arguments = Bundle().apply {
-                            putString("TARGET_DATE", selectedStr)
-                        }
-                    }
-                    parentFragmentManager.beginTransaction()
-                        .replace(R.id.main, detailFragment)
-                        .addToBackStack(null)
-                        .commit()
+                    // 💡 [핵심 1] 오늘 날짜 선택 시: 백스택에 쌓인 모든 상세 페이지를 비우고 메인(DiaryFragment)으로 깔끔하게 원복
+                    parentFragmentManager.popBackStack(null, androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE)
+                } else if (selectedStr != targetDate) {
+                    // 💡 [핵심 2] 다른 과거 날짜 선택 시: 프래그먼트를 새로 쌓지 않고 현재 화면에서 날짜만 교체 후 데이터 재로드!
+                    targetDate = selectedStr
+                    updateTitleDateText()
+                    loadDiaryAndComments()
                 }
             },
             cal.get(Calendar.YEAR),
@@ -245,9 +242,10 @@ class DiaryDetailFragment : Fragment() {
     private fun loadDiaryAndComments() {
         lifecycleScope.launch {
             val db = AppDatabase.getDatabase(requireContext())
+            val currentUid = AuthUtils.getCurrentUserId()
 
-            val postIts = withContext(Dispatchers.IO) { db.diaryDao().getPostItsByDate(targetDate) }
-            val comments = withContext(Dispatchers.IO) { db.diaryDao().getCommentsByDate(targetDate) }
+            val postIts = withContext(Dispatchers.IO) { db.diaryDao().getPostItsByDateAndUserId(targetDate,currentUid) }
+            val comments = withContext(Dispatchers.IO) { db.diaryDao().getCommentsByDateAndUserId(targetDate,currentUid) }
 
             // 일기 데이터 그리기 (편집 불가능 구조)
             binding.layoutDetailDiaryContainer.removeAllViews()
@@ -294,12 +292,14 @@ class DiaryDetailFragment : Fragment() {
     }
 
     private fun insertCommentToDb(view: View, commentText: String, colorName: String, timestamp: String) {
+        val currentUid = AuthUtils.getCurrentUserId()
+
         val posX = view.translationX
         val posY = view.translationY
 
         val newComment = CommentEntity(
             diaryId = 0,
-            userId = 1,
+            userId = currentUid,
             date = targetDate,
             content = commentText,
             color = colorName,
@@ -333,6 +333,7 @@ class DiaryDetailFragment : Fragment() {
             val db = AppDatabase.getDatabase(requireContext())
 
             withContext(Dispatchers.Main) {
+                val currentUid = AuthUtils.getCurrentUserId()
                 for (i in 0 until childCount) {
                     val commentView = container.getChildAt(i)
                     val etCommentContent = commentView.findViewById<EditText>(R.id.etCommentContent) ?: continue
@@ -349,7 +350,7 @@ class DiaryDetailFragment : Fragment() {
                         val updatedComment = CommentEntity(
                             commentId = existingCommentId,
                             diaryId = 0,
-                            userId = 1,
+                            userId = currentUid,
                             date = targetDate,
                             content = text,
                             color = colorName,

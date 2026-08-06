@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import com.example.colorpaper.data.model.FolderEntity
 import com.example.colorpaper.data.model.WordEntity
 
@@ -28,10 +29,15 @@ interface FlashcardDao {
     // 2. 단어 카드(FlashcardItem) 관련 쿼리
     // ==========================================
 
-    // 학습 화면에서 특정 단어장(setId)에 속한 카드들만 필터링해서 조회
-    @Query("SELECT * FROM words WHERE folder_id = :targetSetId")
+    @Query("SELECT * FROM words WHERE folder_id = :targetSetId ORDER BY next_review_at ASC, word_id ASC")
     fun getItemsBySetId(targetSetId: Long): List<WordEntity>
 
+    @Query("SELECT * FROM folders WHERE user_id = :userId ORDER BY folder_id DESC")
+    fun getAllSetsByUserId(userId: String): List<FolderEntity>
+
+    // 💡 [추가] Anki 피드백 반영 후 DB 업데이트용 함수
+    @Update
+    suspend fun updateWord(word: WordEntity)
     // CSV 파싱이나 수동 입력으로 만든 카드 리스트를 한 번에 통째로 저장
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insertAllItems(items: List<WordEntity>)

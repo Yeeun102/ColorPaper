@@ -24,5 +24,7 @@ data class WordEntity(
     @ColumnInfo(name = "word_answer") val wordAnswer: String,     // 뒷면 (정답)
     @ColumnInfo(name = "is_memorized") val isMemorized: Boolean = false,
     @ColumnInfo(name = "interval") val interval: Int = 1,
-    @ColumnInfo(name = "ease_factor") val easeFactor: Float = 2.5f// 💡 암기 완료 여부 (플립 학습용)
+    @ColumnInfo(name = "ease_factor") val easeFactor: Float = 2.5f,// 💡 암기 완료 여부 (플립 학습용)
+    @ColumnInfo(name = "repetitions") val repetitions: Int = 0,    // 연속 성공 횟수
+    @ColumnInfo(name = "next_review_at") val nextReviewAt: Long = 0L // 다음 복습 일시
 )

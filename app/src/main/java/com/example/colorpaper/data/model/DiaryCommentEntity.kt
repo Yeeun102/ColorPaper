@@ -1,4 +1,4 @@
-package com.example.colorpaper.data.local.entity
+package com.example.colorpaper.data.model
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey

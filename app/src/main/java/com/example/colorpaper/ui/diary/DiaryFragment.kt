@@ -36,6 +36,7 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 import androidx.core.graphics.toColorInt
+import com.example.colorpaper.util.AuthUtils
 
 class DiaryFragment : Fragment() {
     private var _binding: FragmentDiaryBinding? = null
@@ -614,10 +615,11 @@ class DiaryFragment : Fragment() {
     }
     private fun loadTodayDiary() {
         val dateKey = dateFormat.format(selectedDateCalendar.time)
+        val currentUid = AuthUtils.getCurrentUserId()
         lifecycleScope.launch {
             val db = AppDatabase.getDatabase(requireContext())
             val postIts = withContext(Dispatchers.IO) {
-                db.diaryDao().getPostItsByDate(dateKey)
+                db.diaryDao().getPostItsByDateAndUserId(dateKey, currentUid)
             }
 
             // 💡 [수정] 다이어리 컨테이너와 동적 태그 컨테이너 초기화
@@ -745,6 +747,10 @@ class DiaryFragment : Fragment() {
             Toast.makeText(requireContext(), "저장할 메모지 내용이 없습니다.", Toast.LENGTH_SHORT).show()
             return
         }
+        val currentUid = AuthUtils.getCurrentUserId()
+        if (currentUid == "") {
+            Toast.makeText(requireContext(), "currentUid is null", Toast.LENGTH_SHORT).show()
+        }
 
         // 💡 [수정] 백그라운드 스레드에서 순차적으로 저장 후 ID 반영
         lifecycleScope.launch(Dispatchers.IO) {
@@ -772,7 +778,7 @@ class DiaryFragment : Fragment() {
                             visibility = currentVisibility,
                             positionX = posX,
                             positionY = posY,
-                            userId = 1,
+                            userId = currentUid,
                             highlightRanges = ""
                         )
                         val savedId = db.diaryDao().insertPostIt(decDiaryEntity)
@@ -844,7 +850,7 @@ class DiaryFragment : Fragment() {
                             reminderEndDate = selectedReminderEndDate,
                             positionX = posX,
                             positionY = posY,
-                            userId = 1,
+                            userId = currentUid,
                             highlightRanges = highlightRanges
                         )
 
@@ -867,7 +873,7 @@ class DiaryFragment : Fragment() {
             }
 
             withContext(Dispatchers.Main) {
-                Toast.makeText(requireContext(), "저장되었습니다!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), "저장되었습니다!"+currentUid, Toast.LENGTH_SHORT).show()
                 binding.layoutPostItSetting.visibility = View.GONE
                 selectedEmotions.clear()
             }

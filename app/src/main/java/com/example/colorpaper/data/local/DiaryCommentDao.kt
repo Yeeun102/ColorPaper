@@ -1,10 +1,10 @@
-package com.example.colorpaper.data.local.dao
+package com.example.colorpaper.data.local
 
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import com.example.colorpaper.data.local.entity.DiaryCommentEntity
+import com.example.colorpaper.data.model.DiaryCommentEntity
 
 @Dao
 interface DiaryCommentDao {
