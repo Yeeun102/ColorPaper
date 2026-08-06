@@ -18,6 +18,7 @@ import com.example.colorpaper.data.model.FolderEntity
 import com.example.colorpaper.data.model.WordEntity
 import com.example.colorpaper.databinding.FragmentFlashcardCreateBinding
 import com.example.colorpaper.data.local.AppDatabase
+import com.example.colorpaper.util.AuthUtils
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import kotlinx.coroutines.Dispatchers
@@ -155,12 +156,13 @@ class FlashcardCreateFragment : Fragment() {
         val selectedChipId = binding.chipGroupVisibility.checkedChipId
         val visibility = binding.chipGroupVisibility.findViewById<com.google.android.material.chip.Chip>(selectedChipId)?.text.toString()
 
+        val currentUid = AuthUtils.getCurrentUserId()
         lifecycleScope.launch {
             val dao = AppDatabase.getDatabase(requireContext()).flashcardDao()
 
             withContext(Dispatchers.IO) {
                 val newFolder = FolderEntity(
-                    userId = 1, // Using 1 for now as seen in ProfileEditFragment
+                    userId = currentUid,
                     folderName = if (setTitle.startsWith("#")) setTitle else "#$setTitle",
                     visibility = visibility
                 )

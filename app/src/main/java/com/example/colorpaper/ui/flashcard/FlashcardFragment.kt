@@ -12,6 +12,7 @@ import com.example.colorpaper.R
 import com.example.colorpaper.databinding.FragmentFlashcardBinding
 import com.example.colorpaper.data.local.AppDatabase
 import com.example.colorpaper.data.model.FolderEntity
+import com.example.colorpaper.util.AuthUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -79,9 +80,10 @@ class FlashcardFragment : Fragment() {
 
     private fun loadFlashcardSets() {
         lifecycleScope.launch {
+            val currentUid = AuthUtils.getCurrentUserId()
             val dao = AppDatabase.getDatabase(requireContext()).flashcardDao()
             val sets = withContext(Dispatchers.IO) {
-                dao.getAllSets()
+                dao.getAllSetsByUserId(currentUid)
             }
 
             withContext(Dispatchers.Main) {

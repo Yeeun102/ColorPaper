@@ -13,7 +13,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.example.colorpaper.R
 import com.example.colorpaper.data.local.AppDatabase
-import com.example.colorpaper.data.local.entity.DiaryCommentEntity
+import com.example.colorpaper.data.model.DiaryCommentEntity
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat

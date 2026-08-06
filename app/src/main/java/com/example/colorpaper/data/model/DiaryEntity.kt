@@ -5,7 +5,7 @@ import androidx.room.*
 @Entity(tableName = "diaries")
 data class DiaryEntity(
     @PrimaryKey(autoGenerate = true) @ColumnInfo(name = "diary_id") val diaryId: Int = 0,
-    @ColumnInfo(name = "user_id") val userId: Int,
+    @ColumnInfo(name = "user_id") val userId: String,
     @ColumnInfo(name = "content") val content: String,
     @ColumnInfo(name = "color") val color: String = "orange", // 💡 [기존 코드 통합] 포스트잇 배경 색상
     @ColumnInfo(name = "tag") val tag: String = "",

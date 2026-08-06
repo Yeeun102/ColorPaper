@@ -32,6 +32,9 @@ interface FlashcardDao {
     @Query("SELECT * FROM words WHERE folder_id = :targetSetId ORDER BY next_review_at ASC, word_id ASC")
     fun getItemsBySetId(targetSetId: Long): List<WordEntity>
 
+    @Query("SELECT * FROM folders WHERE user_id = :userId ORDER BY folder_id DESC")
+    fun getAllSetsByUserId(userId: String): List<FolderEntity>
+
     // 💡 [추가] Anki 피드백 반영 후 DB 업데이트용 함수
     @Update
     suspend fun updateWord(word: WordEntity)

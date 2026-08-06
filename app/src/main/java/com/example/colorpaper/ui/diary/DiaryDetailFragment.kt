@@ -25,6 +25,7 @@ import com.example.colorpaper.databinding.FragmentDiaryDetailBinding
 import com.example.colorpaper.data.local.AppDatabase
 import com.example.colorpaper.data.model.DiaryEntity
 import com.example.colorpaper.data.model.CommentEntity
+import com.example.colorpaper.util.AuthUtils
 import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -58,6 +59,8 @@ class DiaryDetailFragment : Fragment() {
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
     private var buttonColorMap: Map<Button, Int> = emptyMap()
+
+
 
     private fun applyCustomButtonState(button: Button, isSelected: Boolean, originalColor: Int = 0) {
         if (button is MaterialButton) {
@@ -288,12 +291,14 @@ class DiaryDetailFragment : Fragment() {
     }
 
     private fun insertCommentToDb(view: View, commentText: String, colorName: String, timestamp: String) {
+        val currentUid = AuthUtils.getCurrentUserId()
+
         val posX = view.translationX
         val posY = view.translationY
 
         val newComment = CommentEntity(
             diaryId = 0,
-            userId = 1,
+            userId = currentUid,
             date = targetDate,
             content = commentText,
             color = colorName,
@@ -327,6 +332,7 @@ class DiaryDetailFragment : Fragment() {
             val db = AppDatabase.getDatabase(requireContext())
 
             withContext(Dispatchers.Main) {
+                val currentUid = AuthUtils.getCurrentUserId()
                 for (i in 0 until childCount) {
                     val commentView = container.getChildAt(i)
                     val etCommentContent = commentView.findViewById<EditText>(R.id.etCommentContent) ?: continue
@@ -343,7 +349,7 @@ class DiaryDetailFragment : Fragment() {
                         val updatedComment = CommentEntity(
                             commentId = existingCommentId,
                             diaryId = 0,
-                            userId = 1,
+                            userId = currentUid,
                             date = targetDate,
                             content = text,
                             color = colorName,
