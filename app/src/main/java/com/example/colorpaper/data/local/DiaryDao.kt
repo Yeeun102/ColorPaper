@@ -61,4 +61,10 @@ interface DiaryDao {
 
     @Query("SELECT * FROM highlight_table ORDER BY highlightId DESC")
     suspend fun getAllHighlights(): List<HighlightEntity> // 다른 화면에서 모아볼 때 사용
+
+    @Query("SELECT * FROM diaries WHERE created_at = :date AND user_id = :userId")
+    suspend fun getPostItsByDateAndUserId(date: String, userId: String): List<DiaryEntity>
+
+    @Query("SELECT * FROM comments WHERE date = :targetDate AND user_id = :userId ORDER BY comment_id ASC")
+    fun getCommentsByDateAndUserId(targetDate: String, userId: String): List<CommentEntity>
 }

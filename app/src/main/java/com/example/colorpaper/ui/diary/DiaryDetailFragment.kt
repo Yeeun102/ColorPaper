@@ -242,9 +242,10 @@ class DiaryDetailFragment : Fragment() {
     private fun loadDiaryAndComments() {
         lifecycleScope.launch {
             val db = AppDatabase.getDatabase(requireContext())
+            val currentUid = AuthUtils.getCurrentUserId()
 
-            val postIts = withContext(Dispatchers.IO) { db.diaryDao().getPostItsByDate(targetDate) }
-            val comments = withContext(Dispatchers.IO) { db.diaryDao().getCommentsByDate(targetDate) }
+            val postIts = withContext(Dispatchers.IO) { db.diaryDao().getPostItsByDateAndUserId(targetDate,currentUid) }
+            val comments = withContext(Dispatchers.IO) { db.diaryDao().getCommentsByDateAndUserId(targetDate,currentUid) }
 
             // 일기 데이터 그리기 (편집 불가능 구조)
             binding.layoutDetailDiaryContainer.removeAllViews()

@@ -615,10 +615,11 @@ class DiaryFragment : Fragment() {
     }
     private fun loadTodayDiary() {
         val dateKey = dateFormat.format(selectedDateCalendar.time)
+        val currentUid = AuthUtils.getCurrentUserId()
         lifecycleScope.launch {
             val db = AppDatabase.getDatabase(requireContext())
             val postIts = withContext(Dispatchers.IO) {
-                db.diaryDao().getPostItsByDate(dateKey)
+                db.diaryDao().getPostItsByDateAndUserId(dateKey, currentUid)
             }
 
             // 💡 [수정] 다이어리 컨테이너와 동적 태그 컨테이너 초기화
