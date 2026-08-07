@@ -20,6 +20,7 @@ import com.example.colorpaper.data.model.TagEntity
 import com.example.colorpaper.data.model.TodoEntity
 import com.example.colorpaper.data.model.UserEntity
 import com.example.colorpaper.data.model.WordEntity
+import com.example.colorpaper.data.model.WidgetEntity
 
 @Database(
     entities = [
@@ -35,9 +36,10 @@ import com.example.colorpaper.data.model.WordEntity
         DiaryTagEntity::class,
         HighlightEntity::class,
         ReminderAnswerEntity::class,
-        DiaryCommentEntity::class
+        DiaryCommentEntity::class,
+        WidgetEntity::class
     ],
-    version = 10,
+    version = 12,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -45,6 +47,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun flashcardDao(): FlashcardDao
     abstract fun userDao(): UserDao
     abstract fun diaryDao(): DiaryDao
+    abstract fun todoDao(): TodoDao
+    abstract fun widgetDao(): WidgetDao
 
     abstract fun diaryCommentDao(): DiaryCommentDao
 
@@ -59,7 +63,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "flashcard_database"
                 )
-                    .addMigrations(MIGRATION_5_6)
+                    .addMigrations(MIGRATION_5_6, MIGRATION_10_11, MIGRATION_11_12)
                     .fallbackToDestructiveMigration()
                     .allowMainThreadQueries()
                     .build()
@@ -94,6 +98,33 @@ abstract class AppDatabase : RoomDatabase() {
                     CREATE UNIQUE INDEX IF NOT EXISTS index_reminder_answers_diary_id_reminder_stage
                     ON reminder_answers (diary_id, reminder_stage)
                     """.trimIndent()
+                )
+            }
+        }
+
+        private val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE todos ADD COLUMN carry_over INTEGER NOT NULL DEFAULT 0"
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS widget_table (
+                        widget_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        user_id INTEGER NOT NULL,
+                        widget_type TEXT NOT NULL,
+                        is_visible INTEGER NOT NULL,
+                        widget_order INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
+        private val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE words ADD COLUMN last_reviewed_at INTEGER NOT NULL DEFAULT 0"
                 )
             }
         }

@@ -103,7 +103,8 @@ class FlashcardStudyFragment : Fragment() {
                                     interval = doc.getLong("interval")?.toInt() ?: 1,
                                     easeFactor = doc.getDouble("easeFactor")?.toFloat() ?: 2.5f,
                                     repetitions = doc.getLong("repetitions")?.toInt() ?: 0,
-                                    nextReviewAt = doc.getLong("nextReviewAt") ?: 0L
+                                    nextReviewAt = doc.getLong("nextReviewAt") ?: 0L,
+                                    lastReviewedAt = doc.getLong("lastReviewedAt") ?: 0L
                                 )
                             } else null
                         }
@@ -226,6 +227,7 @@ class FlashcardStudyFragment : Fragment() {
             easeFactor = newEaseFactor,
             repetitions = newRepetitions,
             nextReviewAt = newNextReviewAt,
+            lastReviewedAt = currentTime,
             isMemorized = newRepetitions >= 2
         )
 
@@ -260,6 +262,7 @@ class FlashcardStudyFragment : Fragment() {
                                     "easeFactor" to updatedCard.easeFactor,
                                     "repetitions" to updatedCard.repetitions,
                                     "nextReviewAt" to updatedCard.nextReviewAt,
+                                    "lastReviewedAt" to updatedCard.lastReviewedAt,
                                     "isMemorized" to updatedCard.isMemorized
                                 )
                             )

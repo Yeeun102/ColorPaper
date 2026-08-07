@@ -53,7 +53,7 @@
         android:paddingStart="@dimen/home_horizontal_padding"
         android:paddingTop="4dp"
         android:paddingEnd="@dimen/home_horizontal_padding"
-        android:paddingBottom="@dimen/home_horizontal_padding"
+        android:paddingBottom="@dimen/home_bottom_navigation_clearance"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"

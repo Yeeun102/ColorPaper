@@ -26,5 +26,6 @@ data class WordEntity(
     @ColumnInfo(name = "interval") val interval: Int = 1,
     @ColumnInfo(name = "ease_factor") val easeFactor: Float = 2.5f,// 💡 암기 완료 여부 (플립 학습용)
     @ColumnInfo(name = "repetitions") val repetitions: Int = 0,    // 연속 성공 횟수
-    @ColumnInfo(name = "next_review_at") val nextReviewAt: Long = 0L // 다음 복습 일시
+    @ColumnInfo(name = "next_review_at") val nextReviewAt: Long = 0L, // 다음 복습 일시
+    @ColumnInfo(name = "last_reviewed_at") val lastReviewedAt: Long = 0L // 마지막 답변 일시
 )

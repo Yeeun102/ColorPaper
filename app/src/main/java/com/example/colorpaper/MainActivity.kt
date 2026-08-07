@@ -28,6 +28,7 @@ import com.example.colorpaper.ui.home.HomeFragment
 import com.example.colorpaper.ui.login.LoginFragment
 import com.example.colorpaper.ui.login.RegisterFragment
 import com.example.colorpaper.ui.profile.ProfileFragment
+import com.example.colorpaper.ui.reminder.ReminderHistoryFragment
 import com.example.colorpaper.ui.setting.SettingFragment
 import com.example.colorpaper.ui.theme.ThemeManager
 import com.google.android.material.card.MaterialCardView
@@ -41,14 +42,15 @@ class MainActivity : AppCompatActivity() {
     ) { }
 
     private var selectedNavigationId = R.id.nav_home
+    private var quickActionsOpen = false
 
     private val navItems by lazy {
         listOf(
-            NavItem(R.id.nav_diary, R.id.icon_diary),
-            NavItem(R.id.nav_flashcard, R.id.icon_flashcard),
-            NavItem(R.id.nav_home, R.id.icon_home),
-            NavItem(R.id.nav_profile, R.id.icon_profile),
-            NavItem(R.id.nav_setting, R.id.icon_setting)
+            NavItem(R.id.nav_diary, R.id.icon_diary, R.id.indicator_diary),
+            NavItem(R.id.nav_flashcard, R.id.icon_flashcard, R.id.indicator_flashcard),
+            NavItem(R.id.nav_home, R.id.icon_home, R.id.indicator_home),
+            NavItem(R.id.nav_profile, R.id.icon_profile, R.id.indicator_profile),
+            NavItem(R.id.nav_setting, R.id.icon_setting, R.id.indicator_setting)
         )
     }
 
@@ -118,6 +120,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun bindNavigation() {
         findViewById<View>(R.id.nav_diary).setOnClickListener {
+            hideQuickActions()
             showScreen(DiaryFragment(), R.id.nav_diary)
             // 오늘 날짜 구하기
             //val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
@@ -126,20 +129,91 @@ class MainActivity : AppCompatActivity() {
             //showScreen(DiaryDetailFragment.newInstance(today, isEditMode = true), R.id.nav_diary)
         }
         findViewById<View>(R.id.nav_flashcard).setOnClickListener {
+            toggleQuickActions()
+        }
+        findViewById<View>(R.id.card_quick_actions).setOnClickListener {
+            hideQuickActions()
+        }
+        findViewById<View>(R.id.quick_action_reminder).setOnClickListener {
+            hideQuickActions()
+            showScreen(ReminderHistoryFragment(), R.id.nav_flashcard)
+        }
+        findViewById<View>(R.id.quick_action_flashcard).setOnClickListener {
+            hideQuickActions()
             showScreen(FlashcardFragment(), R.id.nav_flashcard)
         }
         findViewById<View>(R.id.nav_home).setOnClickListener {
+            hideQuickActions()
             showScreen(HomeFragment(), R.id.nav_home)
         }
         findViewById<View>(R.id.nav_profile).setOnClickListener {
+            hideQuickActions()
             showScreen(ProfileFragment(), R.id.nav_profile)
         }
         findViewById<View>(R.id.nav_setting).setOnClickListener {
+            hideQuickActions()
             showScreen(SettingFragment(), R.id.nav_setting)
         }
     }
 
+    private fun toggleQuickActions() {
+        if (quickActionsOpen) hideQuickActions() else showQuickActions()
+    }
+
+    private fun showQuickActions() {
+        quickActionsOpen = true
+        applyThemeToNavigation()
+        val menu = findViewById<MaterialCardView>(R.id.card_quick_actions)
+        val launcherIcon = findViewById<ImageView>(R.id.icon_flashcard)
+        menu.animate().cancel()
+        launcherIcon.animate().cancel()
+        menu.visibility = View.VISIBLE
+        menu.alpha = 0f
+        menu.scaleX = 0.92f
+        menu.scaleY = 0.92f
+        menu.translationY = dp(12).toFloat()
+        menu.animate()
+            .alpha(1f)
+            .scaleX(1f)
+            .scaleY(1f)
+            .translationY(0f)
+            .setDuration(220L)
+            .start()
+        launcherIcon.animate().rotation(90f).scaleX(1f).scaleY(1f)
+            .setDuration(190L).start()
+    }
+
+    private fun hideQuickActions(animate: Boolean = true) {
+        val menu = findViewById<MaterialCardView>(R.id.card_quick_actions)
+        if (!quickActionsOpen && menu.visibility != View.VISIBLE) return
+        quickActionsOpen = false
+        val launcherIcon = findViewById<ImageView>(R.id.icon_flashcard)
+        menu.animate().cancel()
+        launcherIcon.animate().cancel()
+        launcherIcon.animate().rotation(0f).scaleX(1f).scaleY(1f)
+            .setDuration(if (animate) 150L else 0L).start()
+        if (!animate) {
+            menu.visibility = View.GONE
+            menu.alpha = 0f
+            menu.scaleX = 0.92f
+            menu.scaleY = 0.92f
+            return
+        }
+        menu.animate()
+            .alpha(0f)
+            .scaleX(0.92f)
+            .scaleY(0.92f)
+            .translationY(dp(12).toFloat())
+            .setDuration(170L)
+            .withEndAction { menu.visibility = View.GONE }
+            .start()
+    }
+
+    private fun dp(value: Int): Int =
+        (value * resources.displayMetrics.density).toInt()
+
     private fun showScreen(fragment: Fragment, selectedId: Int) {
+        if (quickActionsOpen) hideQuickActions()
         supportFragmentManager.popBackStackImmediate(
             null,
             androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE
@@ -170,16 +244,43 @@ class MainActivity : AppCompatActivity() {
         val stroke = ContextCompat.getColor(this, palette.stroke)
 
         findViewById<View>(R.id.main).setBackgroundColor(background)
+        window.navigationBarColor = background
         findViewById<MaterialCardView>(R.id.bottom_navigation_bar).apply {
             setCardBackgroundColor(navBackground)
             strokeColor = stroke
+            bringToFront()
+        }
+        findViewById<MaterialCardView>(R.id.card_quick_actions).apply {
+            setCardBackgroundColor(android.graphics.Color.TRANSPARENT)
+        }
+        val textColor = ContextCompat.getColor(this, palette.primaryText)
+        val quickActionBackground = background
+        val quickActionMaxAlpha = 230
+        val quickActionColors = intArrayOf(
+            ColorUtils.setAlphaComponent(quickActionBackground, quickActionMaxAlpha),
+            ColorUtils.setAlphaComponent(quickActionBackground, quickActionMaxAlpha * 2 / 3),
+            ColorUtils.setAlphaComponent(quickActionBackground, quickActionMaxAlpha / 3),
+            ColorUtils.setAlphaComponent(quickActionBackground, 0)
+        )
+        findViewById<View>(R.id.layout_quick_action_content).background = GradientDrawable(
+            GradientDrawable.Orientation.BOTTOM_TOP,
+            quickActionColors
+        )
+        listOf(R.id.icon_quick_reminder, R.id.icon_quick_flashcard).forEach { iconId ->
+            findViewById<ImageView>(iconId).imageTintList = ColorStateList.valueOf(textColor)
+        }
+        listOf(
+            R.id.tv_quick_reminder,
+            R.id.tv_quick_flashcard
+        ).forEach { textId ->
+            findViewById<android.widget.TextView>(textId).setTextColor(textColor)
         }
     }
 
     private fun selectNavigation(selectedId: Int) {
         selectedNavigationId = selectedId
         val palette = ThemeManager.currentPalette(this)
-        val selectedColor = ContextCompat.getColor(this, palette.stroke)
+        val selectedColor = ContextCompat.getColor(this, palette.primaryText)
         val unselectedColor = ColorUtils.setAlphaComponent(selectedColor, 145)
         val selectionColor = ColorUtils.setAlphaComponent(
             ContextCompat.getColor(this, palette.accent),
@@ -189,11 +290,14 @@ class MainActivity : AppCompatActivity() {
         navItems.forEach { item ->
             val selected = item.containerId == selectedId
             val color = if (selected) selectedColor else unselectedColor
-            findViewById<ImageView>(item.iconId).imageTintList = ColorStateList.valueOf(color)
-            findViewById<LinearLayout>(item.containerId).background = if (selected) {
+            val icon = findViewById<ImageView>(item.iconId)
+            icon.imageTintList = ColorStateList.valueOf(color)
+            findViewById<LinearLayout>(item.containerId).background = null
+            icon.background = null
+            findViewById<View>(item.indicatorId).background = if (selected) {
                 GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
                     setColor(selectionColor)
-                    cornerRadius = 18f * resources.displayMetrics.density
                 }
             } else null
         }
@@ -203,7 +307,7 @@ class MainActivity : AppCompatActivity() {
         supportFragmentManager.findFragmentById(R.id.fragment_container)
     ) {
         is DiaryFragment, is DiaryDetailFragment -> R.id.nav_diary
-        is FlashcardFragment -> R.id.nav_flashcard
+        is FlashcardFragment, is ReminderHistoryFragment -> R.id.nav_flashcard
         is ProfileFragment -> R.id.nav_profile
         is SettingFragment -> R.id.nav_setting
         else -> R.id.nav_home
@@ -213,6 +317,7 @@ class MainActivity : AppCompatActivity() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 when {
+                    quickActionsOpen -> hideQuickActions()
                     supportFragmentManager.backStackEntryCount > 0 -> {
                         supportFragmentManager.popBackStack()
                     }
@@ -231,6 +336,7 @@ class MainActivity : AppCompatActivity() {
 
     private data class NavItem(
         val containerId: Int,
-        val iconId: Int
+        val iconId: Int,
+        val indicatorId: Int
     )
 }
