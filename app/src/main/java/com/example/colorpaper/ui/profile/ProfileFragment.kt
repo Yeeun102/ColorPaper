@@ -26,7 +26,7 @@ import java.util.Locale
 class ProfileFragment : Fragment() {
 
     private val viewModel: ProfileViewModel by viewModels()
-    private var sharedFlashcardAdapter: SharedFlashcardAdapter? = null
+    //private var sharedFlashcardAdapter: SharedFlashcardAdapter? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -83,10 +83,13 @@ class ProfileFragment : Fragment() {
                 cardEmptySharedFlashcard?.visibility = View.GONE
                 rvSharedFlashcards?.visibility = View.VISIBLE
 
+                /*
                 sharedFlashcardAdapter = SharedFlashcardAdapter(folders) { folder ->
                     Toast.makeText(context, "${folder.folderName} 단어장으로 이동합니다.", Toast.LENGTH_SHORT).show()
                 }
                 rvSharedFlashcards?.adapter = sharedFlashcardAdapter
+
+                 */
             }
         }
 
@@ -188,6 +191,7 @@ class ProfileFragment : Fragment() {
         viewModel.fetchMySharedFolders()
     }
 
+    /*
     // 🌟 FolderEntity 기반 공유 단어장 내부 어댑터
     private class SharedFlashcardAdapter(
         private val items: List<FolderEntity>,
@@ -216,4 +220,6 @@ class ProfileFragment : Fragment() {
             val tvCount: TextView = itemView.findViewById(R.id.tvFlashcardCount)
         }
     }
+
+     */
 }
