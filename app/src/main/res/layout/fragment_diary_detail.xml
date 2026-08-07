@@ -2,166 +2,157 @@
 <androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    style="?android:attr/buttonBarStyle"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#FAFAFA"
     android:padding="16dp">
 
-    <!-- 💡 1. 상단 슈퍼점프바 (날짜 이동, 달력 선택) & [수정] 버튼 -->
+    <!--w-->
+
     <LinearLayout
-        android:id="@+id/layoutSuperJumpBar"
-        android:layout_width="0dp"
+        android:id="@+id/layoutDateSelectDetail"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingBottom="8dp"
-        app:layout_constraintTop_toTopOf="parent"
+        android:gravity="center"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <ImageButton
-            android:id="@+id/btnPrevDate"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@android:drawable/ic_media_previous"
-            android:contentDescription="이전 날짜" />
-
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/lineHeaderDetail">
+    <!-- [상단 바] 과거 날짜 고정 영역 -->
         <TextView
-            android:id="@+id/tvSuperJumpDate"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:text="2026-08-07"
-            android:textColor="#111111"
-            android:textSize="16sp"
-            android:textStyle="bold" />
-
-        <ImageButton
-            android:id="@+id/btnNextDate"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@android:drawable/ic_media_next"
-            android:contentDescription="다음 날짜" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnEditMode"
-            style="?android:attr/buttonBarStyle"
+            android:id="@+id/tvDetailDateTitle"
             android:layout_width="wrap_content"
-            android:layout_height="36dp"
+            android:layout_height="wrap_content"
+            android:text="@string/example_date"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="#333333"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+        <ImageButton
+            android:id="@+id/btnDatePickerDetail"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
             android:layout_marginStart="8dp"
-            android:backgroundTint="#867070"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:text="수정"
-            android:textColor="#FFFFFF"
-            android:textSize="12sp"
-            app:strokeColor="#000000"
-            app:strokeWidth="1dp" />
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_menu_my_calendar"
+            android:contentDescription="@string/selectDate" />
     </LinearLayout>
-
-    <!-- 💡 다이어리 배경 종이 이미지 -->
-    <ImageView
-        android:id="@+id/ivFixedDiaryPageDetail"
+    <!-- 📍 작성 페이지의 lineHeader와 오차가 없도록 완전히 동일한 마진값(8dp) 세팅 -->
+    <View
+        android:id="@+id/lineHeaderDetail"
         android:layout_width="0dp"
-        android:layout_height="380dp"
+        android:layout_height="1dp"
+        android:background="#E0E0E0"
         android:layout_marginTop="8dp"
-        android:scaleType="fitXY"
-        android:src="@drawable/diarypage"
-        android:contentDescription="@string/diarypage"
-        app:layout_constraintTop_toBottomOf="@id/layoutSuperJumpBar"
+        app:layout_constraintTop_toBottomOf="@id/layoutDateSelectDetail"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
-    <!-- 💡 일기 본문 & 댓글 영역 -->
-    <FrameLayout
-        android:id="@+id/layoutContentWrapperDetail"
-        android:layout_width="280dp"
-        android:layout_height="340dp"
-        android:clipChildren="false"
-        android:clipToPadding="false"
-        android:paddingLeft="16dp"
-        android:paddingTop="30dp"
-        android:paddingRight="16dp"
-        android:paddingBottom="40dp"
-        app:layout_constraintBottom_toBottomOf="@id/ivFixedDiaryPageDetail"
-        app:layout_constraintEnd_toEndOf="@id/ivFixedDiaryPageDetail"
-        app:layout_constraintStart_toStartOf="@id/ivFixedDiaryPageDetail"
-        app:layout_constraintTop_toTopOf="@id/ivFixedDiaryPageDetail">
+    <!-- ================================================================= -->
+    <!-- 💡 [위치 고정층] 작성 페이지와 100% 동일한 좌표값으로 박아두는 배경 이미지 -->
+    <!-- ================================================================= -->
+    <ImageView
+        android:id="@+id/ivFixedDiaryPageDetail"
+        android:layout_width="0dp"
+        android:layout_height="500dp"
+        android:layout_marginTop="12dp"
+        android:scaleType="fitXY"
+        android:src="@drawable/diarypage"
+        android:contentDescription="@string/diarypage"
+        app:layout_constraintTop_toBottomOf="@id/lineHeaderDetail"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+    <!-- [중앙 콘텐츠 구역] 투명 스크롤 레이어 (과거 일기 본문 + 셀프 댓글 목록) -->
 
         <FrameLayout
-            android:id="@+id/layoutDetailDiaryContainer"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:id="@+id/layoutContentWrapperDetail"
+            android:layout_width="300dp"
+            android:layout_height="450dp"
             android:clipChildren="false"
-            android:clipToPadding="false"/>
+            android:clipToPadding="false"
+            android:paddingLeft="20dp"
+            android:paddingTop="50dp"
+            android:paddingRight="20dp"
+            android:paddingBottom="150dp"
+            app:layout_constraintBottom_toBottomOf="@id/ivFixedDiaryPageDetail"
+            app:layout_constraintEnd_toEndOf="@id/ivFixedDiaryPageDetail"
+            app:layout_constraintStart_toStartOf="@id/ivFixedDiaryPageDetail"
+            app:layout_constraintTop_toTopOf="@id/ivFixedDiaryPageDetail">
 
-        <FrameLayout
-            android:id="@+id/layoutCommentsContainer"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:clipChildren="false"
-            android:clipToPadding="false"/>
-    </FrameLayout>
+            <!-- 과거 일기 본문 스킨 컨테이너 -->
 
-    <!-- 💡 하단 기능 버튼 (공개 범위, 하이라이트, 저장) -->
+            <!-- 셀프 댓글 배치 스택 컨테이너 -->
+            <FrameLayout
+                android:id="@+id/layoutDetailDiaryContainer"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipChildren="false"
+                android:clipToPadding="false"/>
+
+            <FrameLayout
+                android:id="@+id/layoutCommentsContainer"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipChildren="false"
+                android:clipToPadding="false"/>
+        </FrameLayout>
+
     <LinearLayout
         android:id="@+id/layoutMetaActionsDetail"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:gravity="center"
+        android:layout_marginTop="10dp"
         app:layout_constraintTop_toBottomOf="@id/ivFixedDiaryPageDetail"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <com.google.android.material.button.MaterialButton
+        <Button
             android:id="@+id/btnVisibilityDetail"
             style="?android:attr/buttonBarStyle"
-            android:layout_width="100dp"
+            android:layout_width="120dp"
             android:layout_height="40dp"
-            android:layout_marginEnd="8dp"
-            android:backgroundTint="#E4D0D0"
             android:text="@string/flashcard_public"
-            android:textColor="#111111"
-            android:textSize="13sp"
+            android:textSize="15sp"
             app:strokeColor="#000000"
-            app:strokeWidth="1dp" />
-
-        <com.google.android.material.button.MaterialButton
+            app:strokeWidth="1dp"
+            android:backgroundTint="#E4D0D0"
+            android:textColor="#111111"
+            android:layout_marginEnd="10dp"/>
+        <Button
             android:id="@+id/btnHighlightDetail"
             style="?android:attr/buttonBarStyle"
-            android:layout_width="100dp"
+            android:layout_width="120dp"
             android:layout_height="40dp"
-            android:layout_marginEnd="8dp"
-            android:backgroundTint="#D5B4B4"
             android:text="@string/highlight"
-            android:textColor="#111111"
-            android:textSize="13sp"
+            android:textSize="15sp"
             app:strokeColor="#000000"
-            app:strokeWidth="1dp" />
+            app:strokeWidth="1dp"
+            android:backgroundTint="#D5B4B4"
+            android:textColor="#111111"
+            android:layout_marginEnd="10dp"/>
 
-        <com.google.android.material.button.MaterialButton
+        <Button
             android:id="@+id/btnSaveDetail"
             style="?android:attr/buttonBarStyle"
-            android:layout_width="100dp"
+            android:layout_width="120dp"
             android:layout_height="40dp"
-            android:backgroundTint="#867070"
             android:text="@string/save"
-            android:textColor="#FFFFFF"
-            android:textSize="13sp"
             app:strokeColor="#000000"
-            app:strokeWidth="1dp" />
+            app:strokeWidth="1dp"
+            android:backgroundTint="#867070"/>
     </LinearLayout>
 
-    <!-- 💡 하단 스티커/텍스트 작성 툴바 -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/layoutToolbarDecorateDetail"
-        android:layout_width="0dp"
-        android:layout_height="46dp"
-        android:layout_marginTop="12dp"
+        android:layout_width="360dp"
+        android:layout_height="50dp"
+        android:layout_marginTop="30dp"
         app:cardBackgroundColor="#E4D0D0"
         app:cardCornerRadius="@dimen/bottom_nav_corner_radius"
         app:layout_constraintTop_toBottomOf="@id/layoutMetaActionsDetail"
@@ -169,47 +160,48 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:strokeColor="@color/theme_rose_stroke"
         app:strokeWidth="1dp">
-
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent">
 
-            <ImageButton
-                android:id="@+id/btnToolbarAddDetail"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:background="?attr/selectableItemBackground"
-                android:contentDescription="@string/cannot_add_past"
-                android:src="@android:drawable/ic_input_add" />
+        <ImageButton
+            android:id="@+id/btnToolbarAddDetail"
+            android:layout_width="30dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackground"
+            android:src="@android:drawable/ic_input_add"
+            android:contentDescription="@string/cannot_add_past" />
 
-            <ImageButton
-                android:id="@+id/btnToolbarPenDetail"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:background="?attr/selectableItemBackground"
-                android:contentDescription="@string/highlight"
-                android:src="@android:drawable/ic_menu_edit" />
+        <ImageButton
+            android:id="@+id/btnToolbarPenDetail"
+            android:layout_width="30dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackground"
+            android:src="@android:drawable/ic_menu_edit"
+            android:contentDescription="@string/highlight"/>
 
-            <ImageButton
-                android:id="@+id/btnToolbarTextDetail"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:background="?attr/selectableItemBackground"
-                android:contentDescription="@string/enterText"
-                android:src="@android:drawable/ic_menu_sort_alphabetically" />
+        <ImageButton
+            android:id="@+id/btnToolbarTextDetail"
+            android:layout_width="30dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackground"
+            android:src="@android:drawable/ic_menu_sort_alphabetically"
+            android:contentDescription="@string/enterText"/>
 
-            <ImageButton
-                android:id="@+id/btnToolbarCommentDetail"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:background="?attr/selectableItemBackground"
-                android:contentDescription="@string/open_self_comment"
-                android:src="@android:drawable/sym_action_chat" />
+            <!--w-->
+        <ImageButton
+            android:id="@+id/btnToolbarCommentDetail"
+            android:layout_width="30dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackground"
+            android:src="@android:drawable/sym_action_chat"
+            android:contentDescription="@string/open_self_comment" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
+
 
 </androidx.constraintlayout.widget.ConstraintLayout>
