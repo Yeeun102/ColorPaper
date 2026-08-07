@@ -9,14 +9,12 @@ import com.example.colorpaper.data.model.WidgetEntity
 
 @Dao
 interface WidgetDao {
-    
-    // 저장
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertWidgets(widgets: List<WidgetEntity>) : Unit
 
-    // 수정
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertWidgets(widgets: List<WidgetEntity>)
+
     @Update
-    suspend fun updateWidget(widget: WidgetEntity) : Unit
+    suspend fun updateWidget(widget: WidgetEntity)
 
     // 불러오기
     @Query("SELECT * FROM widget_table WHERE user_id = :userId ORDER BY widget_order ASC")

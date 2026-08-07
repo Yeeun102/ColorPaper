@@ -10,6 +10,11 @@ import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import com.example.colorpaper.R
+import androidx.lifecycle.lifecycleScope
+import com.example.colorpaper.data.local.AppDatabase
+import com.example.colorpaper.data.model.UserEntity
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import com.example.colorpaper.ui.home.HomeFragment
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -76,14 +81,31 @@ class RegisterFragment : Fragment() {
 
             performRegister(email, password) { isSuccess ->
                 if (isSuccess) {
-                    // 사용자 추가 정보를 Firestore에 함께 보관
                     val uid = auth.currentUser?.uid ?: ""
+                    // 🌟 4자리 임의의 유저 코드 생성 (예: 1234)
+                    val generatedUserCode = (1000..9999).random().toString()
+
+                    // 1. Firestore 저장 (필드명을 nickname, userCode로 통일)
                     val userMap = hashMapOf(
                         "uid" to uid,
-                        "name" to name,
-                        "email" to email
+                        "nickname" to name,
+                        "email" to email,
+                        "userCode" to generatedUserCode
                     )
                     FirebaseFirestore.getInstance().collection("users").document(uid).set(userMap)
+
+                    // 2. 🌟 Room 로컬 DB에도 유저 정보 저장 (ProfileFragment 관찰용)
+                    val db = AppDatabase.getDatabase(requireContext())
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        val userEntity = UserEntity(
+                            userCode = generatedUserCode,
+                            email = email,
+                            passwordHash = "", // 필요 시 저장
+                            nickname = name,
+                            profileImageUrl = null
+                        )
+                        db.userDao().insertUser(userEntity)
+                    }
 
                     parentFragmentManager.beginTransaction()
                         .replace(R.id.fragment_container, HomeFragment())

@@ -1,13 +1,12 @@
 package com.example.colorpaper.ui.flashcard
 
-
 import android.view.LayoutInflater
 import android.view.ViewGroup
-import androidx.recyclerview.widget.RecyclerView
-import com.example.colorpaper.databinding.ItemFlashcardSetBinding
-import com.example.colorpaper.data.model.FolderEntity
 import androidx.core.graphics.toColorInt
 import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.RecyclerView
+import com.example.colorpaper.data.model.FolderEntity
+import com.example.colorpaper.databinding.ItemFlashcardSetBinding
 
 class FlashcardSetAdapter(
     private var setList: List<FolderEntity>,
@@ -30,19 +29,20 @@ class FlashcardSetAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = setList[position]
 
-        // 1. 엔티티 데이터(FlashcardSet)를 XML 뷰에 바인딩
+        // 1. 엔티티 데이터(FolderEntity)를 XML 뷰에 바인딩
         holder.binding.tvSetTitle.text = item.folderName
 
+        // 💡 롱클릭 이벤트 (삭제 다이얼로그 호출용)
         holder.binding.root.setOnLongClickListener {
-            onItemLongClick(item) // 💡 길게 누르면 롱클릭 이벤트 전달
-            true // 이벤트 소비 완료를 뜻하는 true 반환
+            onItemLongClick(item)
+            true
         }
 
         // 2. 카드 위치(position)에 따라 교차 배경색 설정
         val backgroundColorHex = if (position % 2 == 0) {
-            "#E4D0D0" // 1, 3, 5번째 카드 배경색
+            "#E4D0D0" // 홀수 번째 카드 배경색
         } else {
-            "#F5EBEB" // 2, 4, 6번째 카드 배경색
+            "#F5EBEB" // 짝수 번째 카드 배경색
         }
         holder.binding.root.setCardBackgroundColor(backgroundColorHex.toColorInt())
 
@@ -54,19 +54,18 @@ class FlashcardSetAdapter(
 
     override fun getItemCount(): Int = setList.size
 
-    // 외부(Fragment 등)에서 리스트 데이터를 갱신할 때 사용하는 함수
+    // 외부(Fragment 등)에서 파이어베이스/로컬 DB 리스트 데이터를 갱신할 때 사용
     fun updateData(newSets: List<FolderEntity>) {
-        // 1. 계산기(Callback)를 돌려 구 리스트와 신 리스트의 차이점을 분석합니다.
         val diffCallback = object : DiffUtil.Callback() {
             override fun getOldListSize(): Int = setList.size
             override fun getNewListSize(): Int = newSets.size
 
-            // 고유 고리 ID(setId)가 같은지 비교해서 같은 아이템인지 판단합니다.
+            // 고유 ID(folderId)가 같은지 비교해서 동일 아이템 여부 판단
             override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
                 return setList[oldItemPosition].folderId == newSets[newItemPosition].folderId
             }
 
-            // 아이템 내부 데이터(내용물)까지 완전히 똑같은지 비교합니다.
+            // 아이템 내용물과 위치에 따른 배경색 교차 패턴(Parity) 동시 비교
             override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
                 val isOldEven = oldItemPosition % 2 == 0
                 val isNewEven = newItemPosition % 2 == 0
@@ -78,13 +77,8 @@ class FlashcardSetAdapter(
             }
         }
 
-        // 2. 백그라운드나 메인에서 차이점 계산 결과를 도출합니다.
         val diffResult = DiffUtil.calculateDiff(diffCallback)
-
-        // 3. 내부 데이터를 새 리스트로 교체합니다.
         this.setList = newSets
-
-        // 4. ❌ notifyDataSetChanged() 대신 계산된 최소한의 변경 사항만 리사이클러뷰에 반영합니다!
         diffResult.dispatchUpdatesTo(this)
     }
 }
