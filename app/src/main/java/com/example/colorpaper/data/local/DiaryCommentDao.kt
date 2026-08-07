@@ -21,7 +21,7 @@ interface DiaryCommentDao {
     @Query("SELECT * FROM diary_comments WHERE ownerId = :ownerId ORDER BY commentId DESC")
     suspend fun getCommentsForOwner(ownerId: Int): List<DiaryCommentEntity>
 
-    // 댓글 삭제
+    // 🌟 댓글 삭제 (@Query DELETE 문에 반환 타입 : Int 명시)
     @Query("DELETE FROM diary_comments WHERE commentId = :commentId")
-    suspend fun deleteComment(commentId: Long)
+    suspend fun deleteComment(commentId: Long): Int
 }

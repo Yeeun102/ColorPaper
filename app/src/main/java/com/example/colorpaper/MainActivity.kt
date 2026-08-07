@@ -118,7 +118,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun bindNavigation() {
         findViewById<View>(R.id.nav_diary).setOnClickListener {
-            showScreen(DiaryFragment(), R.id.nav_diary)
+            // 오늘 날짜 구하기
+            val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+
+            // 오늘 날짜로 '작성 모드(isEditMode = true / 사진 2)' 화면 생성 후 이동
+            showScreen(DiaryDetailFragment.newInstance(today, isEditMode = true), R.id.nav_diary)
         }
         findViewById<View>(R.id.nav_flashcard).setOnClickListener {
             showScreen(FlashcardFragment(), R.id.nav_flashcard)
