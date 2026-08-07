@@ -86,6 +86,7 @@ class DiaryFragment : Fragment() {
                 button.strokeWidth = (1 * density).toInt()
             }
         }
+
     }
 
     private fun setupSingleChoiceGroup(
@@ -286,6 +287,7 @@ class DiaryFragment : Fragment() {
             binding.btnVisibility.text = currentVisibility
         }
 
+
         // (2) [수정] 인스타그램식 하이라이트 토글 버튼
         binding.btnHighlightState.setOnClickListener {
             // 하이라이트 등록 상태 스위칭 (true <-> false)
@@ -300,6 +302,7 @@ class DiaryFragment : Fragment() {
             }
         }
 
+
         // (3) [최종 저장 버튼] - 이동 좌표(translationX/Y) 포함하여 DB에 물리 적재
         binding.btnSave.setOnClickListener {
             saveCurrentDiaryWithPosition()
@@ -307,6 +310,7 @@ class DiaryFragment : Fragment() {
 
         initSingleChoiceGroups()
     }
+
 
     private fun applyEmotionButtonState(button: Button, isSelected: Boolean, originalColor: Int = 0) {
         if (button is MaterialButton) {
@@ -323,6 +327,7 @@ class DiaryFragment : Fragment() {
         }
     }
 
+
     private fun openEmotionPopup() {
         tempSelectedEmotions.clear()
         tempSelectedEmotions.addAll(selectedEmotions)
@@ -335,6 +340,7 @@ class DiaryFragment : Fragment() {
         binding.layoutEmotionPopup.visibility = View.VISIBLE
     }
 
+
     private fun initSingleChoiceGroups() {
         setupReminderChoiceGroup()
         setupEndDateChoiceGroup()
@@ -345,6 +351,7 @@ class DiaryFragment : Fragment() {
             defaultSelectedView = binding.btnVisibilityPublic
         )
     }
+
 
     private fun setupReminderChoiceGroup() {
         val buttons = listOf(binding.btnRepeatAuto, binding.btnRepeatUser, binding.btnRepeatNone)
@@ -364,6 +371,7 @@ class DiaryFragment : Fragment() {
             reminderSelectionTouched = true
             select(binding.btnRepeatNone)
         }
+
         binding.btnRepeatUser.setOnClickListener {
             val input = EditText(requireContext()).apply {
                 hint = getString(R.string.reminder_custom_cycle_hint)
@@ -390,6 +398,7 @@ class DiaryFragment : Fragment() {
                 }
                 .show()
         }
+
     }
 
     private fun setupEndDateChoiceGroup() {
@@ -455,6 +464,7 @@ class DiaryFragment : Fragment() {
                 datePicker.minDate = System.currentTimeMillis()
             }.show()
         }
+
     }
 
     private fun resetPostItSettingUI() {
@@ -478,6 +488,7 @@ class DiaryFragment : Fragment() {
         // 3. 반복, 종료일, 공개범위 단일 선택 버튼 그룹 기본값으로 리셋
         initSingleChoiceGroups()
     }
+
 
     // 설정창 내 선택된 감정 칩들 뿌리기
     private fun renderSelectedEmotionsInSetting() {
@@ -516,6 +527,7 @@ class DiaryFragment : Fragment() {
         }
     }
 
+
     // 💡 뷰 터치 제어 오버라이딩을 활용하여 자유롭게 메모지를 드래그 이동시키는 유틸 메서드
     @SuppressLint("ClickableViewAccessibility")
     private fun makeViewDraggable(view: View) {
@@ -545,6 +557,7 @@ class DiaryFragment : Fragment() {
                     lastX = event.rawX
                     lastY = event.rawY
                 }
+
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     v.performClick()
                 }
@@ -565,6 +578,7 @@ class DiaryFragment : Fragment() {
                 val targetCal = Calendar.getInstance().apply {
                     set(year, month, dayOfMonth)
                 }
+
 
                 val todayStr = dateFormat.format(Date())
                 val selectedStr = dateFormat.format(targetCal.time)
@@ -592,6 +606,7 @@ class DiaryFragment : Fragment() {
         ).show()
     }
 
+
     private fun restoreTags(diary: DiaryEntity) {
         if (diary.tag.isNotBlank()) {
             val tags = diary.tag.split(",")
@@ -612,6 +627,7 @@ class DiaryFragment : Fragment() {
                 }
             }
         }
+
     }
     private fun loadTodayDiary() {
         val dateKey = dateFormat.format(selectedDateCalendar.time)
@@ -651,6 +667,7 @@ class DiaryFragment : Fragment() {
         }
     }
 
+
     private fun restoreDecorateTextView(textStr: String, posX: Float, posY: Float, diaryId: Int) {
         val decorateTextView = TextView(requireContext()).apply {
             text = textStr
@@ -674,6 +691,7 @@ class DiaryFragment : Fragment() {
         binding.layoutDiaryContainer.addView(decorateTextView)
         decorateTextView.bringToFront()
     }
+
 
     private fun inflateSavedPostIt(diary: DiaryEntity) {
         val inflater = LayoutInflater.from(requireContext())
@@ -702,6 +720,7 @@ class DiaryFragment : Fragment() {
         postItView.translationX = diary.positionX
         postItView.translationY = diary.positionY
         makeViewDraggable(postItView)
+
 
         binding.layoutDiaryContainer.addView(postItView)
     }
@@ -733,6 +752,7 @@ class DiaryFragment : Fragment() {
 
         binding.layoutPostItSetting.visibility = View.VISIBLE
         binding.layoutPostItSetting.bringToFront()
+
     }
 
     private fun saveCurrentDiaryWithPosition() {
@@ -781,6 +801,7 @@ class DiaryFragment : Fragment() {
                             userId = currentUid,
                             highlightRanges = ""
                         )
+
                         val savedId = db.diaryDao().insertPostIt(decDiaryEntity)
                         withContext(Dispatchers.Main) {
                             childView.setTag(R.id.ivPostItBg, savedId.toInt())
@@ -805,6 +826,7 @@ class DiaryFragment : Fragment() {
                         } else {
                             existingDiary?.reviewCycleDays ?: ReminderSchedulePolicy.DISABLED
                         }
+
                         val reminderWasChanged = shouldApplyReminderSelection &&
                             reminderCycle != existingDiary?.reviewCycleDays
                         val existingReminderAnchor = existingDiary?.reminderAnchorAt ?: 0L
@@ -814,6 +836,7 @@ class DiaryFragment : Fragment() {
                                 System.currentTimeMillis()
                             else -> existingReminderAnchor
                         }
+
                         val reminderStage = if (reminderWasChanged) 0 else {
                             existingDiary?.reminderStage ?: 0
                         }
@@ -824,6 +847,7 @@ class DiaryFragment : Fragment() {
                                 emotionsString
                             else -> existingDiary.emotionStamp.orEmpty()
                         }
+
                         val postItColor = (childView.tag as? String) ?: currentSelectedColor
                         val posX = childView.translationX
                         val posY = childView.translationY
@@ -877,6 +901,7 @@ class DiaryFragment : Fragment() {
                 binding.layoutPostItSetting.visibility = View.GONE
                 selectedEmotions.clear()
             }
+
         }
     }
     private fun showAddTagDialog() {
@@ -908,6 +933,7 @@ class DiaryFragment : Fragment() {
             } else {
                 Toast.makeText(requireContext(), "태그 이름을 입력해 주세요.", Toast.LENGTH_SHORT).show()
             }
+
             dialog.dismiss()
         }
 
@@ -955,6 +981,7 @@ class DiaryFragment : Fragment() {
                     selectedTags.add(tagName)
                     applyCustomButtonState(this, isSelected = true)
                 }
+
             }
         }
 
@@ -988,6 +1015,7 @@ class DiaryFragment : Fragment() {
 
         // 텍스트에 형광펜 배경색(노란색) Spannable 적용
         val spannable = if (editableText is Spannable) editableText else SpannableString(editableText)
+
         spannable.setSpan(
             BackgroundColorSpan("#FFF59D".toColorInt()),
             start,
@@ -1003,6 +1031,7 @@ class DiaryFragment : Fragment() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             val db = AppDatabase.getDatabase(requireContext())
+
             db.diaryDao().insertHighlight(
                 HighlightEntity(
                     diaryId = existingDiaryId,
@@ -1110,6 +1139,7 @@ class DiaryFragment : Fragment() {
         for (span in spans) {
             val start = spannable.getSpanStart(span)
             val end = spannable.getSpanEnd(span)
+
             if (start in 0..<end) {
                 rangeList.add("$start-$end")
             }
@@ -1127,6 +1157,7 @@ class DiaryFragment : Fragment() {
 
         for (pair in pairs) {
             val parts = pair.split("-")
+
             if (parts.size == 2) {
                 val start = parts[0].toIntOrNull() ?: continue
                 val end = parts[1].toIntOrNull() ?: continue
@@ -1142,6 +1173,7 @@ class DiaryFragment : Fragment() {
             }
         }
         etContent.setText(spannable)
+
     }
 
     override fun onDestroyView() {
@@ -1156,4 +1188,5 @@ class DiaryFragment : Fragment() {
             arguments = Bundle().apply { putString(ARG_INITIAL_DATE, dateKey) }
         }
     }
+    //수정사항
 }

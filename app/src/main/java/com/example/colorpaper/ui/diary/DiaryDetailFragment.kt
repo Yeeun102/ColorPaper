@@ -323,6 +323,7 @@ class DiaryDetailFragment : Fragment() {
     private fun saveAllCommentsPositions() {
         val container = binding.layoutCommentsContainer
         val childCount = container.childCount
+        //326
 
         if (childCount == 0) {
             Toast.makeText(requireContext(), "저장할 댓글이 없습니다.", Toast.LENGTH_SHORT).show()
@@ -499,4 +500,5 @@ class DiaryDetailFragment : Fragment() {
         super.onDestroyView()
         _binding = null
     }
+    //수정사항503
 }

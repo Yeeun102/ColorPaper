@@ -9,6 +9,8 @@
     android:background="#FAFAFA"
     android:padding="16dp">
 
+    <!--w-->
+
     <LinearLayout
         android:id="@+id/layoutDateSelectDetail"
         android:layout_width="wrap_content"
@@ -189,6 +191,7 @@
             android:src="@android:drawable/ic_menu_sort_alphabetically"
             android:contentDescription="@string/enterText"/>
 
+            <!--w-->
         <ImageButton
             android:id="@+id/btnToolbarCommentDetail"
             android:layout_width="30dp"

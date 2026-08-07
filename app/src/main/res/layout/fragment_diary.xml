@@ -8,6 +8,7 @@
     android:background="#FAFAFA"
     android:padding="16dp">
 
+    <!-- Linear Layout  -->
     <LinearLayout
         android:id="@+id/layoutDateSelect"
         android:layout_width="wrap_content"
