@@ -70,15 +70,12 @@ class MainActivity : AppCompatActivity() {
         bindBackNavigation()
         requestNotificationPermissionIfNeeded()
 
-        // 🌟 진입 시 로그인 상태에 따른 화면 이동 처리
         if (savedInstanceState == null) {
             val currentUser = FirebaseAuth.getInstance().currentUser
 
             if (currentUser == null) {
-                // 비로그인 ➔ 로그인 화면 표시 (필요 시 RegisterFragment()로 변경 가능)
                 showScreen(LoginFragment(), R.id.nav_home)
             } else {
-                // 로그인 완료 ➔ 메인 홈 화면 표시
                 showScreen(homeFragmentFromIntent(intent), R.id.nav_home)
             }
         } else {
@@ -122,11 +119,6 @@ class MainActivity : AppCompatActivity() {
         findViewById<View>(R.id.nav_diary).setOnClickListener {
             hideQuickActions()
             showScreen(DiaryFragment(), R.id.nav_diary)
-            // 오늘 날짜 구하기
-            //val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
-
-            // 오늘 날짜로 '작성 모드(isEditMode = true / 사진 2)' 화면 생성 후 이동
-            //showScreen(DiaryDetailFragment.newInstance(today, isEditMode = true), R.id.nav_diary)
         }
         findViewById<View>(R.id.nav_flashcard).setOnClickListener {
             toggleQuickActions()
@@ -219,7 +211,6 @@ class MainActivity : AppCompatActivity() {
             androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE
         )
 
-        // 로그인/회원가입 화면일 때는 하단 네비게이션 바 숨김 처리
         val bottomNav = findViewById<MaterialCardView>(R.id.bottom_navigation_bar)
         if (fragment is LoginFragment || fragment is RegisterFragment) {
             bottomNav?.visibility = View.GONE
@@ -235,6 +226,12 @@ class MainActivity : AppCompatActivity() {
 
     fun openDiaryDate(dateKey: String) {
         showScreen(DiaryDayFragmentFactory.create(dateKey), R.id.nav_diary)
+    }
+
+    // 💡 하단 네비게이션 바 숨김/표시 제어용 메서드
+    fun setBottomNavVisibility(isVisible: Boolean) {
+        val bottomNav = findViewById<MaterialCardView>(R.id.bottom_navigation_bar)
+        bottomNav?.visibility = if (isVisible) View.VISIBLE else View.GONE
     }
 
     private fun applyThemeToNavigation() {

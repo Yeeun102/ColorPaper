@@ -9,6 +9,7 @@ import com.example.colorpaper.data.local.AppDatabase
 import com.example.colorpaper.data.model.DiaryEntity
 import com.example.colorpaper.data.model.FolderEntity
 import com.example.colorpaper.data.model.UserEntity
+import com.example.colorpaper.data.repository.FlashcardRepository // 💡 추가
 import com.example.colorpaper.data.repository.UserRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -16,7 +17,8 @@ import kotlinx.coroutines.launch
 class ProfileViewModel(application: Application) : AndroidViewModel(application) {
 
     private val db = AppDatabase.getDatabase(application)
-    private val repository = UserRepository(db)
+    private val userRepository = UserRepository(db)
+    private val flashcardRepository = FlashcardRepository(db.flashcardDao()) // 💡 FlashcardRepository 연결
 
     private val _userData = MutableLiveData<UserEntity?>()
     val userData: LiveData<UserEntity?> get() = _userData
@@ -27,41 +29,46 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     private val _publicDiaries = MutableLiveData<List<DiaryEntity>>()
     val publicDiaries: LiveData<List<DiaryEntity>> get() = _publicDiaries
 
-    // 🌟 공유 단어장 세트 목록 LiveData 추가
     private val _sharedFolders = MutableLiveData<List<FolderEntity>>()
     val sharedFolders: LiveData<List<FolderEntity>> get() = _sharedFolders
 
     fun fetchUserProfile() {
-        viewModelScope.launch {
-            val user = repository.getUserProfile()
-            _userData.value = user
+        viewModelScope.launch(Dispatchers.IO) {
+            val user = userRepository.getUserProfile()
+            _userData.postValue(user)
         }
     }
 
-    // 🌟 profileImageUrl 파라미터 추가 (기본값 null)
-    fun saveUserProfile(nickname: String, userCode: String, profileImageUrl: String? = null) {
-        viewModelScope.launch {
-            val success = repository.updateUserProfile(nickname, userCode, profileImageUrl)
-            _saveResult.value = success
+    fun saveUserProfile(nickname: String, userCode: String, profileImageUriString: String? = null) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val success = userRepository.updateUserProfile(nickname, userCode, profileImageUriString)
+            _saveResult.postValue(success)
         }
     }
 
     fun fetchPublicDiaries() {
-        viewModelScope.launch {
-            val diaries = repository.getPublicDiaries()
-            _publicDiaries.value = diaries
+        viewModelScope.launch(Dispatchers.IO) {
+            val diaries = userRepository.getPublicDiaries()
+            _publicDiaries.postValue(diaries)
         }
     }
 
-    fun fetchMySharedFolders() {
+    fun fetchMySharedFolders(targetUserId: String? = null) {
         viewModelScope.launch(Dispatchers.IO) {
-            val currentUser = repository.getUserProfile()
-            // .toString()을 명시하여 userId를 항상 String 타입으로 전달합니다.
-            val userId = currentUser?.userId?.toString() ?: ""
+            val currentUser = userRepository.getUserProfile()
+            val userId = targetUserId ?: currentUser?.userId?.toString() ?: userRepository.currentUid ?: ""
 
-            // DAO를 통한 전체공개 단어장 조회
-            val folders = db.flashcardDao().getFlashcardSetsByVisibility(userId, "전체공개")
-            _sharedFolders.postValue(folders)
+            // 💡 1. FlashcardRepository를 통해 해당 유저의 단어장 목록 조회
+            val userFolders = flashcardRepository.getMyFolders(userId)
+
+            // 💡 2. 전체 공개 단어장도 함께 불러오기 (필요시)
+            val sharedFolders = flashcardRepository.getSharedFolders()
+
+            // 💡 3. 유저 단어장 중 "비공개"가 아닌 것 + 전체공개 단어장 병합 (중복 제거)
+            val resultFolders = (userFolders.filter { it.visibility != "비공개" } + sharedFolders)
+                .distinctBy { it.folderId }
+
+            _sharedFolders.postValue(resultFolders)
         }
     }
 }

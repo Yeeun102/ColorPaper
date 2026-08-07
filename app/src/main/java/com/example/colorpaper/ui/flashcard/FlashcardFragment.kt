@@ -19,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+
 class FlashcardFragment : Fragment() {
     private var _binding: FragmentFlashcardBinding? = null
     private val binding get() = _binding!!

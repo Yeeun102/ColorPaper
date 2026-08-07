@@ -15,18 +15,22 @@ import androidx.recyclerview.widget.RecyclerView
 import coil.load
 import coil.transform.CircleCropTransformation
 import com.example.colorpaper.R
-import com.example.colorpaper.data.model.FolderEntity
 import com.example.colorpaper.ui.diary.DiaryDetailFragment
+import com.example.colorpaper.ui.flashcard.FlashcardStudyFragment
 import com.example.colorpaper.ui.friend.FriendListFragment
 import com.google.android.material.card.MaterialCardView
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
 class ProfileFragment : Fragment() {
 
     private val viewModel: ProfileViewModel by viewModels()
-    //private var sharedFlashcardAdapter: SharedFlashcardAdapter? = null
+    private var profileFlashcardAdapter: ProfileFlashcardAdapter? = null
+
+    // 💡 공유 다이어리 버튼 클릭 상태 플래그 (뒤로가기 시 무한 이동 방지)
+    private var isSharedDiaryClicked = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -48,14 +52,33 @@ class ProfileFragment : Fragment() {
         val tvFriendUpdateBadge = view.findViewById<TextView>(R.id.tvFriendUpdateBadge)
         val llSharedDiary = view.findViewById<LinearLayout>(R.id.llSharedDiary)
 
-        // 🌟 공유 단어장 뷰 요소 (빈 상태 카드 & RecyclerView)
         val cardEmptySharedFlashcard = view.findViewById<MaterialCardView>(R.id.cardEmptySharedFlashcard)
         val rvSharedFlashcards = view.findViewById<RecyclerView>(R.id.rvSharedFlashcards)
-
         val rvHighlights = view.findViewById<RecyclerView>(R.id.rvHighlights)
 
-        // 공유 단어장 RecyclerView 가로 스크롤 설정
+        // 💡 프로필 전용 단어장 어댑터(ProfileFlashcardAdapter) 연동
         rvSharedFlashcards?.layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
+        profileFlashcardAdapter = ProfileFlashcardAdapter(
+            setList = emptyList(),
+            onStartClick = { folder ->
+                // 단어장 클릭 시 FlashcardStudyFragment로 이동
+                val bundle = Bundle().apply {
+                    putInt("SET_ID", folder.folderId)
+                    putString("SET_TITLE", folder.folderName)
+                }
+                val studyFragment = FlashcardStudyFragment().apply {
+                    arguments = bundle
+                }
+                parentFragmentManager.beginTransaction()
+                    .replace(R.id.fragment_container, studyFragment)
+                    .addToBackStack(null)
+                    .commit()
+            },
+            onItemLongClick = { folder ->
+                Toast.makeText(context, "'${folder.folderName}' 단어장", Toast.LENGTH_SHORT).show()
+            }
+        )
+        rvSharedFlashcards?.adapter = profileFlashcardAdapter
 
         // 1. 유저 프로필 정보 관찰
         viewModel.userData.observe(viewLifecycleOwner) { user ->
@@ -72,28 +95,19 @@ class ProfileFragment : Fragment() {
             }
         }
 
-        // 🌟 2. FolderEntity 데이터 동적 관찰
+        // 2. FolderEntity 데이터 관찰 및 ProfileFlashcardAdapter 갱신
         viewModel.sharedFolders.observe(viewLifecycleOwner) { folders ->
             if (folders.isNullOrEmpty()) {
-                // 공유 중인 FolderEntity가 없으면 연핑크회색 안내 카드 노출
                 cardEmptySharedFlashcard?.visibility = View.VISIBLE
                 rvSharedFlashcards?.visibility = View.GONE
             } else {
-                // FolderEntity가 존재하면 안내 카드 숨기고 목록 표시
                 cardEmptySharedFlashcard?.visibility = View.GONE
                 rvSharedFlashcards?.visibility = View.VISIBLE
-
-                /*
-                sharedFlashcardAdapter = SharedFlashcardAdapter(folders) { folder ->
-                    Toast.makeText(context, "${folder.folderName} 단어장으로 이동합니다.", Toast.LENGTH_SHORT).show()
-                }
-                rvSharedFlashcards?.adapter = sharedFlashcardAdapter
-
-                 */
+                profileFlashcardAdapter?.updateData(folders)
             }
         }
 
-        // 🌟 3. 하이라이트 (원형 썸네일 날짜 MM/dd 표시)
+        // 3. 하이라이트 세팅
         val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val displayFormat = SimpleDateFormat("MM/dd", Locale.getDefault())
 
@@ -113,45 +127,45 @@ class ProfileFragment : Fragment() {
         )
         val uniqueHighlights = rawHighlights.distinctBy { it.date }
 
-        /*
+        val currentYear = Calendar.getInstance().get(Calendar.YEAR)
         val highlightAdapter = HighlightAdapter(
             items = uniqueHighlights,
             onItemClick = { item ->
-                val detailFragment = DiaryDetailFragment.newInstance(item.date, isEditMode = false)
-                parentFragmentManager.beginTransaction()
-                    .replace(R.id.fragment_container, detailFragment)
-                    .addToBackStack(null)
-                    .commit()
+                val formattedTargetDate = try {
+                    val parsedDate = displayFormat.parse(item.date)
+                    val cal = Calendar.getInstance()
+                    if (parsedDate != null) {
+                        cal.time = parsedDate
+                        cal.set(Calendar.YEAR, currentYear)
+                        inputFormat.format(cal.time)
+                    } else item.date
+                } catch (e: Exception) {
+                    item.date
+                }
+
+                navigateToDiaryDetail(formattedTargetDate)
             },
             onMoreClick = {
                 Toast.makeText(context, "전체 하이라이트 목록 페이지로 이동합니다.", Toast.LENGTH_SHORT).show()
             }
         )
 
-
-
         rvHighlights?.layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
         rvHighlights?.adapter = highlightAdapter
 
-        // 4. 공개 다이어리 관찰
+        // 4. 공개 다이어리 관찰 (클릭 이벤트 발생 시만 이동)
         viewModel.publicDiaries.observe(viewLifecycleOwner) { diaries ->
-            if (diaries.isNullOrEmpty()) {
-                Toast.makeText(context, "공개 중인 다이어리가 없습니다.", Toast.LENGTH_SHORT).show()
-            } else {
-                val latestDiary = diaries.last()
-                val targetDate = latestDiary.createdAt
-
-                val detailFragment = DiaryDetailFragment.newInstance(targetDate, isEditMode = false)
-
-                parentFragmentManager.beginTransaction()
-                    .replace(R.id.fragment_container, detailFragment)
-                    .addToBackStack(null)
-                    .commit()
+            if (isSharedDiaryClicked) {
+                isSharedDiaryClicked = false
+                if (diaries.isNullOrEmpty()) {
+                    Toast.makeText(context, "공개 중인 다이어리가 없습니다.", Toast.LENGTH_SHORT).show()
+                } else {
+                    val latestDiary = diaries.last()
+                    navigateToDiaryDetail(latestDiary.createdAt)
+                }
             }
         }
 
-
-         */
         // 5. 버튼 클릭 이벤트
         ivBack.setOnClickListener { parentFragmentManager.popBackStack() }
 
@@ -173,53 +187,35 @@ class ProfileFragment : Fragment() {
             Toast.makeText(context, "새로 올라온 친구들의 다이어리를 띄웁니다!", Toast.LENGTH_SHORT).show()
         }
 
-        // 연핑크회색 빈 카드 클릭 시 목록 새로고침
         cardEmptySharedFlashcard?.setOnClickListener {
-            viewModel.fetchMySharedFolders()
+            val targetUserId = arguments?.getString("TARGET_USER_ID")
+            viewModel.fetchMySharedFolders(targetUserId)
             Toast.makeText(context, "공유 단어장 목록을 새로고침했습니다.", Toast.LENGTH_SHORT).show()
         }
 
         llSharedDiary.setOnClickListener {
+            isSharedDiaryClicked = true
             viewModel.fetchPublicDiaries()
         }
     }
 
-    // 🌟 추가된 부분: 다른 화면에서 프로필 탭으로 돌아올 때마다 자동으로 최신 목록 재조회
+    private fun navigateToDiaryDetail(targetDate: String) {
+        val detailFragment = DiaryDetailFragment().apply {
+            arguments = Bundle().apply {
+                putString("TARGET_DATE", targetDate)
+            }
+        }
+
+        parentFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, detailFragment)
+            .addToBackStack(null)
+            .commit()
+    }
+
     override fun onResume() {
         super.onResume()
         viewModel.fetchUserProfile()
-        viewModel.fetchMySharedFolders()
+        val targetUserId = arguments?.getString("TARGET_USER_ID")
+        viewModel.fetchMySharedFolders(targetUserId)
     }
-
-    /*
-    // 🌟 FolderEntity 기반 공유 단어장 내부 어댑터
-    private class SharedFlashcardAdapter(
-        private val items: List<FolderEntity>,
-        private val onItemClick: (FolderEntity) -> Unit
-    ) : RecyclerView.Adapter<SharedFlashcardAdapter.ViewHolder>() {
-
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-            val view = LayoutInflater.from(parent.context).inflate(
-                R.layout.item_shared_flashcard, parent, false
-            )
-            return ViewHolder(view)
-        }
-
-        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-            val item = items[position]
-            holder.tvTitle.text = item.folderName
-            holder.tvCount.text = item.visibility // FolderEntity의 공개 상태 표시 (예: "전체공개")
-            holder.itemView.setOnClickListener { onItemClick(item) }
-        }
-    }
-
-        override fun getItemCount(): Int = items.size
-
-        class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-            val tvTitle: TextView = itemView.findViewById(R.id.tvFlashcardTitle)
-            val tvCount: TextView = itemView.findViewById(R.id.tvFlashcardCount)
-        }
-    }
-
-     */
 }

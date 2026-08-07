@@ -1,5 +1,6 @@
 package com.example.colorpaper.ui.diary
 
+import androidx.fragment.app.viewModels
 import android.annotation.SuppressLint
 import android.app.DatePickerDialog
 import android.content.res.ColorStateList
@@ -43,6 +44,7 @@ class DiaryFragment : Fragment() {
     private val binding get() = _binding!!
     private val selectedTags = mutableSetOf<String>()
     private var isHighlightedState: Boolean = false
+    private val viewModel: DiaryViewModel by viewModels()
     private var currentVisibility: String = "PRIVATE"
     private var selectedReminderCycleDays: Int = ReminderSchedulePolicy.DISABLED
     private var reminderSelectionTouched: Boolean = false
@@ -309,8 +311,36 @@ class DiaryFragment : Fragment() {
         }
 
         initSingleChoiceGroups()
+        setupSaveObserver()
     }
 
+    private fun setupSaveObserver() {
+        viewModel.saveSuccess.observe(viewLifecycleOwner) { isSuccess ->
+            val safeContext = context ?: return@observe
+            val currentBinding = _binding ?: return@observe
+
+            if (isSuccess) {
+                Toast.makeText(safeContext, "다이어리가 성공적으로 저장되었습니다!", Toast.LENGTH_SHORT).show()
+
+                // 작성 화면 뷰 상태 정리
+                currentBinding.layoutPostItSetting.visibility = View.GONE
+                selectedEmotions.clear()
+
+                // 컨테이너 내부의 포스트잇 입력창 잠금 처리
+                val container = currentBinding.layoutDiaryContainer
+                for (i in 0 until container.childCount) {
+                    val childView = container.getChildAt(i) ?: continue
+                    val etContent = childView.findViewById<EditText>(R.id.etPostItContent) ?: continue
+
+                    etContent.isEnabled = false
+                    etContent.isFocusable = false
+                    etContent.clearFocus()
+                }
+            } else {
+                Toast.makeText(safeContext, "저장 중 오류가 발생했습니다.", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     private fun applyEmotionButtonState(button: Button, isSelected: Boolean, originalColor: Int = 0) {
         if (button is MaterialButton) {
@@ -756,152 +786,88 @@ class DiaryFragment : Fragment() {
     }
 
     private fun saveCurrentDiaryWithPosition() {
+        // 1. Safe Context 및 Binding 가드
+        val safeContext = context ?: return
+        val currentBinding = _binding ?: return
+
         val dateKey = dateFormat.format(selectedDateCalendar.time)
         val tagsString = selectedTags.joinToString(",")
         val emotionsString = selectedEmotions.joinToString(",")
 
-        val container = binding.layoutDiaryContainer
+        val container = currentBinding.layoutDiaryContainer
         val childCount = container.childCount
 
         if (childCount == 0 || (childCount == 1 && container.getChildAt(0) is TextView && container.getChildAt(0).id == R.id.tvEmptyHint)) {
-            Toast.makeText(requireContext(), "저장할 메모지 내용이 없습니다.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(safeContext, "저장할 메모지 내용이 없습니다.", Toast.LENGTH_SHORT).show()
             return
         }
+
         val currentUid = AuthUtils.getCurrentUserId()
-        if (currentUid == "") {
-            Toast.makeText(requireContext(), "currentUid is null", Toast.LENGTH_SHORT).show()
+        if (currentUid.isBlank()) {
+            Toast.makeText(safeContext, "로그인 정보가 없습니다.", Toast.LENGTH_SHORT).show()
+            return
         }
 
-        // 💡 [수정] 백그라운드 스레드에서 순차적으로 저장 후 ID 반영
-        lifecycleScope.launch(Dispatchers.IO) {
-            val db = AppDatabase.getDatabase(requireContext())
+        // 2. Main 스레드에서 View 데이터 사전 수집 (반복문 내 스레드 전환 방지)
+        val diariesToSave = mutableListOf<Pair<View, DiaryEntity>>()
 
-            for (i in 0 until childCount) {
-                // 메인 스레드에서 UI 뷰 데이터 추출
-                val childView = withContext(Dispatchers.Main) { container.getChildAt(i) }
-                if (childView is TextView && childView.id == R.id.tvEmptyHint) continue
+        for (i in 0 until childCount) {
+            val childView = container.getChildAt(i) ?: continue
+            if (childView is TextView && childView.id == R.id.tvEmptyHint) continue
 
-                if (childView is TextView && childView.tag == "DECORATION_TEXT") {
-                    val decText = childView.text.toString().trim()
-                    if (decText.isNotBlank()) {
-                        val posX = childView.translationX
-                        val posY = childView.translationY
-
-                        val decDiaryEntity = DiaryEntity(
-                            diaryId = (childView.getTag(R.id.ivPostItBg) as? Int) ?: 0,
-                            createdAt = dateKey,
-                            content = "[DECO]:$decText", // 꾸미기 텍스트 구분용 프리픽스
-                            color = "transparent",
-                            tag = "",
-                            emotionStamp = "",
-                            isHighlighted = false,
-                            visibility = currentVisibility,
-                            positionX = posX,
-                            positionY = posY,
-                            userId = currentUid,
-                            highlightRanges = ""
-                        )
-
-                        val savedId = db.diaryDao().insertPostIt(decDiaryEntity)
-                        withContext(Dispatchers.Main) {
-                            childView.setTag(R.id.ivPostItBg, savedId.toInt())
-                        }
-                    }
+            if (childView is TextView && childView.tag == "DECORATION_TEXT") {
+                val decText = childView.text.toString().trim()
+                if (decText.isNotBlank()) {
+                    val decDiaryEntity = DiaryEntity(
+                        diaryId = (childView.getTag(R.id.ivPostItBg) as? Int) ?: 0,
+                        createdAt = dateKey,
+                        content = "[DECO]:$decText",
+                        color = "transparent",
+                        tag = "",
+                        emotionStamp = "",
+                        isHighlighted = false,
+                        visibility = currentVisibility,
+                        positionX = childView.translationX,
+                        positionY = childView.translationY,
+                        userId = currentUid,
+                        highlightRanges = ""
+                    )
+                    diariesToSave.add(Pair(childView, decDiaryEntity))
                 }
-                // B. 일반 포스트잇일 경우
-                else {
-                    val etContent = childView.findViewById<EditText>(R.id.etPostItContent) ?: continue
-                    val contentText = etContent.text.toString().trim()
+            } else {
+                val etContent = childView.findViewById<EditText>(R.id.etPostItContent) ?: continue
+                val contentText = etContent.text.toString().trim()
 
-                    if (contentText.isNotBlank()) {
-                        val existingDiaryId = (childView.getTag(R.id.ivPostItBg) as? Int) ?: 0
-                        val existingDiary = if (existingDiaryId > 0) {
-                            db.diaryDao().getDiaryById(existingDiaryId)
-                        } else null
-                        val isReminderTarget = childView === currentActivePostIt
-                        val shouldApplyReminderSelection = isReminderTarget &&
-                            (existingDiary == null || reminderSelectionTouched)
-                        val reminderCycle = if (shouldApplyReminderSelection) {
-                            selectedReminderCycleDays
-                        } else {
-                            existingDiary?.reviewCycleDays ?: ReminderSchedulePolicy.DISABLED
-                        }
+                if (contentText.isNotBlank()) {
+                    val existingDiaryId = (childView.getTag(R.id.ivPostItBg) as? Int) ?: 0
+                    val postItColor = (childView.tag as? String) ?: currentSelectedColor
+                    val highlightRanges = getHighlightRangesFromEditText(etContent)
 
-                        val reminderWasChanged = shouldApplyReminderSelection &&
-                            reminderCycle != existingDiary?.reviewCycleDays
-                        val existingReminderAnchor = existingDiary?.reminderAnchorAt ?: 0L
-                        val reminderAnchor = when {
-                            reminderCycle == ReminderSchedulePolicy.DISABLED -> 0L
-                            reminderWasChanged || existingReminderAnchor == 0L ->
-                                System.currentTimeMillis()
-                            else -> existingReminderAnchor
-                        }
-
-                        val reminderStage = if (reminderWasChanged) 0 else {
-                            existingDiary?.reminderStage ?: 0
-                        }
-                        val savedEmotions = when {
-                            childView !== currentActivePostIt ->
-                                existingDiary?.emotionStamp.orEmpty()
-                            emotionsString.isNotBlank() || existingDiary == null ->
-                                emotionsString
-                            else -> existingDiary.emotionStamp.orEmpty()
-                        }
-
-                        val postItColor = (childView.tag as? String) ?: currentSelectedColor
-                        val posX = childView.translationX
-                        val posY = childView.translationY
-
-                        val highlightRanges = withContext(Dispatchers.Main) {
-                            getHighlightRangesFromEditText(etContent)
-                        }
-
-                        val newDiary = DiaryEntity(
-                            diaryId = existingDiaryId,
-                            createdAt = dateKey,
-                            content = contentText,
-                            color = postItColor,
-                            tag = tagsString,
-                            emotionStamp = savedEmotions,
-                            isHighlighted = isHighlightedState,
-                            visibility = currentVisibility,
-                            reviewCycleDays = reminderCycle,
-                            lastRemindedAt = if (reminderWasChanged) 0L else {
-                                existingDiary?.lastRemindedAt ?: 0L
-                            },
-                            reminderAnchorAt = reminderAnchor,
-                            reminderStage = reminderStage,
-                            reminderEndDate = selectedReminderEndDate,
-                            positionX = posX,
-                            positionY = posY,
-                            userId = currentUid,
-                            highlightRanges = highlightRanges
-                        )
-
-                        val savedId = db.diaryDao().insertPostIt(newDiary)
-                        val savedDiary = newDiary.copy(diaryId = savedId.toInt())
-                        if (reminderCycle == ReminderSchedulePolicy.DISABLED) {
-                            ReminderScheduler.cancel(requireContext(), savedId.toInt())
-                        } else {
-                            ReminderScheduler.schedule(requireContext(), savedDiary)
-                        }
-
-                        withContext(Dispatchers.Main) {
-                            childView.setTag(R.id.ivPostItBg, savedId.toInt())
-                            etContent.isEnabled = false
-                            etContent.isFocusable = false
-                            etContent.clearFocus()
-                        }
-                    }
+                    val newDiary = DiaryEntity(
+                        diaryId = existingDiaryId,
+                        createdAt = dateKey,
+                        content = contentText,
+                        color = postItColor,
+                        tag = tagsString,
+                        emotionStamp = emotionsString,
+                        isHighlighted = isHighlightedState,
+                        visibility = currentVisibility,
+                        reviewCycleDays = selectedReminderCycleDays,
+                        positionX = childView.translationX,
+                        positionY = childView.translationY,
+                        userId = currentUid,
+                        highlightRanges = highlightRanges
+                    )
+                    diariesToSave.add(Pair(childView, newDiary))
                 }
             }
+        }
 
-            withContext(Dispatchers.Main) {
-                Toast.makeText(requireContext(), "저장되었습니다!"+currentUid, Toast.LENGTH_SHORT).show()
-                binding.layoutPostItSetting.visibility = View.GONE
-                selectedEmotions.clear()
-            }
+        if (diariesToSave.isEmpty()) return
 
+        // 3. viewLifecycleOwner 기반의 안전한 코루틴으로 ViewModel 호출
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.saveDiaries(diariesToSave.map { it.second })
         }
     }
     private fun showAddTagDialog() {
