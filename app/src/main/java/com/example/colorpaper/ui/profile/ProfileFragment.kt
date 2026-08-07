@@ -207,6 +207,7 @@ class ProfileFragment : Fragment() {
             holder.tvCount.text = item.visibility // FolderEntity의 공개 상태 표시 (예: "전체공개")
             holder.itemView.setOnClickListener { onItemClick(item) }
         }
+    }
 
         override fun getItemCount(): Int = items.size
 
