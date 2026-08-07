@@ -9,5 +9,6 @@ data class TodoEntity(
     @ColumnInfo(name = "user_id") val userId: Int, // 외래키 역할
     @ColumnInfo(name = "content") val content: String,
     @ColumnInfo(name = "is_completed") val isCompleted: Boolean = false,
-    @ColumnInfo(name = "target_date") val targetDate: String // 💡 "2026-07-20" 형태로 저장해야 홈 화면/캘린더 띄우기 편함
+    @ColumnInfo(name = "target_date") val targetDate: String, // 💡 "2026-07-20" 형태로 저장해야 홈 화면/캘린더 띄우기 편함
+    @ColumnInfo(name = "carry_over") val carryOver: Boolean = false
 )

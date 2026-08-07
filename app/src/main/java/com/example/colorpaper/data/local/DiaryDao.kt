@@ -5,6 +5,7 @@ import com.example.colorpaper.data.model.DiaryEntity
 import com.example.colorpaper.data.model.CommentEntity
 import com.example.colorpaper.data.model.HighlightEntity
 import com.example.colorpaper.data.model.ReminderAnswerEntity
+import com.example.colorpaper.data.model.ReminderAnswerWithDiary
 
 @Dao
 interface DiaryDao {
@@ -26,6 +27,20 @@ interface DiaryDao {
     @Query("SELECT * FROM diaries WHERE created_at BETWEEN :startDate AND :endDate ORDER BY created_at ASC")
     suspend fun getDiariesBetween(startDate: String, endDate: String): List<DiaryEntity>
 
+    @Query(
+        """
+        SELECT * FROM diaries
+        WHERE user_id = :userId
+          AND created_at BETWEEN :startDate AND :endDate
+        ORDER BY created_at ASC
+        """
+    )
+    suspend fun getDiariesBetweenByUserId(
+        userId: String,
+        startDate: String,
+        endDate: String
+    ): List<DiaryEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertDiary(diary: DiaryEntity)
 
@@ -41,6 +56,41 @@ interface DiaryDao {
 
     @Query("SELECT * FROM reminder_answers WHERE diary_id = :diaryId AND reminder_stage = :stage LIMIT 1")
     suspend fun getReminderAnswer(diaryId: Int, stage: Int): ReminderAnswerEntity?
+
+    @Query(
+        """
+        SELECT reminder_answers.*,
+               diaries.content AS diary_content,
+               diaries.created_at AS diary_created_at
+        FROM reminder_answers
+        LEFT JOIN diaries ON diaries.diary_id = reminder_answers.diary_id
+        WHERE reminder_answers.answered_at >= :startOfDay
+          AND reminder_answers.answered_at < :startOfNextDay
+          AND diaries.user_id = :userId
+        ORDER BY reminder_answers.answered_at DESC
+        """
+    )
+    suspend fun getReminderAnswersBetween(
+        userId: String,
+        startOfDay: Long,
+        startOfNextDay: Long
+    ): List<ReminderAnswerWithDiary>
+
+    @Query(
+        """
+        SELECT * FROM diaries
+        WHERE user_id = :userId
+          AND substr(created_at, 6, 5) = :monthAndDay
+          AND created_at < :today
+        ORDER BY created_at DESC
+        LIMIT 1
+        """
+    )
+    suspend fun getLatestDiaryFromSameDay(
+        userId: String,
+        monthAndDay: String,
+        today: String
+    ): DiaryEntity?
 
     @Query("SELECT * FROM diaries WHERE created_at = :targetDate")
     fun getPostItsByDate(targetDate: String): List<DiaryEntity>

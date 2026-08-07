@@ -20,9 +20,15 @@
         <item name="android:paddingBottom">@dimen/bottom_nav_item_vertical_padding</item>
     </style>
 
+    <style name="HomeBottomNavIconContainer">
+        <item name="android:layout_width">40dp</item>
+        <item name="android:layout_height">40dp</item>
+    </style>
+
     <style name="HomeBottomNavIcon">
         <item name="android:layout_width">@dimen/bottom_nav_icon_size</item>
         <item name="android:layout_height">@dimen/bottom_nav_icon_size</item>
+        <item name="android:layout_gravity">center</item>
         <item name="android:tint">@color/theme_rose_stroke</item>
     </style>
 

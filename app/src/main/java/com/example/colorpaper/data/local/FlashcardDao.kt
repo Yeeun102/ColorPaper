@@ -36,6 +36,21 @@ interface FlashcardDao {
     @Update
     suspend fun updateWord(word: WordEntity)
 
+    @Query(
+        """
+        SELECT COUNT(*) FROM words
+        INNER JOIN folders ON folders.folder_id = words.folder_id
+        WHERE folders.user_id = :userId
+          AND words.last_reviewed_at >= :startOfDay
+          AND words.last_reviewed_at < :startOfNextDay
+        """
+    )
+    suspend fun countReviewedCardsBetween(
+        userId: String,
+        startOfDay: Long,
+        startOfNextDay: Long
+    ): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insertAllItems(items: List<WordEntity>)
 

@@ -21,12 +21,15 @@ import com.example.colorpaper.MainActivity
 import com.example.colorpaper.data.model.WidgetEntity
 import com.example.colorpaper.data.local.AppDatabase
 import com.example.colorpaper.data.model.ReminderAnswerEntity
+import com.example.colorpaper.data.model.TodoEntity
 import com.example.colorpaper.reminder.ReminderIntents
 import com.example.colorpaper.reminder.MaskingText
 import com.example.colorpaper.reminder.ReminderMessageFactory
 import com.example.colorpaper.reminder.ReminderSchedulePolicy
 import com.example.colorpaper.ui.calendar.EmotionStampFormatter
 import com.example.colorpaper.ui.theme.ThemeManager
+import com.google.android.material.snackbar.Snackbar
+import com.google.firebase.auth.FirebaseAuth
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Calendar
@@ -65,9 +68,16 @@ class HomeFragment : Fragment() {
 
         dateTitle.text = SimpleDateFormat("M월 d일", Locale.KOREAN).format(Date())
         allWidgets = defaultWidgets()
-        adapter = HomeWidgetAdapter(emptyList(), palette) { dateKey ->
-            (requireActivity() as? MainActivity)?.openDiaryDate(dateKey)
-        }
+        adapter = HomeWidgetAdapter(
+            widgets = emptyList(),
+            palette = palette,
+            onCalendarDateClick = ::openDiaryDate,
+            onTodoAdd = ::addTodo,
+            onTodoCompletionChange = ::updateTodoCompletion,
+            onTodoMoveToTomorrow = ::moveTodoToTomorrow,
+            onWidgetSizeChange = ::saveWidgetSizes
+        )
+        adapter.setLargeWidgetTypes(loadWidgetSizes())
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
         recyclerView.adapter = adapter
 
@@ -95,6 +105,7 @@ class HomeFragment : Fragment() {
         }
 
         showHomeWidgets()
+        loadWidgetLayout()
 
         val reminderDiaryId = arguments?.getInt(ReminderIntents.EXTRA_DIARY_ID, -1) ?: -1
         val reminderStage = arguments?.getInt(ReminderIntents.EXTRA_STAGE, -1) ?: -1
@@ -105,7 +116,208 @@ class HomeFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        if (::adapter.isInitialized) loadWeeklyCalendar()
+        if (::adapter.isInitialized) {
+            loadWeeklyCalendar()
+            loadTodos()
+            loadYearsAgoRecord()
+            loadTodayChecklist()
+        }
+    }
+
+    private fun openDiaryDate(dateKey: String) {
+        (requireActivity() as? MainActivity)?.openDiaryDate(dateKey)
+    }
+
+    private fun loadTodos() {
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN).format(Date())
+        val appContext = requireContext().applicationContext
+        viewLifecycleOwner.lifecycleScope.launch {
+            val todos = withContext(Dispatchers.IO) {
+                val dao = AppDatabase.getDatabase(appContext).todoDao()
+                val todayItems = dao.getTodosForDate(DEMO_USER_ID, today)
+                val existingContents = todayItems.map { it.content.trim() }.toMutableSet()
+                dao.getCarryOverCandidates(DEMO_USER_ID, today)
+                    .distinctBy { it.content.trim() }
+                    .forEach { previous ->
+                        if (existingContents.add(previous.content.trim())) {
+                            dao.insertTodo(
+                                previous.copy(
+                                    todoId = 0,
+                                    isCompleted = false,
+                                    targetDate = today
+                                )
+                            )
+                        }
+                        dao.updateCarryOver(previous.todoId, false)
+                    }
+                dao.getTodosForDate(DEMO_USER_ID, today)
+            }
+            if (isAdded) adapter.updateTodoItems(todos)
+        }
+    }
+
+    private fun addTodo(content: String, carryOver: Boolean) {
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN).format(Date())
+        val appContext = requireContext().applicationContext
+        viewLifecycleOwner.lifecycleScope.launch {
+            withContext(Dispatchers.IO) {
+                AppDatabase.getDatabase(appContext).todoDao().insertTodo(
+                    TodoEntity(
+                        userId = DEMO_USER_ID,
+                        content = content,
+                        targetDate = today,
+                        carryOver = carryOver
+                    )
+                )
+            }
+            loadTodos()
+        }
+    }
+
+    private fun updateTodoCompletion(todo: TodoEntity, completed: Boolean) {
+        val appContext = requireContext().applicationContext
+        viewLifecycleOwner.lifecycleScope.launch {
+            withContext(Dispatchers.IO) {
+                AppDatabase.getDatabase(appContext).todoDao()
+                    .updateCompletion(todo.todoId, completed)
+            }
+            loadTodos()
+        }
+    }
+
+    private fun moveTodoToTomorrow(todo: TodoEntity) {
+        val tomorrow = Calendar.getInstance().apply {
+            add(Calendar.DAY_OF_MONTH, 1)
+        }
+        val tomorrowKey = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN).format(tomorrow.time)
+        val appContext = requireContext().applicationContext
+        viewLifecycleOwner.lifecycleScope.launch {
+            withContext(Dispatchers.IO) {
+                AppDatabase.getDatabase(appContext).todoDao()
+                    .moveToDate(todo.todoId, tomorrowKey)
+            }
+            loadTodos()
+            val root = view ?: return@launch
+            Snackbar.make(root, R.string.home_todo_moved_tomorrow, Snackbar.LENGTH_LONG)
+                .setAction(R.string.home_todo_undo) {
+                    undoTodoMove(todo)
+                }
+                .show()
+        }
+    }
+
+    private fun undoTodoMove(todo: TodoEntity) {
+        val appContext = context?.applicationContext ?: return
+        viewLifecycleOwner.lifecycleScope.launch {
+            withContext(Dispatchers.IO) {
+                AppDatabase.getDatabase(appContext).todoDao()
+                    .moveToDate(todo.todoId, todo.targetDate)
+            }
+            loadTodos()
+        }
+    }
+
+    private fun loadYearsAgoRecord() {
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN).format(Date())
+        val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
+        val appContext = requireContext().applicationContext
+        viewLifecycleOwner.lifecycleScope.launch {
+            val diary = withContext(Dispatchers.IO) {
+                AppDatabase.getDatabase(appContext).diaryDao().getLatestDiaryFromSameDay(
+                    userId = userId,
+                    monthAndDay = today.substring(5),
+                    today = today
+                )
+            }
+            val item = diary?.let {
+                val currentYear = today.substringBefore('-').toIntOrNull()
+                val recordYear = it.createdAt.substringBefore('-').toIntOrNull()
+                if (currentYear == null || recordYear == null) return@let null
+                YearsAgoUi(
+                    yearsAgo = currentYear - recordYear,
+                    dateKey = it.createdAt,
+                    preview = it.content.removePrefix("[DECO]:").take(120)
+                )
+            }
+            if (isAdded) adapter.updateYearsAgo(item)
+        }
+    }
+
+    private fun loadTodayChecklist() {
+        val userId = FirebaseAuth.getInstance().currentUser?.uid
+        if (userId == null) {
+            adapter.updateTodayChecklist(hasRecord = false, hasReview = false)
+            return
+        }
+
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN).format(Date())
+        val startOfDay = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val startOfNextDay = (startOfDay.clone() as Calendar).apply {
+            add(Calendar.DAY_OF_MONTH, 1)
+        }
+        val appContext = requireContext().applicationContext
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            val status = withContext(Dispatchers.IO) {
+                val database = AppDatabase.getDatabase(appContext)
+                val hasRecord = database.diaryDao()
+                    .getPostItsByDateAndUserId(today, userId)
+                    .isNotEmpty()
+                val hasReminderAnswer = database.diaryDao().getReminderAnswersBetween(
+                    userId = userId,
+                    startOfDay = startOfDay.timeInMillis,
+                    startOfNextDay = startOfNextDay.timeInMillis
+                ).isNotEmpty()
+                val hasFlashcardAnswer = database.flashcardDao().countReviewedCardsBetween(
+                    userId = userId,
+                    startOfDay = startOfDay.timeInMillis,
+                    startOfNextDay = startOfNextDay.timeInMillis
+                ) > 0
+                hasRecord to (hasReminderAnswer || hasFlashcardAnswer)
+            }
+            if (isAdded) {
+                adapter.updateTodayChecklist(
+                    hasRecord = status.first,
+                    hasReview = status.second
+                )
+            }
+        }
+    }
+
+    private fun loadWidgetLayout() {
+        val appContext = requireContext().applicationContext
+        viewLifecycleOwner.lifecycleScope.launch {
+            val widgets = withContext(Dispatchers.IO) {
+                val dao = AppDatabase.getDatabase(appContext).widgetDao()
+                val saved = dao.getWidgetsByUser(DEMO_USER_ID)
+                if (saved.isNotEmpty()) {
+                    saved
+                } else {
+                    dao.insertWidgets(defaultWidgets())
+                    dao.getWidgetsByUser(DEMO_USER_ID)
+                }
+            }
+            if (!isAdded) return@launch
+            allWidgets = widgets
+            showHomeWidgets()
+        }
+    }
+
+    private fun loadWidgetSizes(): Set<String> =
+        requireContext().getSharedPreferences(HOME_PREFERENCES, android.content.Context.MODE_PRIVATE)
+            .getStringSet(KEY_LARGE_WIDGETS, emptySet())
+            .orEmpty()
+
+    private fun saveWidgetSizes(types: Set<String>) {
+        requireContext().getSharedPreferences(HOME_PREFERENCES, android.content.Context.MODE_PRIVATE)
+            .edit()
+            .putStringSet(KEY_LARGE_WIDGETS, types)
+            .apply()
     }
 
     private fun loadWeeklyCalendar() {
@@ -132,12 +344,18 @@ class HomeFragment : Fragment() {
         }
         adapter.updateCalendarDays(days)
         val appContext = requireContext().applicationContext
+        val userId = FirebaseAuth.getInstance().currentUser?.uid
         viewLifecycleOwner.lifecycleScope.launch {
             val diaries = withContext(Dispatchers.IO) {
-                AppDatabase.getDatabase(appContext).diaryDao().getDiariesBetween(
-                    startDate = days.first().dateKey,
-                    endDate = days.last().dateKey
-                )
+                if (userId == null) {
+                    emptyList()
+                } else {
+                    AppDatabase.getDatabase(appContext).diaryDao().getDiariesBetweenByUserId(
+                        userId = userId,
+                        startDate = days.first().dateKey,
+                        endDate = days.last().dateKey
+                    )
+                }
             }
             val emotionsByDate = diaries.groupBy { it.createdAt }.mapValues { (_, records) ->
                 EmotionStampFormatter.format(
@@ -147,7 +365,15 @@ class HomeFragment : Fragment() {
             }
             adapter.updateCalendarDays(
                 days.map { day ->
-                    day.copy(emotionEmoji = emotionsByDate[day.dateKey].orEmpty())
+                    val emotion = emotionsByDate[day.dateKey].orEmpty()
+                    val hasRecord = diaries.any { it.createdAt == day.dateKey }
+                    day.copy(
+                        emotionEmoji = if (day.isToday && hasRecord && emotion.isBlank()) {
+                            DEFAULT_EMOTION_EMOJI
+                        } else {
+                            emotion
+                        }
+                    )
                 }
             )
         }
@@ -216,6 +442,7 @@ class HomeFragment : Fragment() {
                                     R.string.reminder_answer_saved,
                                     Toast.LENGTH_SHORT
                                 ).show()
+                                loadTodayChecklist()
                             }
                             dialog.dismiss()
                         }
@@ -283,6 +510,11 @@ class HomeFragment : Fragment() {
         editMode = false
         editButton.text = "편집"
         showHomeWidgets()
+        val widgetsToSave = allWidgets
+        val appContext = requireContext().applicationContext
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            AppDatabase.getDatabase(appContext).widgetDao().insertWidgets(widgetsToSave)
+        }
     }
 
     private fun showHomeWidgets() {
@@ -300,6 +532,9 @@ class HomeFragment : Fragment() {
 
     companion object {
         private const val DEMO_USER_ID = 1
+        private const val HOME_PREFERENCES = "home_widget_preferences"
+        private const val KEY_LARGE_WIDGETS = "large_widget_types"
+        private const val DEFAULT_EMOTION_EMOJI = "🙂"
 
         fun newInstance(diaryId: Int, stage: Int) = HomeFragment().apply {
             arguments = Bundle().apply {
