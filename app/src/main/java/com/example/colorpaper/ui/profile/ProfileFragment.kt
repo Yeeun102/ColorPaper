@@ -110,6 +110,7 @@ class ProfileFragment : Fragment() {
         )
         val uniqueHighlights = rawHighlights.distinctBy { it.date }
 
+        /*
         val highlightAdapter = HighlightAdapter(
             items = uniqueHighlights,
             onItemClick = { item ->
@@ -123,6 +124,8 @@ class ProfileFragment : Fragment() {
                 Toast.makeText(context, "전체 하이라이트 목록 페이지로 이동합니다.", Toast.LENGTH_SHORT).show()
             }
         )
+
+
 
         rvHighlights?.layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
         rvHighlights?.adapter = highlightAdapter
@@ -144,6 +147,8 @@ class ProfileFragment : Fragment() {
             }
         }
 
+
+         */
         // 5. 버튼 클릭 이벤트
         ivBack.setOnClickListener { parentFragmentManager.popBackStack() }
 
@@ -202,6 +207,7 @@ class ProfileFragment : Fragment() {
             holder.tvCount.text = item.visibility // FolderEntity의 공개 상태 표시 (예: "전체공개")
             holder.itemView.setOnClickListener { onItemClick(item) }
         }
+    }
 
         override fun getItemCount(): Int = items.size
 

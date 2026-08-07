@@ -7,6 +7,7 @@ import androidx.viewpager2.adapter.FragmentStateAdapter
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
+/*
 @RequiresApi(Build.VERSION_CODES.O)
 class DiaryPagerAdapter(
     fragment: Fragment,
@@ -16,11 +17,14 @@ class DiaryPagerAdapter(
 
     override fun getItemCount(): Int = 731
 
+
     override fun createFragment(position: Int): Fragment {
         val targetDate = startDate.plusDays(position.toLong())
         // 전달받은 isEditMode 상태를 그대로 DiaryDetailFragment에 넘겨줍니다.
         return DiaryDetailFragment.newInstance(targetDate.toString(), isEditMode = isEditMode)
     }
+
+
 
     fun getTodayPosition(): Int {
         return getPositionForDate(LocalDate.now().toString())
@@ -38,3 +42,5 @@ class DiaryPagerAdapter(
         }
     }
 }
+
+ */
