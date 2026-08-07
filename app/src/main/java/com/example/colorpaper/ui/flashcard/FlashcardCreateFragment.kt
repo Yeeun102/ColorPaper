@@ -14,15 +14,18 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.example.colorpaper.R
+import com.example.colorpaper.data.local.AppDatabase
 import com.example.colorpaper.data.model.FolderEntity
 import com.example.colorpaper.data.model.WordEntity
 import com.example.colorpaper.databinding.FragmentFlashcardCreateBinding
-import com.example.colorpaper.data.local.AppDatabase
 import com.example.colorpaper.util.AuthUtils
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
 class FlashcardCreateFragment : Fragment() {
@@ -31,6 +34,8 @@ class FlashcardCreateFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val cardViewsList = mutableListOf<View>()
+    private val auth = FirebaseAuth.getInstance()
+    private val firestore = FirebaseFirestore.getInstance()
 
     private val filePickerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -75,6 +80,7 @@ class FlashcardCreateFragment : Fragment() {
             saveFlashcardSet()
         }
     }
+
     private fun canAddNewCard(): Boolean {
         if (cardViewsList.isEmpty()) return true
 
@@ -131,24 +137,18 @@ class FlashcardCreateFragment : Fragment() {
             return
         }
 
-        val itemsToInsert = mutableListOf<WordEntity>()
+        // 입력된 단어 검증
+        val validWords = mutableListOf<Pair<String, String>>()
         for (view in cardViewsList) {
             val question = view.findViewById<EditText>(R.id.etQuestion).text.toString().trim()
             val answer = view.findViewById<EditText>(R.id.etAnswer).text.toString().trim()
 
             if (question.isNotEmpty() && answer.isNotEmpty()) {
-                itemsToInsert.add(
-                    WordEntity(
-                        folderId = 0, // 아래 DB 저장 시 적절한 folderId로 대체됨
-                        wordQuestion = question,
-                        wordAnswer = answer
-                    )
-                )
+                validWords.add(Pair(question, answer))
             }
         }
 
-        // 💡 2. 입력된 카드가 1개도 없는 경우 저장 차단
-        if (itemsToInsert.isEmpty()) {
+        if (validWords.isEmpty()) {
             Toast.makeText(requireContext(), "최소 1개 이상의 카드에 질문과 정답을 입력해야 저장할 수 있습니다.", Toast.LENGTH_SHORT).show()
             return
         }
@@ -156,40 +156,67 @@ class FlashcardCreateFragment : Fragment() {
         val selectedChipId = binding.chipGroupVisibility.checkedChipId
         val visibility = binding.chipGroupVisibility.findViewById<com.google.android.material.chip.Chip>(selectedChipId)?.text.toString()
 
-        val currentUid = AuthUtils.getCurrentUserId()
+        val currentUid = auth.currentUser?.uid ?: AuthUtils.getCurrentUserId()
+        val formattedTitle = if (setTitle.startsWith("#")) setTitle else "#$setTitle"
+
         lifecycleScope.launch {
             val dao = AppDatabase.getDatabase(requireContext()).flashcardDao()
 
             withContext(Dispatchers.IO) {
+                // 1. Room Local DB에 저장
                 val newFolder = FolderEntity(
                     userId = currentUid,
-                    folderName = if (setTitle.startsWith("#")) setTitle else "#$setTitle",
+                    folderName = formattedTitle,
                     visibility = visibility
                 )
                 val generatedFolderId = dao.insertFolder(newFolder).toInt()
 
-                val itemsToInsert = mutableListOf<WordEntity>()
-                for (view in cardViewsList) {
-                    val question = view.findViewById<EditText>(R.id.etQuestion).text.toString().trim()
-                    val answer = view.findViewById<EditText>(R.id.etAnswer).text.toString().trim()
-
-                    if (question.isNotEmpty() && answer.isNotEmpty()) {
-                        itemsToInsert.add(
-                            WordEntity(
-                                folderId = generatedFolderId,
-                                wordQuestion = question,
-                                wordAnswer = answer
-                            )
-                        )
-                    }
+                val itemsToInsert = validWords.map { (q, a) ->
+                    WordEntity(
+                        folderId = generatedFolderId,
+                        wordQuestion = q,
+                        wordAnswer = a
+                    )
                 }
+                dao.insertAllItems(itemsToInsert)
 
-                if (itemsToInsert.isNotEmpty()) {
-                    dao.insertAllItems(itemsToInsert)
+                // 2. Firebase Firestore에 저장 및 동기화
+                if (currentUid.isNotEmpty()) {
+                    try {
+                        val folderDocRef = firestore.collection("folders").document()
+
+                        val folderMap = hashMapOf(
+                            "documentId" to folderDocRef.id,
+                            "folderId" to generatedFolderId,
+                            "userId" to currentUid,
+                            "folderName" to formattedTitle,
+                            "visibility" to visibility,
+                            "isAutoGenerated" to false,
+                            "wordCount" to validWords.size,
+                            "createdAt" to System.currentTimeMillis()
+                        )
+                        folderDocRef.set(folderMap).await()
+
+                        // 하위 단어 카드들 저장
+                        val wordsBatch = firestore.batch()
+                        validWords.forEach { (q, a) ->
+                            val wordDocRef = folderDocRef.collection("words").document()
+                            val wordMap = hashMapOf(
+                                "folderId" to generatedFolderId,
+                                "wordQuestion" to q,
+                                "wordAnswer" to a,
+                                "isMemorized" to false
+                            )
+                            wordsBatch.set(wordDocRef, wordMap)
+                        }
+                        wordsBatch.commit().await()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
                 }
             }
 
-            Toast.makeText(requireContext(), "$setTitle 저장 완료!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), "$formattedTitle 저장 완료!", Toast.LENGTH_SHORT).show()
             parentFragmentManager.popBackStack()
         }
     }

@@ -32,8 +32,9 @@ interface DiaryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPostIt(diary: DiaryEntity): Long
 
+    // 🌟 UPDATE 쿼리 끝에 반환 타입 : Int 명시
     @Query("UPDATE diaries SET last_reminded_at = :triggeredAt, reminder_stage = :nextStage WHERE diary_id = :diaryId")
-    suspend fun markReminderTriggered(diaryId: Int, triggeredAt: Long, nextStage: Int)
+    suspend fun markReminderTriggered(diaryId: Int, triggeredAt: Long, nextStage: Int): Int
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveReminderAnswer(answer: ReminderAnswerEntity)
@@ -60,11 +61,14 @@ interface DiaryDao {
     suspend fun getHighlightsByDate(date: String): List<HighlightEntity>
 
     @Query("SELECT * FROM highlight_table ORDER BY highlightId DESC")
-    suspend fun getAllHighlights(): List<HighlightEntity> // 다른 화면에서 모아볼 때 사용
+    suspend fun getAllHighlights(): List<HighlightEntity>
 
     @Query("SELECT * FROM diaries WHERE created_at = :date AND user_id = :userId")
     suspend fun getPostItsByDateAndUserId(date: String, userId: String): List<DiaryEntity>
 
     @Query("SELECT * FROM comments WHERE date = :targetDate AND user_id = :userId ORDER BY comment_id ASC")
     fun getCommentsByDateAndUserId(targetDate: String, userId: String): List<CommentEntity>
+
+    @Query("SELECT * FROM diaries WHERE visibility = :visibility ORDER BY created_at DESC")
+    suspend fun getPublicDiaries(visibility: String = "전체공개"): List<DiaryEntity>
 }

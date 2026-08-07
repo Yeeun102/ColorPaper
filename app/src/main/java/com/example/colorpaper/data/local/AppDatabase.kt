@@ -60,7 +60,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "flashcard_database"
                 )
                     .addMigrations(MIGRATION_5_6)
-                    .fallbackToDestructiveMigration(true)
+                    .fallbackToDestructiveMigration()
                     .allowMainThreadQueries()
                     .build()
 
