@@ -44,6 +44,7 @@ import kotlin.math.abs
 
 class DiaryDetailFragment : Fragment() {
     private var _binding: FragmentDiaryDetailBinding? = null
+    private val binding get() = _binding!!
 
     private val auth = FirebaseAuth.getInstance()
     private val firestore = FirebaseFirestore.getInstance()
@@ -55,6 +56,7 @@ class DiaryDetailFragment : Fragment() {
         "blue"   to R.drawable.post_blue
     )
 
+    // 댓글용 전용 리소스 맵
     private val commentResourceMap = mapOf(
         "orange" to R.drawable.comment_orange,
         "yellow" to R.drawable.comment_yellow,
@@ -72,6 +74,8 @@ class DiaryDetailFragment : Fragment() {
 
     private var buttonColorMap: Map<Button, Int> = emptyMap()
     private lateinit var gestureDetector: GestureDetector
+
+    private var isPastHighlighted = false
 
     companion object {
         private const val ARG_TARGET_DATE = "TARGET_DATE"
@@ -102,6 +106,8 @@ class DiaryDetailFragment : Fragment() {
                 button.strokeColor = ColorStateList.valueOf("#000000".toColorInt())
                 button.strokeWidth = (1 * density).toInt()
             }
+            button.invalidate()
+            button.refreshDrawableState()
         }
     }
 
@@ -135,7 +141,8 @@ class DiaryDetailFragment : Fragment() {
 
         buttonColorMap = mapOf(
             currentBinding.btnVisibilityDetail to "#E4D0D0".toColorInt(),
-            currentBinding.btnSaveDetail to "#867070".toColorInt()
+            currentBinding.btnSaveDetail to "#867070".toColorInt(),
+            currentBinding.btnHighlightDetail to "#D5B4B4".toColorInt()
         )
 
         currentBinding.btnToolbarBackDetail.setOnClickListener {
@@ -164,7 +171,7 @@ class DiaryDetailFragment : Fragment() {
         checkFollowStateAndLoad()
 
         currentBinding.btnSaveDetail.setOnClickListener {
-            saveAllCommentsPositions()
+            saveAllCommentsAndDiaryState()
         }
 
         currentBinding.btnVisibilityDetail.setOnClickListener {
@@ -177,6 +184,41 @@ class DiaryDetailFragment : Fragment() {
                 currentVisibility = "전체공개"
                 safeBinding.btnVisibilityDetail.text = getString(R.string.flashcard_public)
                 applyCustomButtonState(safeBinding.btnVisibilityDetail, isSelected = false)
+            }
+        }
+
+        currentBinding.btnHighlightDetail.setOnClickListener {
+            val currentUid = AuthUtils.getCurrentUserId()
+
+            // 저장 버튼을 누르지 않아도 DB에 즉시 반영
+            lifecycleScope.launch(Dispatchers.IO) {
+                val db = AppDatabase.getDatabase(requireContext())
+                val postIts = db.diaryDao().getPostItsByDateAndUserId(targetDate, currentUid)
+
+                withContext(Dispatchers.Main) {
+                    if (!isAdded || _binding == null) return@withContext
+
+                    if (postIts.isEmpty()){
+                        Toast.makeText(requireContext(), "하이라이트에 등록할 다이어리가 없습니다.", Toast.LENGTH_SHORT).show()
+                        return@withContext
+                    }
+                    isPastHighlighted = !isPastHighlighted
+                    applyCustomButtonState(currentBinding.btnHighlightDetail, isSelected = isPastHighlighted)
+
+                    // DB 일괄 업데이트
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        for (postIt in postIts) {
+                            val updatedPostIt = postIt.copy(isHighlighted = isPastHighlighted)
+                            db.diaryDao().insertPostIt(updatedPostIt)
+                        }
+
+                        withContext(Dispatchers.Main) {
+                            if (!isAdded || _binding == null) return@withContext
+                            val msg = if (isPastHighlighted) "하이라이트에 등록되었습니다." else "하이라이트 등록이 해제되었습니다."
+                            Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
             }
         }
 
@@ -229,6 +271,7 @@ class DiaryDetailFragment : Fragment() {
                     btnCommentDone.visibility = View.GONE
 
                     makeViewDraggable(commentView)
+                    lockCommentEditText(commentView, etCommentContent)
                     insertCommentToDb(commentView, text, randomColor, todayDateStr)
 
                     val targetUid = targetUserId ?: auth.currentUser?.uid ?: ""
@@ -240,6 +283,7 @@ class DiaryDetailFragment : Fragment() {
 
             activeBinding.layoutCommentsContainer.addView(commentView)
             commentView.bringToFront()
+            commentView.elevation = 10f
             activeBinding.layoutCommentsContainer.bringToFront()
         }
     }
@@ -445,6 +489,19 @@ class DiaryDetailFragment : Fragment() {
             val bindingAfterPostIts = _binding ?: return@launch
             if (!isAdded) return@launch
 
+            if (postIts.isNotEmpty()) {
+                // DB에서 로드된 isHighlighted 값 확인
+                isPastHighlighted = postIts.any { it.isHighlighted }
+                Log.d("DiaryDetail", "불러온 날짜: $targetDate, 하이라이트 여부: $isPastHighlighted")
+
+                // UI 즉시 반영
+                applyCustomButtonState(bindingAfterPostIts.btnHighlightDetail, isSelected = isPastHighlighted)
+            } else {
+                isPastHighlighted = false
+                applyCustomButtonState(bindingAfterPostIts.btnHighlightDetail, isSelected = false)
+            }
+
+            // 일기 데이터 그리기 (편집 불가능 구조)
             bindingAfterPostIts.layoutDetailDiaryContainer.removeAllViews()
             for (postIt in postIts) {
                 val isDecoText = postIt.content.startsWith("[DECO]:")
@@ -530,69 +587,68 @@ class DiaryDetailFragment : Fragment() {
         }
     }
 
-    private fun saveAllCommentsPositions() {
+    private fun saveAllCommentsAndDiaryState() {
         val safeContext = context?.applicationContext ?: return
         val currentBinding = _binding ?: return
 
         val container = currentBinding.layoutCommentsContainer
         val childCount = container.childCount
-
-        if (childCount == 0) {
-            Toast.makeText(context ?: return, "저장할 댓글이 없습니다.", Toast.LENGTH_SHORT).show()
-            return
-        }
-
         val currentUid = AuthUtils.getCurrentUserId()
-        val commentsToSave = mutableListOf<Pair<View, CommentEntity>>()
 
-        for (i in 0 until childCount) {
-            val commentView = container.getChildAt(i) ?: continue
-            val etCommentContent = commentView.findViewById<EditText>(R.id.etCommentContent) ?: continue
-            val tvTime = commentView.findViewById<TextView>(R.id.tvCommentTime) ?: continue
-
-            val text = etCommentContent.text.toString().trim()
-            if (text.isNotBlank()) {
-                val existingCommentId = (commentView.getTag(R.id.ivCommentBg) as? Int) ?: 0
-                val colorName = (commentView.tag as? String) ?: "blue"
-                val posX = commentView.translationX
-                val posY = commentView.translationY
-                val commentDate = tvTime.text.toString()
-
-                val updatedComment = CommentEntity(
-                    commentId = existingCommentId,
-                    diaryId = 0,
-                    userId = currentUid,
-                    date = targetDate,
-                    content = text,
-                    color = colorName,
-                    timestamp = commentDate,
-                    posX = posX,
-                    posY = posY
-                )
-
-                commentsToSave.add(Pair(commentView, updatedComment))
-            }
-        }
-
-        if (commentsToSave.isEmpty()) return
-
-        viewLifecycleOwner.lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             val db = AppDatabase.getDatabase(safeContext)
 
-            val savedResults = withContext(Dispatchers.IO) {
-                commentsToSave.map { (view, comment) ->
-                    val savedId = db.diaryDao().insertComment(comment)
-                    Pair(view, savedId)
+            // 1. 해당 날짜 일기 포스트잇들의 isHighlighted 및 visibility 일괄 업데이트
+            val postIts = db.diaryDao().getPostItsByDateAndUserId(targetDate, currentUid)
+            for (postIt in postIts) {
+                val updatedPostIt = postIt.copy(
+                    isHighlighted = isPastHighlighted,
+                    visibility = currentVisibility
+                )
+                db.diaryDao().insertPostIt(updatedPostIt)
+            }
+
+            // 2. 댓글 위치 정보 및 신규 댓글 ID 저장
+            withContext(Dispatchers.Main) {
+                if (!isAdded || _binding == null) return@withContext
+
+                for (i in 0 until childCount) {
+                    val commentView = container.getChildAt(i) ?: continue
+                    val etCommentContent = commentView.findViewById<EditText>(R.id.etCommentContent) ?: continue
+                    val tvTime = commentView.findViewById<TextView>(R.id.tvCommentTime) ?: continue
+
+                    val text = etCommentContent.text.toString().trim()
+                    if (text.isNotBlank()) {
+                        val existingCommentId = (commentView.getTag(R.id.ivCommentBg) as? Int) ?: 0
+                        val colorName = (commentView.tag as? String) ?: "blue"
+                        val posX = commentView.translationX
+                        val posY = commentView.translationY
+                        val commentDate = tvTime.text.toString()
+
+                        val updatedComment = CommentEntity(
+                            commentId = existingCommentId,
+                            diaryId = 0,
+                            userId = currentUid,
+                            date = targetDate,
+                            content = text,
+                            color = colorName,
+                            timestamp = commentDate,
+                            posX = posX,
+                            posY = posY
+                        )
+
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            val savedId = db.diaryDao().insertComment(updatedComment)
+                            withContext(Dispatchers.Main) {
+                                if (isAdded && _binding != null) {
+                                    commentView.setTag(R.id.ivCommentBg, savedId.toInt())
+                                }
+                            }
+                        }
+                    }
                 }
+                Toast.makeText(safeContext, "저장되었습니다!", Toast.LENGTH_SHORT).show()
             }
-
-            if (_binding == null || !isAdded) return@launch
-
-            for ((view, savedId) in savedResults) {
-                view.setTag(R.id.ivCommentBg, savedId.toInt())
-            }
-
-            Toast.makeText(context ?: return@launch, "댓글 위치가 저장되었습니다!", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -611,7 +667,6 @@ class DiaryDetailFragment : Fragment() {
 
         if (etContent is EditText) {
             etContent.setText(diary.content)
-            applyHighlightRangesToEditText(etContent, diary.highlightRanges)
             etContent.isEnabled = false
             etContent.isFocusable = false
         } else {
@@ -627,6 +682,7 @@ class DiaryDetailFragment : Fragment() {
         currentBinding.layoutDetailDiaryContainer.addView(view)
     }
 
+    // 과거의 일기를 켜서 '이미 저장되어 있던 댓글'들을 불러와서 그릴 때
     private fun renderCommentPostIt(comment: CommentEntity) {
         val safeContext = context ?: return
         val currentBinding = _binding ?: return
@@ -657,6 +713,7 @@ class DiaryDetailFragment : Fragment() {
 
         btnCommentDone.visibility = View.GONE
         makeViewDraggable(view)
+        lockCommentEditText(view, etCommentContent)
 
         currentBinding.layoutCommentsContainer.addView(view)
     }
@@ -685,46 +742,15 @@ class DiaryDetailFragment : Fragment() {
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     v.performClick()
                 }
-                else -> return@setOnTouchListener false
             }
             true
         }
     }
 
-    private fun applyHighlightRangesToEditText(etContent: EditText, rangesStr: String) {
-        if (rangesStr.isBlank()) return
-
-        val text = etContent.text.toString()
-        val spannable = SpannableString(text)
-        val pairs = rangesStr.split(",")
-
-        for (pair in pairs) {
-            val parts = pair.split("-")
-            if (parts.size == 2) {
-                val start = parts[0].toIntOrNull() ?: continue
-                val end = parts[1].toIntOrNull() ?: continue
-
-                if (start in 0..text.length && end in start..text.length) {
-                    spannable.setSpan(
-                        BackgroundColorSpan("#FFF59D".toColorInt()),
-                        start,
-                        end,
-                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                    )
-                }
-            }
-        }
-        etContent.setText(spannable)
-    }
-
-    override fun onResume() {
-        super.onResume()
-        (activity as? MainActivity)?.setBottomNavVisibility(false)
-    }
-
-    override fun onPause() {
-        super.onPause()
-        (activity as? MainActivity)?.setBottomNavVisibility(true)
+    private fun lockCommentEditText(parentView: View, editText: EditText) {
+        editText.isEnabled = false
+        editText.isFocusable = false
+        editText.isFocusableInTouchMode = false
     }
 
     override fun onDestroyView() {

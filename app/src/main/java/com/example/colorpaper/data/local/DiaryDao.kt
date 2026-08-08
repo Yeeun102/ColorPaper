@@ -94,11 +94,9 @@ interface DiaryDao {
     @Query("SELECT * FROM diaries WHERE created_at = :targetDate")
     suspend fun getPostItsByDate(targetDate: String): List<DiaryEntity>
 
-    // 💡 [수정] suspend 추가
     @Query("SELECT * FROM comments WHERE date = :targetDate ORDER BY comment_id ASC")
     suspend fun getCommentsByDate(targetDate: String): List<CommentEntity>
 
-    // 💡 [수정] suspend 추가
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertComment(comment: CommentEntity): Long
 
@@ -117,10 +115,12 @@ interface DiaryDao {
     @Query("SELECT * FROM diaries WHERE created_at = :date AND user_id = :userId")
     suspend fun getPostItsByDateAndUserId(date: String, userId: String): List<DiaryEntity>
 
-    // 💡 [수정] suspend 추가
     @Query("SELECT * FROM comments WHERE date = :targetDate AND user_id = :userId ORDER BY comment_id ASC")
     suspend fun getCommentsByDateAndUserId(targetDate: String, userId: String): List<CommentEntity>
 
     @Query("SELECT * FROM diaries WHERE visibility = :visibility ORDER BY created_at DESC")
-    suspend fun getPublicDiaries(visibility: String = "PUBLIC"): List<DiaryEntity>
+    suspend fun getPublicDiaries(visibility: String = "전체공개"): List<DiaryEntity>
+
+    @Query("UPDATE diaries SET is_highlighted = :isHighlighted WHERE created_at = :date AND user_id = :userId")
+    suspend fun updateHighlightByDate(date: String, userId: String, isHighlighted: Boolean)
 }
