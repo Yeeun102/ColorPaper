@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.example.colorpaper"
-    compileSdk {
+compileSdk {
         version = release(37) {
             minorApiLevel = 1
         }
@@ -70,14 +70,16 @@ dependencies {
     // 3. 이미지 로딩 (Coil - 사진 띄우기용)
     implementation("io.coil-kt:coil:2.7.0")
 
+    // 스플래시 스크린 API
+    implementation("androidx.core:core-splashscreen:1.0.1")
+
     // 4. 아키텍처 (ViewModel & Fragment KTX)
     implementation("androidx.fragment:fragment-ktx:1.8.9")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.0")
     implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.8.0")
 
-    // 5. 로컬 데이터베이스 (Room Database - 암기장 카드/세트 저장용 )
+    // 5. 로컬 데이터베이스 (Room Database - 암기장 카드/세트 저장용)
     val roomVersion = "2.8.4"
     implementation("androidx.room:room-runtime:$roomVersion")
     implementation("androidx.room:room-ktx:$roomVersion")
-    ksp("androidx.room:room-compiler:$roomVersion")
 }
