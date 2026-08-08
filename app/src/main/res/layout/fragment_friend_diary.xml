@@ -1,14 +1,128 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".ui.friend.FriendDiaryFragment">
+    android:background="#F5E6E6"
+    android:padding="16dp">
 
-    <!-- TODO: Update blank fragment layout -->
-    <TextView
+    <!-- 상단 헤더 (뒤로가기, 프로필 홈 이동 버튼) -->
+    <RelativeLayout
+        android:id="@+id/rlHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_marginTop="8dp">
+
+        <ImageView
+            android:id="@+id/ivBack"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_alignParentStart="true"
+            android:src="@android:drawable/ic_menu_revert"
+            android:contentDescription="뒤로가기" />
+
+        <TextView
+            android:id="@+id/tvFriendName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:text="친구 닉네임의 다이어리"
+            android:textColor="#000000"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btnGoToProfile"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:layout_alignParentEnd="true"
+            android:backgroundTint="#8B5A5A"
+            android:text="프로필 홈"
+            android:textSize="11sp" />
+    </RelativeLayout>
+
+    <!-- 다이어리 속지 영역 (바인더 노트 모양) -->
+    <FrameLayout
+        android:id="@+id/flDiaryPage"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:text="@string/hello_blank_fragment" />
+        android:layout_below="@id/rlHeader"
+        android:layout_marginTop="16dp"
+        android:background="#FFFFFF"
+        android:elevation="4dp"
+        android:padding="20dp">
 
-</FrameLayout>
+        <!-- 1. 팔로우 성공 시 보이는 다이어리 진짜 내용 -->
+        <LinearLayout
+            android:id="@+id/llPublicContent"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:visibility="visible">
+
+            <TextView
+                android:id="@+id/tvDiaryDate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="2026.08.03"
+                android:textColor="#888888"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/tvDiaryContent"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_marginTop="16dp"
+                android:layout_weight="1"
+                android:lineSpacingExtra="4dp"
+                android:text="친구 다이어리의 오늘 작성 내용이 여기에 뜹니다!"
+                android:textColor="#333333"
+                android:textSize="15sp" />
+
+            <!-- 이모지/반응 영역 (7.1.1 용) -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tvEmojiReaction"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:padding="8dp"
+                    android:text="😍 💬"
+                    android:textSize="22sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- 2. 팔로우 전 블러 및 안내 화면 (Unfollowed Overlay) -->
+        <LinearLayout
+            android:id="@+id/llBlurOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#DDFFFFFF"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🔒"
+                android:textSize="36sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="팔로우하고 확인해보세요"
+                android:textColor="#8B5A5A"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+    </FrameLayout>
+
+</RelativeLayout>

@@ -1,60 +1,210 @@
 package com.example.colorpaper.ui.flashcard
 
 import android.os.Bundle
-import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
+import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.colorpaper.R
+import com.example.colorpaper.data.local.AppDatabase
+import com.example.colorpaper.data.model.FolderEntity
+import com.example.colorpaper.databinding.FragmentFlashcardBinding
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-// TODO: Rename parameter arguments, choose names that match
-// the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
-private const val ARG_PARAM1 = "param1"
-private const val ARG_PARAM2 = "param2"
-
-/**
- * A simple [Fragment] subclass.
- * Use the [FlashcardFragment.newInstance] factory method to
- * create an instance of this fragment.
- */
 class FlashcardFragment : Fragment() {
-    // TODO: Rename and change types of parameters
-    private var param1: String? = null
-    private var param2: String? = null
+    private var _binding: FragmentFlashcardBinding? = null
+    private val binding get() = _binding!!
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        arguments?.let {
-            param1 = it.getString(ARG_PARAM1)
-            param2 = it.getString(ARG_PARAM2)
+    private lateinit var adapter: FlashcardSetAdapter
+    private val auth = FirebaseAuth.getInstance()
+    private val firestore = FirebaseFirestore.getInstance()
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        _binding = FragmentFlashcardBinding.inflate(inflater, container, false)
+        return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        val safeContext = context ?: return
+
+        adapter = FlashcardSetAdapter(
+            emptyList(),
+            onStartClick = { selectedSet ->
+                val bundle = Bundle().apply {
+                    putInt("SET_ID", selectedSet.folderId)
+                    putString("SET_TITLE", selectedSet.folderName)
+                }
+                val studyFragment = FlashcardStudyFragment().apply { arguments = bundle }
+                parentFragmentManager.beginTransaction()
+                    .replace(R.id.fragment_container, studyFragment)
+                    .addToBackStack(null)
+                    .commit()
+            },
+            onItemLongClick = { selectedSet ->
+                showDeleteDialog(selectedSet)
+            }
+        )
+
+        binding.rvFlashcardSets.apply {
+            this.adapter = this@FlashcardFragment.adapter
+            this.layoutManager = LinearLayoutManager(safeContext)
+            this.setHasFixedSize(true)
+        }
+
+        binding.btnCreateSet.setOnClickListener {
+            parentFragmentManager.beginTransaction()
+                .replace(R.id.fragment_container, FlashcardCreateFragment())
+                .addToBackStack(null)
+                .commit()
         }
     }
 
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_flashcard, container, false)
+    override fun onResume() {
+        super.onResume()
+        loadFlashcardSets()
     }
 
-    companion object {
-        /**
-         * Use this factory method to create a new instance of
-         * this fragment using the provided parameters.
-         *
-         * @param param1 Parameter 1.
-         * @param param2 Parameter 2.
-         * @return A new instance of fragment FlashcardFragment.
-         */
-        // TODO: Rename and change types and number of parameters
-        @JvmStatic
-        fun newInstance(param1: String, param2: String) =
-            FlashcardFragment().apply {
-                arguments = Bundle().apply {
-                    putString(ARG_PARAM1, param1)
-                    putString(ARG_PARAM2, param2)
+    // 🌟 Firebase Firestore 연동 + Local Room DB 동기화 불러오기
+    private fun loadFlashcardSets() {
+        val currentUserId = auth.currentUser?.uid
+
+        if (currentUserId.isNullOrEmpty()) {
+            // 미로그인 상태 시 로컬 DB 조회 Fallback
+            loadLocalFlashcardSets()
+            return
+        }
+
+        firestore.collection("folders")
+            .whereEqualTo("userId", currentUserId)
+            .get()
+            .addOnSuccessListener { snapshot ->
+                val firestoreSets = snapshot.documents.mapNotNull { doc ->
+                    val folderName = doc.getString("folderName") ?: doc.getString("folder_name") ?: ""
+                    val visibility = doc.getString("visibility") ?: "전체공개"
+                    val isAuto = doc.getBoolean("isAutoGenerated") ?: doc.getBoolean("is_auto_generated") ?: false
+                    val rawFolderId = doc.getLong("folderId")?.toInt() ?: doc.id.hashCode()
+
+                    FolderEntity(
+                        folderId = rawFolderId,
+                        userId = currentUserId,
+                        folderName = folderName,
+                        isAutoGenerated = isAuto,
+                        visibility = visibility
+                    )
+                }
+
+                viewLifecycleOwner.lifecycleScope.launch {
+                    val safeContext = context ?: return@launch
+                    val dao = AppDatabase.getDatabase(safeContext).flashcardDao()
+
+                    // Firestore 데이터를 로컬 Room DB에 저장/동기화
+                    withContext(Dispatchers.IO) {
+                        firestoreSets.forEach { dao.insertFolder(it) }
+                    }
+
+                    // 최신 데이터 가져오기
+                    val allSets = withContext(Dispatchers.IO) {
+                        val localData = dao.getAllSetsByUserId(currentUserId)
+                        if (localData.isNotEmpty()) localData else firestoreSets
+                    }
+
+                    updateUi(allSets)
                 }
             }
+            .addOnFailureListener {
+                // 파이어베이스 통신 실패 시 로컬 DB 우선 표시
+                loadLocalFlashcardSets()
+            }
+    }
+
+    private fun loadLocalFlashcardSets() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val safeContext = context ?: return@launch
+            val dao = AppDatabase.getDatabase(safeContext).flashcardDao()
+
+            val currentUserId = auth.currentUser?.uid ?: ""
+            val sets = withContext(Dispatchers.IO) {
+                if (currentUserId.isNotEmpty()) {
+                    dao.getAllSetsByUserId(currentUserId)
+                } else {
+                    dao.getAllSets()
+                }
+            }
+            updateUi(sets)
+        }
+    }
+
+    private fun updateUi(sets: List<FolderEntity>) {
+        _binding?.let { binding ->
+            if (sets.isEmpty()) {
+                binding.tvEmptyHint.visibility = View.VISIBLE
+                binding.rvFlashcardSets.visibility = View.GONE
+            } else {
+                binding.tvEmptyHint.visibility = View.GONE
+                binding.rvFlashcardSets.visibility = View.VISIBLE
+                adapter.updateData(sets)
+            }
+        }
+    }
+
+    // 🌟 파이어베이스 & 로컬 DB 양쪽 모두에서 삭제 수행
+    private fun showDeleteDialog(flashcardSet: FolderEntity) {
+        val safeContext = context ?: return
+
+        AlertDialog.Builder(safeContext)
+            .setTitle("단어장 삭제")
+            .setMessage("${flashcardSet.folderName} 단어장을 정말 삭제하시겠습니까?\n내부 카드들도 함께 삭제됩니다.")
+            .setPositiveButton("삭제") { _, _ ->
+                val currentUserId = auth.currentUser?.uid ?: ""
+
+                // 1. Firebase Firestore 문서 삭제
+                if (currentUserId.isNotEmpty()) {
+                    firestore.collection("folders")
+                        .whereEqualTo("userId", currentUserId)
+                        .whereEqualTo("folderName", flashcardSet.folderName)
+                        .get()
+                        .addOnSuccessListener { querySnapshot ->
+                            for (doc in querySnapshot.documents) {
+                                doc.reference.delete()
+                            }
+                        }
+                }
+
+                // 2. Room Local DB 삭제
+                viewLifecycleOwner.lifecycleScope.launch {
+                    val currentSafeContext = context ?: return@launch
+                    val dao = AppDatabase.getDatabase(currentSafeContext).flashcardDao()
+
+                    withContext(Dispatchers.IO) {
+                        dao.deleteSet(flashcardSet)
+                    }
+
+                    _binding?.let {
+                        Toast.makeText(currentSafeContext, "삭제되었습니다.", Toast.LENGTH_SHORT).show()
+                        loadFlashcardSets()
+                    }
+                }
+            }
+            .setNegativeButton("취소", null)
+            .show()
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
     }
 }

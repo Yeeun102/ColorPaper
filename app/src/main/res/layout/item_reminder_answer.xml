@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/card_reminder_answer"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="14dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground"
+    app:cardBackgroundColor="@color/theme_rose_checklist"
+    app:cardCornerRadius="18dp"
+    app:cardElevation="0dp"
+    app:strokeColor="@color/theme_rose_stroke"
+    app:strokeWidth="1dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="14dp">
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/card_reminder_question"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardBackgroundColor="@color/theme_rose_reminder"
+            app:cardCornerRadius="13dp"
+            app:cardElevation="0dp">
+
+            <TextView
+                android:id="@+id/tv_answer_question"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="14dp"
+                android:textColor="@color/theme_rose_text"
+                android:textSize="17sp"
+                android:textStyle="bold"
+                tools:text="7일 전 하던 고민, 해결됐나요?" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="@string/reminder_original_record"
+            android:textColor="@color/theme_rose_text"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_answer_record_date"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textColor="@color/theme_rose_text"
+            android:textSize="13sp"
+            tools:text="6월 30일" />
+
+        <TextView
+            android:id="@+id/tv_answer_record"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:ellipsize="end"
+            android:maxLines="5"
+            android:textColor="@color/theme_rose_text"
+            android:textSize="15sp"
+            tools:text="그날 남겼던 기록 내용이 여기에 표시됩니다." />
+
+        <View
+            android:id="@+id/divider_reminder_answer"
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="14dp"
+            android:layout_marginBottom="12dp"
+            android:alpha="0.45"
+            android:background="@color/theme_rose_stroke" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/reminder_today_answer"
+                android:textColor="@color/theme_rose_text"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_answer_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/theme_rose_text"
+                android:textSize="12sp"
+                tools:text="오후 3:20" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tv_answer_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="5dp"
+            android:textColor="@color/theme_rose_text"
+            android:textSize="16sp"
+            tools:text="지금은 잘 해결했고 마음도 한결 편해졌다." />
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>
