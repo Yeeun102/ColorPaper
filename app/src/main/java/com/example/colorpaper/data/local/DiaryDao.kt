@@ -16,10 +16,10 @@ interface DiaryDao {
     suspend fun getReminderEnabledDiaries(): List<DiaryEntity>
 
     @Query("SELECT * FROM diaries WHERE user_id = :userId")
-    suspend fun getDiariesByUserId(userId: Int): List<DiaryEntity>
+    suspend fun getDiariesByUserId(userId: String): List<DiaryEntity>
 
     @Query("SELECT * FROM diaries WHERE user_id = :userId AND visibility = :visibility")
-    suspend fun getDiariesByVisibility(userId: Int, visibility: String): List<DiaryEntity>
+    suspend fun getDiariesByVisibility(userId: String, visibility: String): List<DiaryEntity>
 
     @Query("SELECT * FROM diaries WHERE created_at LIKE :yearMonth || '%' ORDER BY created_at ASC")
     suspend fun getDiariesForMonth(yearMonth: String): List<DiaryEntity>
@@ -47,7 +47,6 @@ interface DiaryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPostIt(diary: DiaryEntity): Long
 
-    // 🌟 UPDATE 쿼리 끝에 반환 타입 : Int 명시
     @Query("UPDATE diaries SET last_reminded_at = :triggeredAt, reminder_stage = :nextStage WHERE diary_id = :diaryId")
     suspend fun markReminderTriggered(diaryId: Int, triggeredAt: Long, nextStage: Int): Int
 
@@ -93,13 +92,13 @@ interface DiaryDao {
     ): DiaryEntity?
 
     @Query("SELECT * FROM diaries WHERE created_at = :targetDate")
-    fun getPostItsByDate(targetDate: String): List<DiaryEntity>
+    suspend fun getPostItsByDate(targetDate: String): List<DiaryEntity>
 
     @Query("SELECT * FROM comments WHERE date = :targetDate ORDER BY comment_id ASC")
-    fun getCommentsByDate(targetDate: String): List<CommentEntity>
+    suspend fun getCommentsByDate(targetDate: String): List<CommentEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun insertComment(comment: CommentEntity): Long
+    suspend fun insertComment(comment: CommentEntity): Long
 
     @Delete
     suspend fun deleteDiary(diary: DiaryEntity)
@@ -117,7 +116,7 @@ interface DiaryDao {
     suspend fun getPostItsByDateAndUserId(date: String, userId: String): List<DiaryEntity>
 
     @Query("SELECT * FROM comments WHERE date = :targetDate AND user_id = :userId ORDER BY comment_id ASC")
-    fun getCommentsByDateAndUserId(targetDate: String, userId: String): List<CommentEntity>
+    suspend fun getCommentsByDateAndUserId(targetDate: String, userId: String): List<CommentEntity>
 
     @Query("SELECT * FROM diaries WHERE visibility = :visibility ORDER BY created_at DESC")
     suspend fun getPublicDiaries(visibility: String = "전체공개"): List<DiaryEntity>

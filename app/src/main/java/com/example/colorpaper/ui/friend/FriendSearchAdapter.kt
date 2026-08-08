@@ -1,57 +1,70 @@
 package com.example.colorpaper.ui.friend
 
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.ImageView
-import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import coil.load
+import coil.transform.CircleCropTransformation
 import com.example.colorpaper.R
-import com.example.colorpaper.data.model.UserEntity
+import com.example.colorpaper.databinding.ItemFriendSearchBinding
+
+data class FriendUiModel(
+    val userId: String, // Firebase UID
+    val userCode: String,
+    val nickname: String,
+    val profileImageUrl: String?,
+    var followerCount: Int = 0,
+    var followingCount: Int = 0,
+    var isFollowing: Boolean = false
+)
 
 class FriendSearchAdapter(
-    private var friendList: List<UserEntity>,
-    private val onFollowClick: (UserEntity) -> Unit,
-    private val onItemClick: (UserEntity) -> Unit
-) : RecyclerView.Adapter<FriendSearchAdapter.FriendViewHolder>() {
+    private var friendList: List<FriendUiModel>,
+    private val onFollowClick: (FriendUiModel, Int) -> Unit,
+    private val onItemClick: (FriendUiModel) -> Unit
+) : RecyclerView.Adapter<FriendSearchAdapter.ViewHolder>() {
 
-    inner class FriendViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val ivProfile: ImageView = itemView.findViewById(R.id.ivProfile)
-        val tvNickname: TextView = itemView.findViewById(R.id.tvNickname)
-        val tvUserCode: TextView = itemView.findViewById(R.id.tvUserCode)
-        val btnFollow: Button = itemView.findViewById(R.id.btnFollow)
+    class ViewHolder(val binding: ItemFriendSearchBinding) : RecyclerView.ViewHolder(binding.root)
 
-        fun bind(user: UserEntity) {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+        val binding = ItemFriendSearchBinding.inflate(
+            LayoutInflater.from(parent.context), parent, false
+        )
+        return ViewHolder(binding)
+    }
+
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+        val user = friendList[position]
+
+        holder.binding.apply {
+            tvUserCode.text = "#${user.userCode}"
             tvNickname.text = user.nickname
-            tvUserCode.text = "@${user.userCode}"
+            tvFollowerCount.text = "팔로워 ${user.followerCount}"
+            tvFollowingCount.text = "팔로잉 ${user.followingCount}"
 
-            // 팔로우 버튼 클릭 시
-            btnFollow.setOnClickListener {
-                onFollowClick(user)
+            ivProfile.load(user.profileImageUrl) {
+                crossfade(true)
+                placeholder(R.drawable.ic_default_profile)
+                error(R.drawable.ic_default_profile)
+                transformations(CircleCropTransformation())
             }
 
-            // 항목 전체 클릭 시 (친구 프로필 홈으로 이동용)
-            itemView.setOnClickListener {
-                onItemClick(user)
+            // 💡 팔로우 상태에 따라 아이콘 변경 (+ <-> X)
+            if (user.isFollowing) {
+                btnFollow.setImageResource(android.R.drawable.ic_menu_close_clear_cancel) // 팔로우 취소 아이콘
+            } else {
+                btnFollow.setImageResource(android.R.drawable.ic_input_add) // 팔로우 (+) 아이콘
             }
+
+            root.setOnClickListener { onItemClick(user) }
+            btnFollow.setOnClickListener { onFollowClick(user, position) }
         }
-    }
-
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FriendViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_friend_search, parent, false)
-        return FriendViewHolder(view)
-    }
-
-    override fun onBindViewHolder(holder: FriendViewHolder, position: Int) {
-        holder.bind(friendList[position])
     }
 
     override fun getItemCount(): Int = friendList.size
 
-    fun updateList(newList: List<UserEntity>) {
-        friendList = newList
+    fun updateList(newList: List<FriendUiModel>) {
+        this.friendList = newList
         notifyDataSetChanged()
     }
 }

@@ -9,7 +9,17 @@
     android:background="#FAFAFA"
     android:padding="16dp">
 
-    <!--w-->
+    <!-- 💡 [뒤로가기 버튼 추가] 상단 왼쪽 위치 -->
+    <ImageButton
+        android:id="@+id/btnToolbarBackDetail"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="?attr/homeAsUpIndicator"
+        android:contentDescription="뒤로가기"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@id/layoutDateSelectDetail"
+        app:layout_constraintBottom_toBottomOf="@id/layoutDateSelectDetail" />
 
     <LinearLayout
         android:id="@+id/layoutDateSelectDetail"
@@ -21,7 +31,8 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toTopOf="@id/lineHeaderDetail">
-    <!-- [상단 바] 과거 날짜 고정 영역 -->
+
+        <!-- [상단 바] 과거 날짜 고정 영역 -->
         <TextView
             android:id="@+id/tvDetailDateTitle"
             android:layout_width="wrap_content"
@@ -29,10 +40,8 @@
             android:text="@string/example_date"
             android:textSize="18sp"
             android:textStyle="bold"
-            android:textColor="#333333"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            android:textColor="#333333" />
+
         <ImageButton
             android:id="@+id/btnDatePickerDetail"
             android:layout_width="32dp"
@@ -42,6 +51,7 @@
             android:src="@android:drawable/ic_menu_my_calendar"
             android:contentDescription="@string/selectDate" />
     </LinearLayout>
+
     <!-- 📍 작성 페이지의 lineHeader와 오차가 없도록 완전히 동일한 마진값(8dp) 세팅 -->
     <View
         android:id="@+id/lineHeaderDetail"
@@ -69,38 +79,37 @@
         app:layout_constraintEnd_toEndOf="parent"/>
 
     <!-- [중앙 콘텐츠 구역] 투명 스크롤 레이어 (과거 일기 본문 + 셀프 댓글 목록) -->
+    <FrameLayout
+        android:id="@+id/layoutContentWrapperDetail"
+        android:layout_width="300dp"
+        android:layout_height="450dp"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:paddingLeft="20dp"
+        android:paddingTop="50dp"
+        android:paddingRight="20dp"
+        android:paddingBottom="150dp"
+        app:layout_constraintBottom_toBottomOf="@id/ivFixedDiaryPageDetail"
+        app:layout_constraintEnd_toEndOf="@id/ivFixedDiaryPageDetail"
+        app:layout_constraintStart_toStartOf="@id/ivFixedDiaryPageDetail"
+        app:layout_constraintTop_toTopOf="@id/ivFixedDiaryPageDetail">
 
+        <!-- 과거 일기 본문 스킨 컨테이너 -->
         <FrameLayout
-            android:id="@+id/layoutContentWrapperDetail"
-            android:layout_width="300dp"
-            android:layout_height="450dp"
+            android:id="@+id/layoutDetailDiaryContainer"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
             android:clipChildren="false"
-            android:clipToPadding="false"
-            android:paddingLeft="20dp"
-            android:paddingTop="50dp"
-            android:paddingRight="20dp"
-            app:layout_constraintBottom_toBottomOf="@id/ivFixedDiaryPageDetail"
-            app:layout_constraintEnd_toEndOf="@id/ivFixedDiaryPageDetail"
-            app:layout_constraintStart_toStartOf="@id/ivFixedDiaryPageDetail"
-            app:layout_constraintTop_toTopOf="@id/ivFixedDiaryPageDetail">
+            android:clipToPadding="false"/>
 
-            <!-- 과거 일기 본문 스킨 컨테이너 -->
-
-            <!-- 셀프 댓글 배치 스택 컨테이너 -->
-            <FrameLayout
-                android:id="@+id/layoutDetailDiaryContainer"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:clipChildren="false"
-                android:clipToPadding="false"/>
-
-            <FrameLayout
-                android:id="@+id/layoutCommentsContainer"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:clipChildren="false"
-                android:clipToPadding="false"/>
-        </FrameLayout>
+        <!-- 셀프 댓글 배치 스택 컨테이너 -->
+        <FrameLayout
+            android:id="@+id/layoutCommentsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipChildren="false"
+            android:clipToPadding="false"/>
+    </FrameLayout>
 
     <LinearLayout
         android:id="@+id/layoutMetaActionsDetail"
@@ -123,6 +132,7 @@
             android:backgroundTint="#E4D0D0"
             android:textColor="#111111"
             android:layout_marginEnd="10dp"/>
+
         <Button
             android:id="@+id/btnHighlightDetail"
             style="?android:attr/buttonBarStyle"
@@ -159,48 +169,47 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:strokeColor="@color/theme_rose_stroke"
         app:strokeWidth="1dp">
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent">
 
-        <ImageButton
-            android:id="@+id/btnToolbarAddDetail"
-            android:layout_width="30dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:background="?attr/selectableItemBackground"
-            android:src="@android:drawable/ic_input_add"
-            android:contentDescription="@string/cannot_add_past" />
+            <ImageButton
+                android:id="@+id/btnToolbarAddDetail"
+                android:layout_width="30dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackground"
+                android:src="@android:drawable/ic_input_add"
+                android:contentDescription="@string/cannot_add_past" />
 
-        <ImageButton
-            android:id="@+id/btnToolbarPenDetail"
-            android:layout_width="30dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:background="?attr/selectableItemBackground"
-            android:src="@android:drawable/ic_menu_edit"
-            android:contentDescription="@string/highlight"/>
+            <ImageButton
+                android:id="@+id/btnToolbarPenDetail"
+                android:layout_width="30dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackground"
+                android:src="@android:drawable/ic_menu_edit"
+                android:contentDescription="@string/highlight"/>
 
-        <ImageButton
-            android:id="@+id/btnToolbarTextDetail"
-            android:layout_width="30dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:background="?attr/selectableItemBackground"
-            android:src="@android:drawable/ic_menu_sort_alphabetically"
-            android:contentDescription="@string/enterText"/>
+            <ImageButton
+                android:id="@+id/btnToolbarTextDetail"
+                android:layout_width="30dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackground"
+                android:src="@android:drawable/ic_menu_sort_alphabetically"
+                android:contentDescription="@string/enterText"/>
 
-            <!--w-->
-        <ImageButton
-            android:id="@+id/btnToolbarCommentDetail"
-            android:layout_width="30dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:background="?attr/selectableItemBackground"
-            android:src="@android:drawable/sym_action_chat"
-            android:contentDescription="@string/open_self_comment" />
+            <ImageButton
+                android:id="@+id/btnToolbarCommentDetail"
+                android:layout_width="30dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackground"
+                android:src="@android:drawable/sym_action_chat"
+                android:contentDescription="@string/open_self_comment" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
-
 
 </androidx.constraintlayout.widget.ConstraintLayout>
