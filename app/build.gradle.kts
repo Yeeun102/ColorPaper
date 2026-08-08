@@ -4,11 +4,7 @@ plugins {
 
 android {
     namespace = "com.example.colorpaper"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.example.colorpaper"
@@ -55,4 +51,7 @@ dependencies {
 
     // 3. 이미지 로딩 (Coil - 사진 띄우기용)
     implementation("io.coil-kt:coil:2.5.0")
+
+    // 스플래시 스크린 API
+    implementation("androidx.core:core-splashscreen:1.0.1")
 }

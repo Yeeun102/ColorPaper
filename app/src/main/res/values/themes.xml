@@ -1,9 +1,17 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
     <style name="Base.Theme.ColorPaper" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+        <!-- ... -->
     </style>
 
-    <style name="Theme.ColorPaper" parent="Base.Theme.ColorPaper" />
+    <!-- 스플래시 테마 -->
+    <style name="Theme.App.Starting" parent="Theme.SplashScreen">
+        <!-- 스플래시 배경색 (원하는 색으로 바꿔!) -->
+        <item name="windowSplashScreenBackground">#FFFFFF</item>
+
+        <!-- 중앙에 들어갈 로고 이미지 (res/drawable 안에 있는 이미지 이름) -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+
+        <!-- 스플래시가 끝나고 넘어갈 원래 메인 테마 이름 지정 -->
+        <item name="postSplashScreenTheme">@style/Base.Theme.ColorPaper</item>
+    </style>
 </resources>
