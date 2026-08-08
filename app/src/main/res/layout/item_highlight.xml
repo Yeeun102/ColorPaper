@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/cvHighlightItem"
+    android:layout_width="55dp"
+    android:layout_height="55dp"
+    android:layout_marginEnd="12dp"
+    app:cardBackgroundColor="#E8D3D3"
+    app:cardCornerRadius="28dp"
+    app:cardElevation="0dp"
+    app:strokeColor="#D1B8B8"
+    app:strokeWidth="1.5dp">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <!-- 일반 하이라이트 배경 이미지용 (옵션) -->
+        <ImageView
+            android:id="@+id/ivHighlightImage"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:visibility="gone"/>
+
+        <!-- 🌟 동그라미 하이라이트 다이어리 날짜 썸네일 (예: 08/07) -->
+        <TextView
+            android:id="@+id/tvHighlightDate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center"
+            android:textColor="#5C1D1D"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:visibility="visible" />
+
+        <!-- '더보기' 아이템용 텍스트 (+ 더보기) -->
+        <TextView
+            android:id="@+id/tvMoreText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="더보기\n+"
+            android:gravity="center"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:textColor="#8B5A5A"
+            android:visibility="gone"/>
+    </FrameLayout>
+</com.google.android.material.card.MaterialCardView>

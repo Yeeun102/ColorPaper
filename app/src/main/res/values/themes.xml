@@ -14,4 +14,41 @@
         <!-- 스플래시가 끝나고 넘어갈 원래 메인 테마 이름 지정 -->
         <item name="postSplashScreenTheme">@style/Base.Theme.ColorPaper</item>
     </style>
+  
+    <style name="Theme.ColorPaper" parent="Base.Theme.ColorPaper" />
+
+    <style name="HomeBottomNavItem">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:background">?attr/selectableItemBackgroundBorderless</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+        <item name="android:gravity">center</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:paddingTop">@dimen/bottom_nav_item_vertical_padding</item>
+        <item name="android:paddingBottom">@dimen/bottom_nav_item_vertical_padding</item>
+    </style>
+
+    <style name="HomeBottomNavIconContainer">
+        <item name="android:layout_width">40dp</item>
+        <item name="android:layout_height">40dp</item>
+    </style>
+
+    <style name="HomeBottomNavIcon">
+        <item name="android:layout_width">@dimen/bottom_nav_icon_size</item>
+        <item name="android:layout_height">@dimen/bottom_nav_icon_size</item>
+        <item name="android:layout_gravity">center</item>
+        <item name="android:tint">@color/theme_rose_stroke</item>
+    </style>
+
+    <style name="CalendarWeekday">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:gravity">center</item>
+        <item name="android:textColor">@color/theme_rose_text</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
 </resources>
