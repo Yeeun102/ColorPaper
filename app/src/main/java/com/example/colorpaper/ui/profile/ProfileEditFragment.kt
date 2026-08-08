@@ -71,30 +71,42 @@ class ProfileEditFragment : Fragment() {
         }
         viewModel.fetchUserProfile()
 
-        // 2. 저장 성공 여부 관찰
+        // 2. 저장 성공 여부 관찰 (안전한 Context 및 Fragment 상태 검증 추가)
         viewModel.saveResult.observe(viewLifecycleOwner) { isSuccess ->
+            val safeContext = context ?: return@observe
+            if (!isAdded) return@observe
+
             btnSave.isEnabled = true
             if (isSuccess) {
-                Toast.makeText(requireContext(), "프로필이 성공적으로 저장되었습니다!", Toast.LENGTH_SHORT).show()
-                parentFragmentManager.popBackStack()
+                Toast.makeText(safeContext, "프로필이 성공적으로 저장되었습니다!", Toast.LENGTH_SHORT).show()
+                if (!isStateSaved) {
+                    parentFragmentManager.popBackStack()
+                }
             } else {
-                Toast.makeText(requireContext(), "저장 실패. 다시 시도해주세요.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(safeContext, "저장 실패. 다시 시도해주세요.", Toast.LENGTH_SHORT).show()
             }
         }
 
-        // 3. 버튼 클릭 리스너 연동
-        ivBack.setOnClickListener { parentFragmentManager.popBackStack() }
+        // 3. 뒤로가기 버튼
+        ivBack.setOnClickListener {
+            if (isAdded && !isStateSaved) {
+                parentFragmentManager.popBackStack()
+            }
+        }
 
+        // 4. 프로필 이미지 선택
         ivEditProfileImage.setOnClickListener {
             pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
         }
 
+        // 5. 저장 버튼
         btnSave.setOnClickListener {
+            val safeContext = context ?: return@setOnClickListener
             val inputNickname = etNickname.text.toString().trim()
             val inputUserCode = etUserCode.text.toString().trim()
 
             if (inputNickname.isEmpty() || inputUserCode.isEmpty()) {
-                Toast.makeText(requireContext(), "빈칸을 모두 채워주세요!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(safeContext, "빈칸을 모두 채워주세요!", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 

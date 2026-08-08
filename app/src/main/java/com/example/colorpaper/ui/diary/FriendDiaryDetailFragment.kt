@@ -44,7 +44,7 @@ import kotlin.math.abs
 class FriendDiaryDetailFragment : Fragment() {
 
     private var _binding: FragmentFriendDiaryDetailBinding? = null
-    private val binding get() = _binding!!
+    private val binding get() = _binding
 
     private val auth = FirebaseAuth.getInstance()
     private val firestore = FirebaseFirestore.getInstance()
@@ -87,12 +87,13 @@ class FriendDiaryDetailFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
         _binding = FragmentFriendDiaryDetailBinding.inflate(inflater, container, false)
-        return binding.root
+        return _binding!!.root
     }
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        val binding = _binding ?: return
 
         // 1. 뒤로가기
         binding.btnBack.setOnClickListener {
@@ -182,6 +183,7 @@ class FriendDiaryDetailFragment : Fragment() {
     }
 
     private fun updateDateTextDisplay() {
+        val binding = _binding ?: return
         try {
             val parsedDate = dateFormatFull.parse(selectedDate)
             if (parsedDate != null) {
@@ -254,7 +256,8 @@ class FriendDiaryDetailFragment : Fragment() {
                 val comments = db.diaryDao().getCommentsByDateAndUserId(selectedDate, uid)
 
                 withContext(Dispatchers.Main) {
-                    if (_binding == null || !isAdded) return@withContext
+                    val binding = _binding ?: return@withContext
+                    if (!isAdded) return@withContext
 
                     binding.tvFriendNickname.text = nickname
                     binding.ivFriendProfile.load(profileImg) {
@@ -294,6 +297,7 @@ class FriendDiaryDetailFragment : Fragment() {
 
     private fun renderReadOnlyPostIt(diary: DiaryEntity) {
         val safeContext = context ?: return
+        val binding = _binding ?: return
         val inflater = LayoutInflater.from(safeContext)
         val view = inflater.inflate(R.layout.item_diary_postit, binding.layoutDetailDiaryContainer, false)
 
@@ -324,6 +328,7 @@ class FriendDiaryDetailFragment : Fragment() {
 
     private fun renderReadOnlyDecoText(textStr: String, posX: Float, posY: Float) {
         val safeContext = context ?: return
+        val binding = _binding ?: return
         val density = safeContext.resources.displayMetrics.density
         val paddingHorizontal = (16 * density).toInt()
         val paddingVertical = (8 * density).toInt()
@@ -349,6 +354,7 @@ class FriendDiaryDetailFragment : Fragment() {
 
     private fun renderCommentPostIt(comment: CommentEntity) {
         val safeContext = context ?: return
+        val binding = _binding ?: return
         val inflater = LayoutInflater.from(safeContext)
         val view = inflater.inflate(R.layout.item_diary_comment, binding.layoutCommentsContainer, false)
 
@@ -379,6 +385,7 @@ class FriendDiaryDetailFragment : Fragment() {
 
     private fun addNewCommentPostIt() {
         val safeContext = context ?: return
+        val binding = _binding ?: return
         val randomColor = listOf("orange", "yellow", "green", "blue").random()
 
         val inflater = LayoutInflater.from(safeContext)
