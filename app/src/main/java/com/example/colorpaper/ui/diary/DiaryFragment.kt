@@ -173,7 +173,7 @@ class DiaryFragment : Fragment() {
             applyHighlightToSelectedText()
         }
 
-        // 💡 3. 텍스트 추가 버튼 (btnToolbarText) 클릭 처리
+        // 텍스트 추가 버튼 (btnToolbarText) 클릭 처리
         binding.btnToolbarText.setOnClickListener {
             showAddDirectTextDialog()
         }
@@ -633,7 +633,7 @@ class DiaryFragment : Fragment() {
                 db.diaryDao().getPostItsByDateAndUserId(dateKey, currentUid)
             }
 
-            // 💡 [수정] 다이어리 컨테이너와 동적 태그 컨테이너 초기화
+            // 다이어리 컨테이너와 동적 태그 컨테이너 초기화
             binding.layoutDiaryContainer.removeAllViews()
             binding.layoutDynamicTagsContainer.removeAllViews()
             selectedTags.clear()
@@ -643,8 +643,15 @@ class DiaryFragment : Fragment() {
 
             if (postIts.isEmpty()) {
                 binding.tvEmptyHint.visibility = View.VISIBLE
+
+                isHighlightedState = false
+                applyCustomButtonState(binding.btnHighlightState, isSelected = false)
             } else {
                 binding.tvEmptyHint.visibility = View.GONE
+                val hasHighlighted = postIts.any { !it.content.startsWith("[DECO]:") && it.isHighlighted }
+                isHighlightedState = hasHighlighted
+                applyCustomButtonState(binding.btnHighlightState, isSelected = isHighlightedState)
+
                 for (postIt in postIts) {
                     val isDecoText = postIt.content.startsWith("[DECO]:")
                         // 꾸미기 텍스트 복원
@@ -770,7 +777,7 @@ class DiaryFragment : Fragment() {
             Toast.makeText(requireContext(), "currentUid is null", Toast.LENGTH_SHORT).show()
         }
 
-        // 💡 [수정] 백그라운드 스레드에서 순차적으로 저장 후 ID 반영
+        // 백그라운드 스레드에서 순차적으로 저장 후 ID 반영
         lifecycleScope.launch(Dispatchers.IO) {
             val db = AppDatabase.getDatabase(requireContext())
 
@@ -792,7 +799,7 @@ class DiaryFragment : Fragment() {
                             color = "transparent",
                             tag = "",
                             emotionStamp = "",
-                            isHighlighted = false,
+                            isHighlighted = isHighlightedState,
                             visibility = currentVisibility,
                             positionX = posX,
                             positionY = posY,

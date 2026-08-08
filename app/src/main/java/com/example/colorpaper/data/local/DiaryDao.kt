@@ -121,4 +121,7 @@ interface DiaryDao {
 
     @Query("SELECT * FROM diaries WHERE visibility = :visibility ORDER BY created_at DESC")
     suspend fun getPublicDiaries(visibility: String = "전체공개"): List<DiaryEntity>
+
+    @Query("UPDATE diaries SET is_highlighted = :isHighlighted WHERE created_at = :date AND user_id = :userId")
+    suspend fun updateHighlightByDate(date: String, userId: String, isHighlighted: Boolean)
 }

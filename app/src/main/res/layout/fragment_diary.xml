@@ -61,8 +61,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
-    <!-- [중앙 콘텐츠 구역] 배경과 분리되어 스크롤 및 투명하게 처리된 레이어 -->
-
     <FrameLayout
         android:id="@+id/layoutDiaryContainer"
         android:layout_width="300dp"
@@ -73,7 +71,6 @@
         android:paddingTop="50dp"
         android:paddingRight="20dp"
         android:paddingLeft="20dp"
-        android:paddingBottom="150dp"
         app:layout_constraintBottom_toBottomOf="@id/ivFixedDiaryPage"
         app:layout_constraintEnd_toEndOf="@id/ivFixedDiaryPage"
         app:layout_constraintStart_toStartOf="@id/ivFixedDiaryPage"

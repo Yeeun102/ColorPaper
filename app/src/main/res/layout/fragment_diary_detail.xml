@@ -79,7 +79,6 @@
             android:paddingLeft="20dp"
             android:paddingTop="50dp"
             android:paddingRight="20dp"
-            android:paddingBottom="150dp"
             app:layout_constraintBottom_toBottomOf="@id/ivFixedDiaryPageDetail"
             app:layout_constraintEnd_toEndOf="@id/ivFixedDiaryPageDetail"
             app:layout_constraintStart_toStartOf="@id/ivFixedDiaryPageDetail"
