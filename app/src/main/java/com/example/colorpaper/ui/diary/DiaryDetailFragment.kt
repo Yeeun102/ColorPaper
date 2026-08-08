@@ -45,7 +45,7 @@ class DiaryDetailFragment : Fragment() {
         "blue"   to R.drawable.post_blue
     )
 
-    // 💡 댓글용 전용 리소스 맵
+    // 댓글용 전용 리소스 맵
     private val commentResourceMap = mapOf(
         "orange" to R.drawable.comment_orange,
         "yellow" to R.drawable.comment_yellow,
@@ -179,6 +179,7 @@ class DiaryDetailFragment : Fragment() {
                     btnCommentDone.visibility = View.GONE
 
                     makeViewDraggable(commentView)
+                    lockCommentEditText(commentView, etCommentContent)
                     insertCommentToDb(commentView, text, randomColor, todayDateStr)
 
                 } else {
@@ -434,6 +435,7 @@ class DiaryDetailFragment : Fragment() {
         // 등록 버튼 제거 및 자유 드래그 활성화
         btnCommentDone.visibility = View.GONE
         makeViewDraggable(view)
+        lockCommentEditText(view, etCommentContent)
 
         binding.layoutCommentsContainer.addView(view)
     }
@@ -463,6 +465,45 @@ class DiaryDetailFragment : Fragment() {
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     // 손을 떼었을 때 현재 translationX, translationY 위치가 고정됩니다.
                     v.performClick()
+                }
+                else -> return@setOnTouchListener false
+            }
+            true
+        }
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun lockCommentEditText(commentView: View, etCommentContent: EditText) {
+        // 1. 키보드 입력 및 포커스 차단 (수정 불가)
+        etCommentContent.keyListener = null
+        etCommentContent.isFocusable = false
+        etCommentContent.isFocusableInTouchMode = false
+        etCommentContent.isCursorVisible = false
+        etCommentContent.clearFocus()
+        etCommentContent.isEnabled = true // 터치 이벤트를 받기 위해 true 유지
+
+        // 2. etCommentContent 터치 시 commentView 전체를 이동시킴
+        var lastX = 0f
+        var lastY = 0f
+
+        etCommentContent.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    lastX = event.rawX
+                    lastY = event.rawY
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = event.rawX - lastX
+                    val dy = event.rawY - lastY
+
+                    commentView.translationX += dx
+                    commentView.translationY += dy
+
+                    lastX = event.rawX
+                    lastY = event.rawY
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    commentView.performClick()
                 }
                 else -> return@setOnTouchListener false
             }
