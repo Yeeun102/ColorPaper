@@ -6,9 +6,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.colorpaper.databinding.ItemHighlightBinding
 
 class HighlightAdapter(
-    private val items: List<HighlightItem>,
-    private val onItemClick: (HighlightItem) -> Unit,
-    private val onMoreClick: () -> Unit
+    private var items: List<HighlightItem>,
+    private val onItemClick: (HighlightItem) -> Unit
 ) : RecyclerView.Adapter<HighlightAdapter.ViewHolder>() {
 
     class ViewHolder(val binding: ItemHighlightBinding) :
@@ -25,7 +24,12 @@ class HighlightAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = items[position]
+
+        // 날짜 및 하이라이트 텍스트 바인딩
         holder.binding.tvHighlightDate.text = item.date
+
+        // item_highlight.xml에 텍스트뷰(예: tvHighlightText)가 있다면 바인딩
+        // holder.binding.tvHighlightText?.text = item.highlightedText
 
         holder.binding.root.setOnClickListener {
             onItemClick(item)
@@ -33,4 +37,9 @@ class HighlightAdapter(
     }
 
     override fun getItemCount(): Int = items.size
+
+    fun updateItems(newItems: List<HighlightItem>) {
+        this.items = newItems
+        notifyDataSetChanged()
+    }
 }

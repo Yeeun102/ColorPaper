@@ -1,5 +1,15 @@
 package com.example.colorpaper.ui.diary
 
+import androidx.core.graphics.toColorInt
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
+import com.example.colorpaper.data.repository.DiaryRepository
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 import androidx.fragment.app.viewModels
 import android.annotation.SuppressLint
 import android.app.DatePickerDialog
@@ -45,7 +55,7 @@ class DiaryFragment : Fragment() {
     private val selectedTags = mutableSetOf<String>()
     private var isHighlightedState: Boolean = false
     private val viewModel: DiaryViewModel by viewModels()
-    private var currentVisibility: String = "PRIVATE"
+    private var currentVisibility: String = "전체공개"
     private var selectedReminderCycleDays: Int = ReminderSchedulePolicy.DISABLED
     private var reminderSelectionTouched: Boolean = false
 

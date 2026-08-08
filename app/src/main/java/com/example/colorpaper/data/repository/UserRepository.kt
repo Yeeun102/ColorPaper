@@ -4,12 +4,15 @@ import android.net.Uri
 import com.example.colorpaper.data.local.AppDatabase
 import com.example.colorpaper.data.model.DiaryEntity
 import com.example.colorpaper.data.model.FolderEntity
+import com.example.colorpaper.data.model.HighlightEntity
 import com.example.colorpaper.data.model.UserEntity
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.google.firebase.storage.FirebaseStorage
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 
 class UserRepository(
     private val db: AppDatabase,
@@ -20,7 +23,7 @@ class UserRepository(
     val currentUid: String? get() = auth.currentUser?.uid
     val currentEmail: String get() = auth.currentUser?.email ?: "default@email.com"
 
-    // 1. 프로필 정보 조회 (Firebase 우선 -> 실패 시 Local Room DB)
+    // 1-1. 내 프로필 정보 조회
     suspend fun getUserProfile(): UserEntity? {
         val uid = currentUid
         if (uid != null) {
@@ -48,7 +51,60 @@ class UserRepository(
         return db.userDao().getUserById(1)
     }
 
-    // 2. 프로필 정보 저장 (이미지 Storage 업로드 포함)
+    // 1-2. 타 유저 프로필 조회 (UID 및 userCode 검색 대응)
+    suspend fun getUserById(targetUserId: String): UserEntity? {
+        try {
+            // 1) UID 문서로 직접 조회
+            val doc = firestore.collection("users").document(targetUserId).get().await()
+            if (doc.exists()) {
+                val nickname = doc.getString("nickname") ?: ""
+                val userCode = doc.getString("userCode") ?: ""
+                val profileImageUrl = doc.getString("profileImageUrl")
+
+                return UserEntity(
+                    userId = targetUserId.hashCode(),
+                    userCode = userCode,
+                    email = doc.id, // Firestore UID 보존
+                    passwordHash = "",
+                    nickname = nickname,
+                    profileImageUrl = profileImageUrl,
+                    membershipStatus = "FREE",
+                    pushEnabled = true,
+                    createdAt = System.currentTimeMillis()
+                )
+            }
+
+            // 2) userCode 검색 조건으로 조회
+            val querySnap = firestore.collection("users")
+                .whereEqualTo("userCode", targetUserId)
+                .get()
+                .await()
+
+            if (!querySnap.isEmpty) {
+                val userDoc = querySnap.documents[0]
+                val nickname = userDoc.getString("nickname") ?: ""
+                val userCode = userDoc.getString("userCode") ?: ""
+                val profileImageUrl = userDoc.getString("profileImageUrl")
+
+                return UserEntity(
+                    userId = userDoc.id.hashCode(),
+                    userCode = userCode,
+                    email = userDoc.id, // Firestore UID 보존
+                    passwordHash = "",
+                    nickname = nickname,
+                    profileImageUrl = profileImageUrl,
+                    membershipStatus = "FREE",
+                    pushEnabled = true,
+                    createdAt = System.currentTimeMillis()
+                )
+            }
+        } catch (_: Exception) { }
+
+        val numericId = targetUserId.toIntOrNull() ?: targetUserId.hashCode()
+        return db.userDao().getUserById(numericId)
+    }
+
+    // 2. 프로필 정보 저장
     suspend fun updateUserProfile(
         nickname: String,
         userCode: String,
@@ -58,14 +114,13 @@ class UserRepository(
         var downloadUrl: String? = null
 
         try {
-            // 만약 새 이미지를 골랐다면 Firebase Storage에 업로드 후 다운로드 URL 획득
             if (!profileImageUriString.isNullOrEmpty() && profileImageUriString.startsWith("content://")) {
                 val uri = Uri.parse(profileImageUriString)
                 val storageRef = storage.reference.child("profile_images/$uid.jpg")
                 storageRef.putFile(uri).await()
                 downloadUrl = storageRef.downloadUrl.await().toString()
             } else {
-                downloadUrl = profileImageUriString // 기존 URL 유지
+                downloadUrl = profileImageUriString
             }
 
             val userMap = hashMapOf<String, Any>(
@@ -77,12 +132,10 @@ class UserRepository(
                 userMap["profileImageUrl"] = downloadUrl
             }
 
-            // Firestore 업로드
             firestore.collection("users").document(uid)
                 .set(userMap, SetOptions.merge())
                 .await()
 
-            // Local Room DB 동기화
             val existingUser = db.userDao().getUserById(1)
             val updatedUser = UserEntity(
                 userId = 1,
@@ -103,7 +156,7 @@ class UserRepository(
         }
     }
 
-    // 3. 전체 공개 다이어리 조회 (Firebase 우선 -> 실패 시 Room)
+    // 3-1. 전체 공개 다이어리 전체 조회
     suspend fun getPublicDiaries(): List<DiaryEntity> {
         return try {
             val snapshot = firestore.collection("diaries")
@@ -111,73 +164,20 @@ class UserRepository(
                 .get()
                 .await()
 
-            val remoteDiaries = snapshot.documents.mapNotNull { doc ->
-                try {
-                    doc.toObject(DiaryEntity::class.java)
-                } catch (e: Exception) {
-                    null
-                }
-            }
-
-            if (remoteDiaries.isNotEmpty()) {
-                remoteDiaries
-            } else {
-                db.diaryDao().getPublicDiaries("전체공개")
+            snapshot.documents.mapNotNull { doc ->
+                try { doc.toObject(DiaryEntity::class.java) } catch (e: Exception) { null }
             }
         } catch (e: Exception) {
             db.diaryDao().getPublicDiaries("전체공개")
         }
     }
 
-    // 4. 공유 단어장 조회 (Firebase 우선 -> 실패 시 Room)
-    suspend fun getSharedFolders(userId: String): List<FolderEntity> {
-        val firebaseUid = currentUid ?: userId
-
-        return try {
-            val snapshot = firestore.collection("folders")
-                .whereEqualTo("visibility", "전체공개")
-                .get()
-                .await()
-
-            // Firestore 문서를 FolderEntity로 안전하게 수동 변환
-            val remoteFolders = snapshot.documents.mapNotNull { doc ->
-                val folderName = doc.getString("folderName") ?: doc.getString("folder_name") ?: ""
-                val visibility = doc.getString("visibility") ?: "전체공개"
-                val isAuto = doc.getBoolean("isAutoGenerated") ?: doc.getBoolean("is_auto_generated") ?: false
-                val rawFolderId = doc.getLong("folderId")?.toInt() ?: doc.id.hashCode()
-                val docUserId = doc.getString("userId") ?: firebaseUid
-
-                FolderEntity(
-                    folderId = rawFolderId,
-                    userId = docUserId,
-                    folderName = folderName,
-                    isAutoGenerated = isAuto,
-                    visibility = visibility
-                )
-            }
-
-            if (remoteFolders.isNotEmpty()) {
-                remoteFolders
-            } else {
-                db.flashcardDao().getSharedFlashcardSets()
-            }
-        } catch (e: Exception) {
-            db.flashcardDao().getSharedFlashcardSets()
-        }
-    }
-
-    // UserRepository.kt 내부에 추가/수정
-
-    suspend fun getFoldersByRelationship(targetUserId: String): List<FolderEntity> {
+    // 3-2. 특정 유저 ID 기준 공개 다이어리 조회 (관계별 공개 범위 반영)
+    suspend fun getPublicDiariesByUserId(targetUserId: String): List<DiaryEntity> {
         val myUid = currentUid ?: ""
-
-        // 1. 관계 확인
         val isMe = (myUid == targetUserId)
-        val isFollowing = if (!isMe && myUid.isNotEmpty()) {
-            checkIsFollowing(myUid, targetUserId)
-        } else false
+        val isFollowing = if (!isMe && myUid.isNotEmpty()) checkIsFollowing(myUid, targetUserId) else false
 
-        // 2. 허용할 공개범위 목록 정의
         val allowedVisibilities = when {
             isMe -> listOf("전체공개", "팔로워공개", "비공개")
             isFollowing -> listOf("전체공개", "팔로워공개")
@@ -185,17 +185,48 @@ class UserRepository(
         }
 
         return try {
-            // Firestore 필터링 조회
+            val snapshot = firestore.collection("diaries")
+                .whereEqualTo("userId", targetUserId)
+                .whereIn("visibility", allowedVisibilities)
+                .get()
+                .await()
+
+            snapshot.documents.mapNotNull { doc ->
+                try { doc.toObject(DiaryEntity::class.java) } catch (e: Exception) { null }
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    // 4. 공유 단어장 조회
+    suspend fun getSharedFolders(userId: String): List<FolderEntity> {
+        return getFoldersByRelationship(userId)
+    }
+
+    // 5. 관계별 단어장 조회
+    suspend fun getFoldersByRelationship(targetUserId: String): List<FolderEntity> {
+        val myUid = currentUid ?: ""
+        val isMe = (myUid == targetUserId)
+        val isFollowing = if (!isMe && myUid.isNotEmpty()) checkIsFollowing(myUid, targetUserId) else false
+
+        val allowedVisibilities = when {
+            isMe -> listOf("전체공개", "팔로워공개", "비공개")
+            isFollowing -> listOf("전체공개", "팔로워공개")
+            else -> listOf("전체공개")
+        }
+
+        return try {
             val snapshot = firestore.collection("folders")
                 .whereEqualTo("userId", targetUserId)
                 .whereIn("visibility", allowedVisibilities)
                 .get()
                 .await()
 
-            val remoteFolders = snapshot.documents.mapNotNull { doc ->
+            snapshot.documents.mapNotNull { doc ->
                 val folderName = doc.getString("folderName") ?: doc.getString("folder_name") ?: ""
                 val visibility = doc.getString("visibility") ?: "전체공개"
-                val isAuto = doc.getBoolean("isAutoGenerated") ?: doc.getBoolean("is_auto_generated") ?: false
+                val isAuto = doc.getBoolean("isAutoGenerated") ?: false
                 val rawFolderId = doc.getLong("folderId")?.toInt() ?: doc.id.hashCode()
 
                 FolderEntity(
@@ -206,15 +237,12 @@ class UserRepository(
                     visibility = visibility
                 )
             }
-
-            if (remoteFolders.isNotEmpty()) remoteFolders
-            else db.flashcardDao().getFlashcardSetsByVisibility(targetUserId, "전체공개")
         } catch (e: Exception) {
-            db.flashcardDao().getSharedFlashcardSets()
+            emptyList()
         }
     }
 
-    // 팔로우 여부 확인 헬퍼 함수
+    // 6. 팔로우 여부 확인
     private suspend fun checkIsFollowing(myUid: String, targetUserId: String): Boolean {
         return try {
             val doc = firestore.collection("users")
@@ -229,4 +257,98 @@ class UserRepository(
         }
     }
 
+    // 8. 특정 유저의 하이라이트 목록 조회 (Firestore & Room Fallback)
+    suspend fun getHighlightsByUserId(targetUserId: String): List<HighlightEntity> {
+        return try {
+            val snapshot = firestore.collection("users")
+                .document(targetUserId)
+                .collection("highlights")
+                .get()
+                .await()
+
+            snapshot.documents.mapNotNull { doc ->
+                val diaryId = doc.getLong("diaryId")?.toInt() ?: 0
+                val date = doc.getString("date") ?: ""
+                val highlightedText = doc.getString("highlightedText") ?: ""
+
+                HighlightEntity(
+                    highlightId = doc.id.hashCode(),
+                    diaryId = diaryId,
+                    date = date,
+                    highlightedText = highlightedText
+                )
+            }
+        } catch (e: Exception) {
+            // 네트워크 에러 시 로컬 DB에서 조회
+            db.highlightDao().getAllHighlights()
+        }
+    }
+
+    // 7. 유저 실시간 검색 (userCode 및 nickname 검색 지원)
+    suspend fun searchUsers(query: String): List<UserEntity> = withContext(Dispatchers.IO) {
+        if (query.isBlank()) return@withContext emptyList()
+        val cleanQuery = query.trim().removePrefix("#")
+
+        try {
+            // 1) userCode 기준 범위 검색
+            val snapshotByCode = firestore.collection("users")
+                .orderBy("userCode")
+                .startAt(cleanQuery)
+                .endAt(cleanQuery + "\uf8ff")
+                .get()
+                .await()
+
+            val results = mutableListOf<UserEntity>()
+            val addedUids = mutableSetOf<String>()
+
+            for (doc in snapshotByCode.documents) {
+                if (doc.id == currentUid) continue // 본인은 검색 제외
+                val userCode = doc.getString("userCode") ?: ""
+                val nickname = doc.getString("nickname") ?: ""
+                val profileImageUrl = doc.getString("profileImageUrl")
+
+                addedUids.add(doc.id)
+                results.add(
+                    UserEntity(
+                        userId = doc.id.hashCode(),
+                        userCode = userCode,
+                        email = doc.id, // ★ email 필드에 실제 Firestore Document UID 전달
+                        passwordHash = "",
+                        nickname = nickname,
+                        profileImageUrl = profileImageUrl
+                    )
+                )
+            }
+
+            // 2) nickname 기준 추가 검색 (결과 보완)
+            val snapshotByNick = firestore.collection("users")
+                .orderBy("nickname")
+                .startAt(cleanQuery)
+                .endAt(cleanQuery + "\uf8ff")
+                .get()
+                .await()
+
+            for (doc in snapshotByNick.documents) {
+                if (doc.id == currentUid || addedUids.contains(doc.id)) continue
+                val userCode = doc.getString("userCode") ?: ""
+                val nickname = doc.getString("nickname") ?: ""
+                val profileImageUrl = doc.getString("profileImageUrl")
+
+                results.add(
+                    UserEntity(
+                        userId = doc.id.hashCode(),
+                        userCode = userCode,
+                        email = doc.id, // ★ email 필드에 실제 Firestore Document UID 전달
+                        passwordHash = "",
+                        nickname = nickname,
+                        profileImageUrl = profileImageUrl
+                    )
+                )
+            }
+
+            results
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
 }

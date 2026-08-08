@@ -6,9 +6,8 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
-import com.example.colorpaper.data.local.DiaryCommentDao
-import com.example.colorpaper.data.model.DiaryCommentEntity
 import com.example.colorpaper.data.model.CommentEntity
+import com.example.colorpaper.data.model.DiaryCommentEntity
 import com.example.colorpaper.data.model.DiaryEntity
 import com.example.colorpaper.data.model.DiaryTagEntity
 import com.example.colorpaper.data.model.FolderEntity
@@ -19,8 +18,8 @@ import com.example.colorpaper.data.model.ReminderAnswerEntity
 import com.example.colorpaper.data.model.TagEntity
 import com.example.colorpaper.data.model.TodoEntity
 import com.example.colorpaper.data.model.UserEntity
-import com.example.colorpaper.data.model.WordEntity
 import com.example.colorpaper.data.model.WidgetEntity
+import com.example.colorpaper.data.model.WordEntity
 
 @Database(
     entities = [
@@ -49,8 +48,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun diaryDao(): DiaryDao
     abstract fun todoDao(): TodoDao
     abstract fun widgetDao(): WidgetDao
-
     abstract fun diaryCommentDao(): DiaryCommentDao
+    abstract fun highlightDao(): HighlightDao // 🌟 하이라이트 DAO 추가
 
     companion object {
         @Volatile

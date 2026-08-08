@@ -82,11 +82,6 @@ class MainActivity : AppCompatActivity() {
             selectNavigation(currentNavigationId())
         }
 
-        val db = FirebaseFirestore.getInstance()
-        val testUser = hashMapOf("userId" to 1, "nickname" to "개발자")
-        db.collection("users").add(testUser)
-            .addOnSuccessListener { Log.d("FIREBASE_TEST", "성공! ID: ${it.id}") }
-            .addOnFailureListener { Log.e("FIREBASE_TEST", "실패", it) }
     }
 
     override fun onNewIntent(intent: Intent) {

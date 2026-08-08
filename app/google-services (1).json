@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1036494161087",
+    "project_id": "colorpaper-801ac",
+    "storage_bucket": "colorpaper-801ac.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1036494161087:android:ca6759ce430c00ec83b20a",
+        "android_client_info": {
+          "package_name": "com.example.colorpaper"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCAKnfSMv9vLrS-RQLUYLZlY8XsXh5jLQc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

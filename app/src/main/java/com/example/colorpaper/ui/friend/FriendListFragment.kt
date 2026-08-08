@@ -15,14 +15,50 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.colorpaper.R
 import com.example.colorpaper.data.local.AppDatabase
-import com.example.colorpaper.data.model.FriendEntity
-import com.example.colorpaper.data.model.UserEntity
+import com.example.colorpaper.data.repository.UserRepository
+import com.example.colorpaper.ui.profile.ProfileFragment
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 
 class FriendListFragment : Fragment() {
 
     private lateinit var adapter: FriendSearchAdapter
-    private val myUserId = 1 // 내 ID (테스트용 고정 값)
+    private lateinit var userRepository: UserRepository
+    private lateinit var db: AppDatabase
+
+    private val auth = FirebaseAuth.getInstance()
+    private val firestore = FirebaseFirestore.getInstance()
+
+    private var targetUserId: String? = null
+    private var mode: String = "SEARCH"
+    private var searchJob: Job? = null
+
+    companion object {
+        private const val ARG_TARGET_USER_ID = "TARGET_USER_ID"
+        private const val ARG_MODE = "MODE"
+
+        fun newInstance(targetUserId: String? = null, mode: String = "SEARCH"): FriendListFragment {
+            return FriendListFragment().apply {
+                arguments = Bundle().apply {
+                    putString(ARG_TARGET_USER_ID, targetUserId)
+                    putString(ARG_MODE, mode)
+                }
+            }
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        arguments?.let {
+            targetUserId = it.getString(ARG_TARGET_USER_ID)
+            mode = it.getString(ARG_MODE, "SEARCH")
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -40,34 +76,22 @@ class FriendListFragment : Fragment() {
         val ivSearch = view.findViewById<ImageView>(R.id.ivSearch)
         val rvFriendList = view.findViewById<RecyclerView>(R.id.rvFriendList)
 
-        val db = AppDatabase.getDatabase(requireContext())
+        db = AppDatabase.getDatabase(requireContext())
+        userRepository = UserRepository(db)
 
-        // 1. 뒤로가기
         ivBack.setOnClickListener {
             parentFragmentManager.popBackStack()
         }
 
-        // 2. 리사이클러뷰 & 어댑터 초기화
+        // 💡 어댑터 설정 (Firestore 팔로우/취소 토글 및 위치 갱신)
         adapter = FriendSearchAdapter(
             friendList = emptyList(),
-            onFollowClick = { targetUser ->
-                // [팔로우 처리] -> friend_table 에 추가
-                viewLifecycleOwner.lifecycleScope.launch {
-                    val newFriendRelation = FriendEntity(
-                        myUserId = myUserId,
-                        friendUserId = targetUser.userId
-                    )
-                    db.userDao().addFriend(newFriendRelation)
-                    Toast.makeText(requireContext(), "${targetUser.nickname}님을 팔로우했습니다!", Toast.LENGTH_SHORT).show()
-
-                    // 팔로우 후 리스트에서 제거/갱신
-                    performSearch(db, etSearch.text.toString().trim())
-                }
+            onFollowClick = { targetUser, position ->
+                toggleFollowInSearch(targetUser, position)
             },
             onItemClick = { targetUser ->
-                // [7.1.2 친구 프로필 홈으로 이동]
                 parentFragmentManager.beginTransaction()
-                    .replace(R.id.fragment_container, FriendProfileFragment.newInstance(targetUser.userId))
+                    .replace(R.id.fragment_container, ProfileFragment.newInstance(targetUser.userId))
                     .addToBackStack(null)
                     .commit()
             }
@@ -76,30 +100,94 @@ class FriendListFragment : Fragment() {
         rvFriendList.layoutManager = LinearLayoutManager(requireContext())
         rvFriendList.adapter = adapter
 
-        // 3. 돋보기 버튼 클릭 검색
         ivSearch.setOnClickListener {
             val query = etSearch.text.toString().trim()
-            performSearch(db, query)
+            performSearch(query)
         }
 
-        // 4. 검색창 실시간 입력 검색 (텍스트 타이핑할 때마다 바로 조회)
         etSearch.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                performSearch(db, s.toString().trim())
+                performSearch(s.toString().trim())
             }
             override fun afterTextChanged(s: Editable?) {}
         })
 
-        // 화면 처음 열었을 때는 전체 안 팔로우 유저 조회
-        performSearch(db, "")
+        performSearch("")
     }
 
-    private fun performSearch(db: AppDatabase, query: String) {
-        viewLifecycleOwner.lifecycleScope.launch {
-            // UserDao의 searchNewFriends 쿼리 실행
-            val searchResults = db.userDao().searchNewFriends(myUserId, query)
-            adapter.updateList(searchResults)
+    // 💡 Firestore 기반 검색 및 팔로우 상태/카운트 조회
+    private fun performSearch(query: String) {
+        searchJob?.cancel()
+
+        searchJob = viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            val myUid = auth.currentUser?.uid ?: return@launch
+            val userEntities = userRepository.searchUsers(query)
+
+            val uiModels = userEntities.map { user ->
+                val targetUid = user.email // Firestore UID
+
+                // 1. 내가 이 유저를 팔로우 중인지 확인
+                val isFollowing = firestore.collection("users").document(myUid)
+                    .collection("following").document(targetUid).get().await().exists()
+
+                // 2. 해당 유저의 팔로워 / 팔로잉 수 조회
+                val followerCount = firestore.collection("users").document(targetUid)
+                    .collection("followers").get().await().size()
+                val followingCount = firestore.collection("users").document(targetUid)
+                    .collection("following").get().await().size()
+
+                FriendUiModel(
+                    userId = targetUid,
+                    userCode = user.userCode,
+                    nickname = user.nickname,
+                    profileImageUrl = user.profileImageUrl,
+                    followerCount = followerCount,
+                    followingCount = followingCount,
+                    isFollowing = isFollowing
+                )
+            }
+
+            withContext(Dispatchers.Main) {
+                adapter.updateList(uiModels)
+            }
+        }
+    }
+
+    // 💡 + / X 클릭 시 Firestore 토글 및 단일 아이템 갱신
+    private fun toggleFollowInSearch(targetUser: FriendUiModel, position: Int) {
+        val myUid = auth.currentUser?.uid ?: return
+
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val myFollowingRef = firestore.collection("users").document(myUid).collection("following").document(targetUser.userId)
+                val targetFollowerRef = firestore.collection("users").document(targetUser.userId).collection("followers").document(myUid)
+
+                if (targetUser.isFollowing) {
+                    // 팔로우 취소
+                    myFollowingRef.delete().await()
+                    targetFollowerRef.delete().await()
+                    targetUser.isFollowing = false
+                    targetUser.followerCount = (targetUser.followerCount - 1).coerceAtLeast(0)
+                } else {
+                    // 팔로우 추가
+                    val data = mapOf("createdAt" to System.currentTimeMillis())
+                    myFollowingRef.set(data).await()
+                    targetFollowerRef.set(data).await()
+                    targetUser.isFollowing = true
+                    targetUser.followerCount += 1
+                }
+
+                withContext(Dispatchers.Main) {
+                    val msg = if (targetUser.isFollowing) "${targetUser.nickname}님을 팔로우했습니다." else "${targetUser.nickname}님 팔로우를 취소했습니다."
+                    Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show()
+                    adapter.notifyItemChanged(position)
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(requireContext(), "처리 중 오류가 발생했습니다.", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
     }
 }

@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F8F6F0">
+
+    <!-- 1. 상단 프로필 & 액션 헤더 -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layoutTopHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="4dp"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:id="@+id/btnBack"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_arrow_back"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- 프로필 이미지 (원형 카드) -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cvFriendProfile"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="12dp"
+            app:cardCornerRadius="18dp"
+            app:cardElevation="0dp"
+            app:strokeColor="#D0C8B8"
+            app:strokeWidth="1dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toEndOf="@id/btnBack"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <ImageView
+                android:id="@+id/ivFriendProfile"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:src="@android:drawable/ic_menu_gallery" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <TextView
+            android:id="@+id/tvFriendNickname"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="친구 닉네임"
+            android:textColor="#000000"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toEndOf="@id/cvFriendProfile"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- 프로필 홈 버튼 -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnProfileHome"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:paddingHorizontal="10dp"
+            android:text="프로필 홈"
+            android:textColor="#000000"
+            android:textSize="11sp"
+            app:cornerRadius="16dp"
+            app:strokeColor="#B0A898"
+            app:strokeWidth="1dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- 팔로우 버튼 -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnFollow"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:layout_marginEnd="6dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:paddingHorizontal="10dp"
+            android:text="팔로우 중"
+            android:textColor="#000000"
+            android:textSize="11sp"
+            app:cornerRadius="16dp"
+            app:strokeColor="#B0A898"
+            app:strokeWidth="1dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/btnProfileHome"
+            app:layout_constraintTop_toTopOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- 2. 상단 날짜 및 달력 변경 버튼 -->
+    <LinearLayout
+        android:id="@+id/layoutDateSelector"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:padding="6dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/layoutTopHeader">
+
+        <TextView
+            android:id="@+id/tvHeaderDate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="8월 8일"
+            android:textColor="#000000"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <ImageView
+            android:id="@+id/btnCalendar"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_marginStart="6dp"
+            android:src="@android:drawable/ic_menu_my_calendar" />
+    </LinearLayout>
+
+    <!-- 3. 중앙 바인더 다이어리 컨테이너 (마이페이지 다이어리와 100% 규격 맞춤) -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layoutNotebookContainer"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="16dp"
+        app:layout_constraintBottom_toTopOf="@id/layoutFriendBottomBar"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/layoutDateSelector">
+
+        <!-- 바인더 속지 종이 (300dp x 450dp 고정 크기 및 좌표 기준) -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/layoutDiaryCanvas"
+            android:layout_width="0dp"
+            android:layout_height="500dp"
+            android:layout_marginStart="14dp"
+            app:cardBackgroundColor="#FFFFFF"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="2dp"
+            app:strokeColor="#333333"
+            app:strokeWidth="1dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <!-- 캔버스 패딩 및 컨테이너 레이어 분리 -->
+            <FrameLayout
+                android:id="@+id/layoutContentWrapper"
+                android:layout_width="300dp"
+                android:layout_height="450dp"
+                android:clipChildren="false"
+                android:layout_gravity="center"
+                android:clipToPadding="false"
+                android:paddingLeft="20dp"
+                android:paddingTop="50dp"
+                android:paddingRight="20dp"
+                android:paddingBottom="150dp">
+
+                <!-- 3-1. 일기 본문 포스트잇 렌더링 컨테이너 -->
+                <FrameLayout
+                    android:id="@+id/layoutDetailDiaryContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:clipChildren="false"
+                    android:clipToPadding="false" />
+
+                <!-- 3-2. 댓글 포스트잇 렌더링 컨테이너 -->
+                <FrameLayout
+                    android:id="@+id/layoutCommentsContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:clipChildren="false"
+                    android:clipToPadding="false" />
+
+            </FrameLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- 바인더 링 장식 (상단 3개) -->
+        <LinearLayout
+            android:layout_width="28dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:orientation="vertical"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <View android:layout_width="24dp" android:layout_height="4dp" android:background="#333333" />
+            <View android:layout_width="24dp" android:layout_height="4dp" android:layout_marginTop="12dp" android:background="#333333" />
+            <View android:layout_width="24dp" android:layout_height="4dp" android:layout_marginTop="12dp" android:background="#333333" />
+        </LinearLayout>
+
+        <!-- 바인더 링 장식 (하단 3개) -->
+        <LinearLayout
+            android:layout_width="28dp"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="28dp"
+            android:orientation="vertical"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent">
+
+            <View android:layout_width="24dp" android:layout_height="4dp" android:background="#333333" />
+            <View android:layout_width="24dp" android:layout_height="4dp" android:layout_marginTop="12dp" android:background="#333333" />
+            <View android:layout_width="24dp" android:layout_height="4dp" android:layout_marginTop="12dp" android:background="#333333" />
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- 4. 하단 친구 전용 액션바 [ 💬 😄 T ] -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/layoutFriendBottomBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        app:cardBackgroundColor="#EFEBE4"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="4dp"
+        app:strokeColor="#D5CFC5"
+        app:strokeWidth="1dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingHorizontal="24dp"
+            android:paddingVertical="10dp">
+
+            <ImageView
+                android:id="@+id/btnFriendComment"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginEnd="20dp"
+                android:src="@drawable/ic_comment_bubble" />
+
+            <ImageView
+                android:id="@+id/btnFriendStamp"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginEnd="20dp"
+                android:src="@drawable/ic_emoji_smile" />
+
+            <ImageView
+                android:id="@+id/btnFriendText"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/ic_text_tool" />
+
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,25 +1,66 @@
 package com.example.colorpaper.data.model
 
 import androidx.room.*
+import com.google.firebase.firestore.IgnoreExtraProperties
 
+@IgnoreExtraProperties // Firestore에 없는 필드가 추가되어 있어도 에러 안 나게 방어
 @Entity(tableName = "diaries")
 data class DiaryEntity(
-    @PrimaryKey(autoGenerate = true) @ColumnInfo(name = "diary_id") val diaryId: Int = 0,
-    @ColumnInfo(name = "user_id") val userId: String,
-    @ColumnInfo(name = "content") val content: String,
-    @ColumnInfo(name = "color") val color: String = "orange", // 💡 [기존 코드 통합] 포스트잇 배경 색상
-    @ColumnInfo(name = "tag") val tag: String = "",
-    @ColumnInfo(name = "emotion_stamp") val emotionStamp: String?, // 감정 이모지 스탬프
-    @ColumnInfo(name = "is_highlighted") val isHighlighted: Boolean = false,
-    @ColumnInfo(name = "visibility") val visibility: String = "PRIVATE", // PRIVATE, PUBLIC(친구공유)
-    @ColumnInfo(name = "theme_id") val themeId: Int = 0,
-    @ColumnInfo(name = "review_cycle_days") val reviewCycleDays: Int = 0, // -1: 망각 곡선, 0: 사용 안 함, 양수: 사용자 지정 주기
-    @ColumnInfo(name = "last_reminded_at") val lastRemindedAt: Long = 0, // 💡 마지막 알림 발송 시간 (망각곡선용)
-    @ColumnInfo(name = "reminder_anchor_at") val reminderAnchorAt: Long = 0,
-    @ColumnInfo(name = "reminder_stage") val reminderStage: Int = 0,
-    @ColumnInfo(name = "reminder_end_date") val reminderEndDate: Int = 0, // 0이면 없음, 지정 시 YYYYMMDD (예: 20261231)
-    @ColumnInfo(name = "created_at") val createdAt: String, // 💡 "2026-07-20" (캘린더 매핑용 문자열)
-    @ColumnInfo(name = "position_x") val positionX: Float = 0f,
-    @ColumnInfo(name = "position_y") val positionY: Float = 0f,
-    @ColumnInfo (name = "highlight_ranges") val highlightRanges: String = ""
-)
+    @PrimaryKey(autoGenerate = true)
+    @ColumnInfo(name = "diary_id")
+    var diaryId: Int = 0,
+
+    @ColumnInfo(name = "user_id")
+    var userId: String = "", // 💡 기본값 "" 지정 필수!
+
+    @ColumnInfo(name = "content")
+    var content: String = "", // 💡 기본값 "" 지정 필수!
+
+    @ColumnInfo(name = "color")
+    var color: String = "orange",
+
+    @ColumnInfo(name = "tag")
+    var tag: String = "",
+
+    @ColumnInfo(name = "emotion_stamp")
+    var emotionStamp: String? = null, // 💡 기본값 null 지정!
+
+    @ColumnInfo(name = "is_highlighted")
+    var isHighlighted: Boolean = false,
+
+    @ColumnInfo(name = "visibility")
+    var visibility: String = "PRIVATE",
+
+    @ColumnInfo(name = "theme_id")
+    var themeId: Int = 0,
+
+    @ColumnInfo(name = "review_cycle_days")
+    var reviewCycleDays: Int = 0,
+
+    @ColumnInfo(name = "last_reminded_at")
+    var lastRemindedAt: Long = 0,
+
+    @ColumnInfo(name = "reminder_anchor_at")
+    var reminderAnchorAt: Long = 0,
+
+    @ColumnInfo(name = "reminder_stage")
+    var reminderStage: Int = 0,
+
+    @ColumnInfo(name = "reminder_end_date")
+    var reminderEndDate: Int = 0,
+
+    @ColumnInfo(name = "created_at")
+    var createdAt: String = "", // 💡 기본값 "" 지정 필수!
+
+    @ColumnInfo(name = "position_x")
+    var positionX: Float = 0f,
+
+    @ColumnInfo(name = "position_y")
+    var positionY: Float = 0f,
+
+    @ColumnInfo(name = "highlight_ranges")
+    var highlightRanges: String = ""
+) {
+    // Firestore 파싱용 빈 생성자
+    constructor() : this(0, "", "", "orange", "", null, false, "PRIVATE", 0, 0, 0, 0, 0, 0, "", 0f, 0f, "")
+}
