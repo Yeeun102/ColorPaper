@@ -173,7 +173,7 @@ class DiaryFragment : Fragment() {
             applyHighlightToSelectedText()
         }
 
-        // 💡 3. 텍스트 추가 버튼 (btnToolbarText) 클릭 처리
+        // 텍스트 추가 버튼 (btnToolbarText) 클릭 처리
         binding.btnToolbarText.setOnClickListener {
             showAddDirectTextDialog()
         }
@@ -258,21 +258,16 @@ class DiaryFragment : Fragment() {
             showAddTagDialog()
         }
 
-        // 6. [핵심] 설정창에서 '저장' 클릭 시 완전 잠금, DB 실제 적재, 자유 드래그 기믹 가동
+        // 6. '저장' 클릭 시 DB 적재, 자유 드래그
         binding.btnSettingSave.setOnClickListener {
             currentActivePostIt?.let { postIt ->
                 val etContent = postIt.findViewById<EditText>(R.id.etPostItContent)
                 val contentText = etContent.text.toString().trim()
 
                 if (contentText.isNotBlank()) {
-                    // 더이상 텍스트 수정 못하도록 원천 차단
-                    //etContent.isEnabled = false
-                    //etContent.isFocusable = false
                     etContent.clearFocus()
                     // 메모지 위치를 자유롭게 옮길 수 있도록 드래그 리스너 부착
                     makeViewDraggable(postIt)
-                    // DB 최종 저장 처리 호출
-                    //saveCurrentDiaryWithPosition()
                     binding.layoutPostItSetting.visibility = View.GONE
                     Toast.makeText(requireContext(), "포스트잇 설정이 적용되었습니다.", Toast.LENGTH_SHORT).show()
                 } else {
@@ -534,37 +529,37 @@ class DiaryFragment : Fragment() {
         var lastX = 0f
         var lastY = 0f
 
-        view.setOnTouchListener { v, event ->
+        val dragTouchListener = View.OnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
-                    if (v.tag != "DECORATION_TEXT") {
-                        currentActivePostIt = v
+                    if (view.tag != "DECORATION_TEXT") {
+                        currentActivePostIt = view
                     }
-                    // 터치 시작 시점의 손가락 좌표 기억
+                    // 터치 시작 시점의 절대 좌표 기억
                     lastX = event.rawX
                     lastY = event.rawY
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    // 손가락이 이동한 거리 계산
+                    // 손가락 이동 거리 계산
                     val dx = event.rawX - lastX
                     val dy = event.rawY - lastY
 
-                    // translationX, translationY를 직접 누적하여 옮긴 위치를 고정
-                    v.translationX += dx
-                    v.translationY += dy
+                    // 부모 포스트잇 뷰(view)의 위치 이동
+                    view.translationX += dx
+                    view.translationY += dy
 
-                    // 다음 이동 거리 계산을 위해 기준점 갱신
+                    // 기준점 갱신
                     lastX = event.rawX
                     lastY = event.rawY
                 }
-
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    v.performClick()
+                    view.performClick()
                 }
-                else -> return@setOnTouchListener false
+                else -> return@OnTouchListener false
             }
             true
         }
+        view.setOnTouchListener(dragTouchListener)
     }
 
     private fun updateDateText() {
@@ -638,7 +633,7 @@ class DiaryFragment : Fragment() {
                 db.diaryDao().getPostItsByDateAndUserId(dateKey, currentUid)
             }
 
-            // 💡 [수정] 다이어리 컨테이너와 동적 태그 컨테이너 초기화
+            // 다이어리 컨테이너와 동적 태그 컨테이너 초기화
             binding.layoutDiaryContainer.removeAllViews()
             binding.layoutDynamicTagsContainer.removeAllViews()
             selectedTags.clear()
@@ -648,8 +643,15 @@ class DiaryFragment : Fragment() {
 
             if (postIts.isEmpty()) {
                 binding.tvEmptyHint.visibility = View.VISIBLE
+
+                isHighlightedState = false
+                applyCustomButtonState(binding.btnHighlightState, isSelected = false)
             } else {
                 binding.tvEmptyHint.visibility = View.GONE
+                val hasHighlighted = postIts.any { !it.content.startsWith("[DECO]:") && it.isHighlighted }
+                isHighlightedState = hasHighlighted
+                applyCustomButtonState(binding.btnHighlightState, isSelected = isHighlightedState)
+
                 for (postIt in postIts) {
                     val isDecoText = postIt.content.startsWith("[DECO]:")
                         // 꾸미기 텍스트 복원
@@ -708,8 +710,11 @@ class DiaryFragment : Fragment() {
         // 락 걸기 및 드래그 리스너 사전 부여 (기존 저장되어 로드된 항목이므로)
         setupPostItEditTextTouch(etContent, postItView)
 
-        etContent.isEnabled = false
-        etContent.isFocusable = false
+        //etContent.isEnabled = false
+        //etContent.isFocusable = false
+
+        lockPostItEditText(postItView, etContent)
+        makeViewDraggable(postItView)
 
         postItView.setTag(R.id.ivPostItBg, diary.diaryId) // diaryId 저장
         postItView.tag = diary.color                     // 색상 저장
@@ -772,7 +777,7 @@ class DiaryFragment : Fragment() {
             Toast.makeText(requireContext(), "currentUid is null", Toast.LENGTH_SHORT).show()
         }
 
-        // 💡 [수정] 백그라운드 스레드에서 순차적으로 저장 후 ID 반영
+        // 백그라운드 스레드에서 순차적으로 저장 후 ID 반영
         lifecycleScope.launch(Dispatchers.IO) {
             val db = AppDatabase.getDatabase(requireContext())
 
@@ -794,7 +799,7 @@ class DiaryFragment : Fragment() {
                             color = "transparent",
                             tag = "",
                             emotionStamp = "",
-                            isHighlighted = false,
+                            isHighlighted = isHighlightedState,
                             visibility = currentVisibility,
                             positionX = posX,
                             positionY = posY,
@@ -891,6 +896,8 @@ class DiaryFragment : Fragment() {
                             etContent.isEnabled = false
                             etContent.isFocusable = false
                             etContent.clearFocus()
+                            lockPostItEditText(childView, etContent)
+                            makeViewDraggable(childView)
                         }
                     }
                 }
@@ -1174,6 +1181,45 @@ class DiaryFragment : Fragment() {
         }
         etContent.setText(spannable)
 
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun lockPostItEditText(postItView: View, etContent: EditText) {
+        etContent.keyListener = null // 텍스트 수정 및 키보드 노출 완전 차단
+        etContent.isFocusable = false
+        etContent.isFocusableInTouchMode = false
+        etContent.isCursorVisible = false
+        etContent.clearFocus()
+        etContent.isEnabled = true // 터치 이벤트(OnTouchListener) 수신을 위해 true 유지
+
+        var lastX = 0f
+        var lastY = 0f
+
+        etContent.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    currentActivePostIt = postItView
+                    lastX = event.rawX
+                    lastY = event.rawY
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = event.rawX - lastX
+                    val dy = event.rawY - lastY
+
+                    // etContent 터치 시 부모 포스트잇(postItView)의 위치 이동
+                    postItView.translationX += dx
+                    postItView.translationY += dy
+
+                    lastX = event.rawX
+                    lastY = event.rawY
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    postItView.performClick()
+                }
+                else -> return@setOnTouchListener false
+            }
+            true
+        }
     }
 
     override fun onDestroyView() {

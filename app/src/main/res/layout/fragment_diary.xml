@@ -61,8 +61,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
-    <!-- [중앙 콘텐츠 구역] 배경과 분리되어 스크롤 및 투명하게 처리된 레이어 -->
-
     <FrameLayout
         android:id="@+id/layoutDiaryContainer"
         android:layout_width="300dp"
@@ -73,7 +71,6 @@
         android:paddingTop="50dp"
         android:paddingRight="20dp"
         android:paddingLeft="20dp"
-        android:paddingBottom="150dp"
         app:layout_constraintBottom_toBottomOf="@id/ivFixedDiaryPage"
         app:layout_constraintEnd_toEndOf="@id/ivFixedDiaryPage"
         app:layout_constraintStart_toStartOf="@id/ivFixedDiaryPage"
@@ -199,7 +196,7 @@
         android:padding="16dp"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
-        android:layout_marginBottom="8dp"
+        android:layout_marginBottom="80dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         tools:visibility="visible">
@@ -563,7 +560,7 @@
                 app:strokeWidth="1dp"
                 android:layout_width="80dp"
                 android:layout_height="40dp"
-                android:text="확인"
+                android:text="@string/confirm"
                 android:textSize="17sp"
                 android:textColor="#000000"
                 android:backgroundTint="#FFFCCF"
@@ -572,30 +569,36 @@
         </RelativeLayout>
 
         <!-- 감정 그리드/태그 배열 (요청하신 감정 키워드 4개씩 3줄 임베딩) -->
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="8dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp"
+            style="?android:attr/buttonBarStyle">
             <Button android:id="@+id/emo1"
+                style="?android:attr/buttonBarButtonStyle"
                 android:layout_width="100dp" android:layout_weight="1" android:layout_height="34dp"
                 android:minHeight="0dp"
                 android:insetTop="0dp"
                 android:insetBottom="0dp"
                 android:paddingHorizontal="4dp"
                 app:strokeColor="#000000" app:strokeWidth="1dp"
-                android:text="#기뻐요"
+                android:text="@string/sharp_happy"
                 android:backgroundTint="#FFFDD0"
                 android:layout_marginEnd="4dp" android:textSize="11sp" android:textColor="#000000"/>
             <Button android:id="@+id/emo2"
+                style="?android:attr/buttonBarButtonStyle"
                 android:layout_width="100dp" android:layout_weight="1" android:layout_height="34dp"
                 android:minHeight="0dp"
                 android:insetTop="0dp"
                 android:insetBottom="0dp"
                 android:paddingHorizontal="4dp"
                 app:strokeColor="#000000" app:strokeWidth="1dp"
-                android:text="#신나요"
+                android:text="@string/sharp_excited"
                 android:backgroundTint="#FFB348"
                 android:layout_marginEnd="4dp" android:textSize="11sp" android:textColor="#000000"/>
             <Button android:id="@+id/emo3"
+                style="?android:attr/buttonBarButtonStyle"
                 android:layout_width="100dp" android:layout_weight="1" android:layout_height="34dp"
-                android:text="#만족해요"
+                android:text="@string/sharp_satisfied"
                 android:minHeight="0dp"
                 android:insetTop="0dp"
                 android:insetBottom="0dp"
@@ -606,7 +609,7 @@
             <Button android:id="@+id/emo4"
                 style="?android:attr/buttonBarStyle"
                 android:layout_width="100dp" android:layout_weight="1" android:layout_height="34dp"
-                android:text="#편안해요"
+                android:text="@string/sharp_relaxed"
                 android:minHeight="0dp"
                 android:insetTop="0dp"
                 android:insetBottom="0dp"
@@ -617,8 +620,9 @@
         </LinearLayout>
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="8dp">
             <Button android:id="@+id/emo5"
+                style="?android:attr/buttonBarButtonStyle"
                 android:layout_width="100dp" android:layout_weight="1" android:layout_height="34dp"
-                android:text="#짜증나요"
+                android:text="@string/sharp_annoyed"
                 android:minHeight="0dp"
                 android:insetTop="0dp"
                 android:insetBottom="0dp"
@@ -627,8 +631,9 @@
                 android:backgroundTint="#BEFFBA"
                 android:layout_marginEnd="4dp" android:textSize="11sp" android:textColor="#000000"/>
             <Button android:id="@+id/emo6"
+                style="?android:attr/buttonBarButtonStyle"
                 android:layout_width="100dp" android:layout_weight="1" android:layout_height="34dp"
-                android:text="#힘들어요"
+                android:text="@string/sharp_exhausted"
                 android:minHeight="0dp"
                 android:insetTop="0dp"
                 android:insetBottom="0dp"
@@ -637,8 +642,9 @@
                 android:backgroundTint="#FFDDBD"
                 android:layout_marginEnd="4dp" android:textSize="11sp" android:textColor="#000000"/>
             <Button android:id="@+id/emo7"
+                style="?android:attr/buttonBarButtonStyle"
                 android:layout_width="100dp" android:layout_weight="1" android:layout_height="34dp"
-                android:text="#화나요"
+                android:text="@string/sharp_angry"
                 android:minHeight="0dp"
                 android:insetTop="0dp"
                 android:insetBottom="0dp"
@@ -647,8 +653,9 @@
                 android:backgroundTint="#FF0004"
                 android:layout_marginEnd="4dp" android:textSize="11sp" android:textColor="#000000"/>
             <Button android:id="@+id/emo8"
+                style="?android:attr/buttonBarButtonStyle"
                 android:layout_width="100dp" android:layout_weight="1" android:layout_height="34dp"
-                android:text="#졸려요"
+                android:text="@string/sharp_tired"
                 android:minHeight="0dp"
                 android:insetTop="0dp"
                 android:insetBottom="0dp"
@@ -658,8 +665,9 @@
         </LinearLayout>
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
             <Button android:id="@+id/emo9"
+                style="?android:attr/buttonBarButtonStyle"
                 android:layout_width="100dp" android:layout_weight="1" android:layout_height="34dp"
-                android:text="#우울해요"
+                android:text="@string/sharp_depressed"
                 android:minHeight="0dp"
                 android:insetTop="0dp"
                 android:insetBottom="0dp"
@@ -668,8 +676,9 @@
                 android:backgroundTint="#BACFFF"
                 android:layout_marginEnd="4dp" android:textSize="11sp" android:textColor="#000000"/>
             <Button android:id="@+id/emo10"
+                style="?android:attr/buttonBarButtonStyle"
                 android:layout_width="100dp" android:layout_weight="1" android:layout_height="34dp"
-                android:text="#속상해요"
+                android:text="@string/sharp_upset"
                 android:minHeight="0dp"
                 android:insetTop="0dp"
                 android:insetBottom="0dp"
@@ -678,8 +687,9 @@
                 android:backgroundTint="#DFBAFF"
                 android:layout_marginEnd="4dp" android:textSize="11sp" android:textColor="#000000"/>
             <Button android:id="@+id/emo11"
+                style="?android:attr/buttonBarButtonStyle"
                 android:layout_width="100dp" android:layout_weight="1" android:layout_height="34dp"
-                android:text="#불안해요"
+                android:text="@string/sharp_anxious"
                 android:minHeight="0dp"
                 android:insetTop="0dp"
                 android:insetBottom="0dp"
@@ -688,8 +698,9 @@
                 android:backgroundTint="#DC73FF"
                 android:layout_marginEnd="4dp" android:textSize="11sp" android:textColor="#000000"/>
             <Button android:id="@+id/emo12"
+                style="?android:attr/buttonBarButtonStyle"
                 android:layout_width="100dp" android:layout_weight="1" android:layout_height="34dp"
-                android:text="#슬퍼요"
+                android:text="@string/sharp_sad"
                 android:minHeight="0dp"
                 android:insetTop="0dp"
                 android:insetBottom="0dp"
