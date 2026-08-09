@@ -7,6 +7,7 @@ import coil.load
 import coil.transform.CircleCropTransformation
 import com.example.colorpaper.R
 import com.example.colorpaper.databinding.ItemFriendSearchBinding
+import com.example.colorpaper.ui.theme.ProfileThemeStyler
 
 data class FriendUiModel(
     val userId: String, // Firebase UID
@@ -58,6 +59,7 @@ class FriendSearchAdapter(
 
             root.setOnClickListener { onItemClick(user) }
             btnFollow.setOnClickListener { onFollowClick(user, position) }
+            ProfileThemeStyler.applyItem(root)
         }
     }
 

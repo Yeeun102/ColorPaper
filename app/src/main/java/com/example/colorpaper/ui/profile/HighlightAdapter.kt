@@ -4,6 +4,7 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.example.colorpaper.databinding.ItemHighlightBinding
+import com.example.colorpaper.ui.theme.ProfileThemeStyler
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -36,6 +37,7 @@ class HighlightAdapter(
         holder.binding.root.setOnClickListener {
             onItemClick(item)
         }
+        ProfileThemeStyler.applyItem(holder.binding.root)
     }
 
     override fun getItemCount(): Int = items.size

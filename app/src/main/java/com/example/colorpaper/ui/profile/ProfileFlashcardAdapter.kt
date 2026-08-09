@@ -6,6 +6,7 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.example.colorpaper.data.model.FolderEntity
 import com.example.colorpaper.databinding.ItemProfileSharedFlashcardBinding
+import com.example.colorpaper.ui.theme.ProfileThemeStyler
 
 class ProfileFlashcardAdapter(
     private var setList: List<FolderEntity>,
@@ -38,6 +39,7 @@ class ProfileFlashcardAdapter(
         holder.binding.btnStart.setOnClickListener {
             onStartClick(item)
         }
+        ProfileThemeStyler.applyItem(holder.binding.root)
     }
 
     override fun getItemCount(): Int = setList.size

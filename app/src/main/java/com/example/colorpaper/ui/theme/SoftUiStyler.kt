@@ -56,7 +56,7 @@ object SoftUiStyler {
             }
         }
         if (
-            view.isClickable &&
+            (view.isClickable || view.isLongClickable) &&
             view !is EditText &&
             view.id != R.id.card_quick_actions &&
             view.id != R.id.quick_action_reminder &&

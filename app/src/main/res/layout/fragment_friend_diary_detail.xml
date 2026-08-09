@@ -146,33 +146,33 @@
         app:layout_constraintTop_toBottomOf="@id/layoutDateSelector">
 
         <!-- 바인더 속지 종이 (300dp x 450dp 고정 크기 및 좌표 기준) -->
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/layoutDiaryCanvas"
+        <ImageView
+            android:id="@+id/ivFixedFriendDiaryPage"
             android:layout_width="0dp"
             android:layout_height="500dp"
-            android:layout_marginStart="14dp"
-            app:cardBackgroundColor="#FFFFFF"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="2dp"
-            app:strokeColor="#333333"
-            app:strokeWidth="1dp"
+            android:contentDescription="@string/diarypage"
+            android:scaleType="fitXY"
+            android:src="@drawable/diarypage"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
+            app:layout_constraintTop_toTopOf="parent" />
 
             <!-- 캔버스 패딩 및 컨테이너 레이어 분리 -->
-            <FrameLayout
-                android:id="@+id/layoutContentWrapper"
-                android:layout_width="300dp"
-                android:layout_height="450dp"
-                android:clipChildren="false"
-                android:layout_gravity="center"
-                android:clipToPadding="false"
-                android:paddingLeft="20dp"
-                android:paddingTop="50dp"
-                android:paddingRight="20dp"
-                android:paddingBottom="150dp">
+        <FrameLayout
+            android:id="@+id/layoutContentWrapper"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:paddingStart="54dp"
+            android:paddingTop="4dp"
+            android:paddingEnd="8dp"
+            android:paddingBottom="12dp"
+            app:layout_constraintBottom_toBottomOf="@id/ivFixedFriendDiaryPage"
+            app:layout_constraintEnd_toEndOf="@id/ivFixedFriendDiaryPage"
+            app:layout_constraintStart_toStartOf="@id/ivFixedFriendDiaryPage"
+            app:layout_constraintTop_toTopOf="@id/ivFixedFriendDiaryPage">
 
                 <!-- 3-1. 일기 본문 포스트잇 렌더링 컨테이너 -->
                 <FrameLayout
@@ -190,38 +190,10 @@
                     android:clipChildren="false"
                     android:clipToPadding="false" />
 
-            </FrameLayout>
-
-        </com.google.android.material.card.MaterialCardView>
+        </FrameLayout>
 
         <!-- 바인더 링 장식 (상단 3개) -->
-        <LinearLayout
-            android:layout_width="28dp"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
-            android:orientation="vertical"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
-
-            <View android:layout_width="24dp" android:layout_height="4dp" android:background="#333333" />
-            <View android:layout_width="24dp" android:layout_height="4dp" android:layout_marginTop="12dp" android:background="#333333" />
-            <View android:layout_width="24dp" android:layout_height="4dp" android:layout_marginTop="12dp" android:background="#333333" />
-        </LinearLayout>
-
         <!-- 바인더 링 장식 (하단 3개) -->
-        <LinearLayout
-            android:layout_width="28dp"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="28dp"
-            android:orientation="vertical"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent">
-
-            <View android:layout_width="24dp" android:layout_height="4dp" android:background="#333333" />
-            <View android:layout_width="24dp" android:layout_height="4dp" android:layout_marginTop="12dp" android:background="#333333" />
-            <View android:layout_width="24dp" android:layout_height="4dp" android:layout_marginTop="12dp" android:background="#333333" />
-        </LinearLayout>
-
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <!-- 4. 하단 친구 전용 액션바 [댓글] -->
