@@ -11,6 +11,7 @@ import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.example.colorpaper.R
@@ -19,6 +20,7 @@ import com.example.colorpaper.data.model.FolderEntity
 import com.example.colorpaper.data.model.WordEntity
 import com.example.colorpaper.databinding.FragmentFlashcardCreateBinding
 import com.example.colorpaper.util.AuthUtils
+import com.example.colorpaper.ui.theme.ThemeManager
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import java.io.BufferedReader
@@ -36,6 +38,8 @@ class FlashcardCreateFragment : Fragment() {
     private val cardViewsList = mutableListOf<View>()
     private val auth = FirebaseAuth.getInstance()
     private val firestore = FirebaseFirestore.getInstance()
+
+    private val palette by lazy { ThemeManager.currentPalette(requireContext()) }
 
     private val filePickerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -79,6 +83,12 @@ class FlashcardCreateFragment : Fragment() {
         binding.btnSave.setOnClickListener {
             saveFlashcardSet()
         }
+        applyButtonThemeColor()
+    }
+    private fun applyButtonThemeColor() {
+        val buttonColor = ContextCompat.getColor(requireContext(), palette.stroke)
+        binding.btnSave to buttonColor
+        binding.btnImportCsv to buttonColor
     }
 
     private fun canAddNewCard(): Boolean {

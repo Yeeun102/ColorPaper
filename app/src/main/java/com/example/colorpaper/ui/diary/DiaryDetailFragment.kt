@@ -20,6 +20,7 @@ import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.core.graphics.toColorInt
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -31,6 +32,7 @@ import com.example.colorpaper.data.model.DiaryCommentEntity
 import com.example.colorpaper.data.model.DiaryEntity
 import com.example.colorpaper.databinding.FragmentDiaryDetailBinding
 import com.example.colorpaper.util.AuthUtils
+import com.example.colorpaper.ui.theme.ThemeManager
 import com.google.android.material.button.MaterialButton
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -46,6 +48,7 @@ import kotlin.math.abs
 class DiaryDetailFragment : Fragment() {
     // binding getter(!! 사용)를 제거하여 NullPointerException 근본 원인 차단
     private var _binding: FragmentDiaryDetailBinding? = null
+    private val binding get() = _binding!!
 
     private val auth = FirebaseAuth.getInstance()
     private val firestore = FirebaseFirestore.getInstance()
@@ -78,6 +81,8 @@ class DiaryDetailFragment : Fragment() {
     private var isPastHighlighted = false
     private var currentPostIts: List<DiaryEntity> = emptyList()
     private var isFollowingUser: Boolean = true
+
+    private val palette by lazy { ThemeManager.currentPalette(requireContext())}
 
     companion object {
         private const val ARG_TARGET_DATE = "TARGET_DATE"
@@ -128,9 +133,8 @@ class DiaryDetailFragment : Fragment() {
         val currentBinding = _binding ?: return
 
         buttonColorMap = mapOf(
-            //currentBinding.btnVisibilityDetail to "#E4D0D0".toColorInt(),
-            currentBinding.btnSaveDetail to "#867070".toColorInt(),
-            currentBinding.btnHighlightDetail to "#D5B4B4".toColorInt()
+            binding.btnHighlightDetail to ContextCompat.getColor(requireContext(), palette.reminder),
+            binding.btnSaveDetail to ContextCompat.getColor(requireContext(), palette.accent)
         )
 
         currentBinding.btnToolbarBackDetail.setOnClickListener {
@@ -274,6 +278,13 @@ class DiaryDetailFragment : Fragment() {
             commentView.elevation = 10f
             activeBinding.layoutCommentsContainer.bringToFront()
         }
+        applyToolbarThemeColor()
+    }
+    private fun applyToolbarThemeColor() {
+        val toolbarColor = ContextCompat.getColor(requireContext(), palette.yearsAgo)
+        val toolbarStrokeColor = ContextCompat.getColor(requireContext(), palette.stroke)
+        binding.layoutToolbarDecorateDetail.setCardBackgroundColor(toolbarColor)
+        binding.layoutToolbarDecorateDetail.strokeColor = toolbarStrokeColor
     }
 
     override fun onResume() {
@@ -290,7 +301,7 @@ class DiaryDetailFragment : Fragment() {
         if (!isAdded) return
         if (button is MaterialButton) {
             val density = resources.displayMetrics.density
-            val defaultColor = if (originalColor != 0) originalColor else (buttonColorMap[button] ?: "#E4D0D0".toColorInt())
+            val defaultColor = if (originalColor != 0) originalColor else (buttonColorMap[button] ?: "#EDEDED".toColorInt())
 
             if (isSelected) {
                 button.backgroundTintList = ColorStateList.valueOf("#FFF59D".toColorInt())

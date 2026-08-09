@@ -1,11 +1,14 @@
 package com.example.colorpaper.ui.flashcard
 
+import android.content.res.ColorStateList
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.core.graphics.toColorInt
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.example.colorpaper.data.model.FolderEntity
+import com.example.colorpaper.ui.theme.ThemeManager
 import com.example.colorpaper.databinding.ItemFlashcardSetBinding
 
 class FlashcardSetAdapter(
@@ -28,24 +31,29 @@ class FlashcardSetAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = setList[position]
+        val context = holder.itemView.context
+        val palette = ThemeManager.currentPalette(context)
 
         // 1. 엔티티 데이터(FolderEntity)를 XML 뷰에 바인딩
         holder.binding.tvSetTitle.text = item.folderName
 
-        // 💡 롱클릭 이벤트 (삭제 다이얼로그 호출용)
+        // 롱클릭 이벤트 (삭제 다이얼로그 호출용)
         holder.binding.root.setOnLongClickListener {
             onItemLongClick(item)
             true
         }
 
         // 2. 카드 위치(position)에 따라 교차 배경색 설정
-        val backgroundColorHex = if (position % 2 == 0) {
-            "#E4D0D0" // 홀수 번째 카드 배경색
+        val backgroundColor = if (position % 2 == 0) {
+            ContextCompat.getColor(context, palette.yearsAgo) // 홀수 번째 카드 배경색
         } else {
-            "#F5EBEB" // 짝수 번째 카드 배경색
+            ContextCompat.getColor(context, palette.reminder) // 짝수 번째 카드 배경색
         }
-        holder.binding.root.setCardBackgroundColor(backgroundColorHex.toColorInt())
+        holder.binding.root.setCardBackgroundColor(backgroundColor)
 
+        val strokeColor = ContextCompat.getColor(context, palette.stroke)
+        holder.binding.tvSetTitle.setTextColor(strokeColor)
+        holder.binding.btnStart.apply { backgroundTintList = ColorStateList.valueOf(strokeColor)}
         // 3. 시작하기 버튼 클릭 이벤트 연동
         holder.binding.btnStart.setOnClickListener {
             onStartClick(item)
