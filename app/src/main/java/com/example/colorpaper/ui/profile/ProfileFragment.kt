@@ -8,6 +8,9 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.AccelerateInterpolator
+import android.view.animation.AccelerateDecelerateInterpolator
+import android.view.animation.OvershootInterpolator
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -28,6 +31,7 @@ import com.example.colorpaper.R
 import com.example.colorpaper.ui.diary.DiaryDetailFragment
 import com.example.colorpaper.ui.flashcard.FlashcardStudyFragment
 import com.example.colorpaper.ui.friend.FriendListFragment
+import com.example.colorpaper.ui.theme.ProfileThemeStyler
 import com.google.android.material.card.MaterialCardView
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -102,6 +106,9 @@ class ProfileFragment : Fragment() {
         val tvFollowingCount = view.findViewById<TextView>(R.id.tvFollowingCount)
         val tvFriendUpdateBadge = view.findViewById<TextView>(R.id.tvFriendUpdateBadge)
         val llSharedDiary = view.findViewById<LinearLayout>(R.id.llSharedDiary)
+        val diaryBookPreview = view.findViewById<View>(R.id.diaryBookPreview)
+        val diaryBookCoverLayer = view.findViewById<View>(R.id.diaryBookCoverLayer)
+        val diaryBookFlap = view.findViewById<View>(R.id.diaryBookFlap)
         val btnFollowToggle = view.findViewById<TextView?>(R.id.btnFollowToggle)
         val btnLogout = view.findViewById<TextView?>(R.id.btnLogout)
 
@@ -117,6 +124,41 @@ class ProfileFragment : Fragment() {
         val ivClosePopup = view.findViewById<ImageView>(R.id.ivClosePopup)
         val rvPopupFriendList = view.findViewById<RecyclerView>(R.id.rvPopupFriendList)
 
+        fun showFriendPopup() {
+            flFriendListPopup.visibility = View.VISIBLE
+            flFriendListPopup.alpha = 0f
+            cardPopupContent.scaleX = 0.88f
+            cardPopupContent.scaleY = 0.88f
+            flFriendListPopup.animate().alpha(1f).setDuration(150L).start()
+            cardPopupContent.animate()
+                .scaleX(1f)
+                .scaleY(1f)
+                .setDuration(300L)
+                .setInterpolator(OvershootInterpolator(2f))
+                .start()
+        }
+
+        fun hideFriendPopup() {
+            cardPopupContent.animate().cancel()
+            flFriendListPopup.animate().cancel()
+            cardPopupContent.animate()
+                .scaleX(0.9f)
+                .scaleY(0.9f)
+                .setDuration(120L)
+                .setInterpolator(AccelerateInterpolator())
+                .start()
+            flFriendListPopup.animate()
+                .alpha(0f)
+                .setDuration(140L)
+                .withEndAction {
+                    flFriendListPopup.visibility = View.GONE
+                    flFriendListPopup.alpha = 1f
+                    cardPopupContent.scaleX = 1f
+                    cardPopupContent.scaleY = 1f
+                }
+                .start()
+        }
+
         // UI 분기 처리
         ivEditProfile?.isVisible = isMyProfile
         tvFriendUpdateBadge?.isVisible = isMyProfile
@@ -126,8 +168,8 @@ class ProfileFragment : Fragment() {
 
         // 🌟 1. 팝업 리사이클러뷰 어댑터 세팅
         popupFriendAdapter = PopupFriendAdapter(emptyList()) { user ->
-            flFriendListPopup?.visibility = View.GONE
-            parentFragmentManager.beginTransaction()
+            hideFriendPopup()
+            softTransaction()
                 .replace(R.id.fragment_container, newInstance(user.uid))
                 .addToBackStack(null)
                 .commit()
@@ -147,7 +189,7 @@ class ProfileFragment : Fragment() {
                 val studyFragment = FlashcardStudyFragment().apply {
                     arguments = bundle
                 }
-                parentFragmentManager.beginTransaction()
+                softTransaction()
                     .replace(R.id.fragment_container, studyFragment)
                     .addToBackStack(null)
                     .commit()
@@ -231,7 +273,19 @@ class ProfileFragment : Fragment() {
                     val targetDateStr = latestDiary.createdAt
 
                     // diaryId 함께 전달
-                    navigateToDiaryDetail(targetDateStr, latestDiary.diaryId)
+                    openDiaryWithBookAnimation(
+                        diaryBookPreview,
+                        diaryBookCoverLayer,
+                        diaryBookFlap
+                    ) {
+                        if (isAdded) {
+                            navigateToDiaryDetail(
+                                targetDateStr,
+                                latestDiary.diaryId,
+                                bookTransition = true
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -239,13 +293,13 @@ class ProfileFragment : Fragment() {
         // 클릭 이벤트 등록
         tvFollowerCount?.setOnClickListener {
             tvPopupTitle?.text = "팔로워 목록"
-            flFriendListPopup?.visibility = View.VISIBLE
+            showFriendPopup()
             effectiveUid?.let { uid -> fetchFollowData(uid, "followers") }
         }
 
         tvFollowingCount?.setOnClickListener {
             tvPopupTitle?.text = "팔로잉 목록"
-            flFriendListPopup?.visibility = View.VISIBLE
+            showFriendPopup()
             effectiveUid?.let { uid -> fetchFollowData(uid, "following") }
         }
 
@@ -266,21 +320,21 @@ class ProfileFragment : Fragment() {
             }
         }
 
-        ivClosePopup?.setOnClickListener { flFriendListPopup?.visibility = View.GONE }
-        flFriendListPopup?.setOnClickListener { flFriendListPopup.visibility = View.GONE }
+        ivClosePopup?.setOnClickListener { hideFriendPopup() }
+        flFriendListPopup?.setOnClickListener { hideFriendPopup() }
         cardPopupContent?.setOnClickListener { }
 
         ivBack?.setOnClickListener { parentFragmentManager.popBackStack() }
 
         ivEditProfile?.setOnClickListener {
-            parentFragmentManager.beginTransaction()
+            softTransaction()
                 .replace(R.id.fragment_container, ProfileEditFragment())
                 .addToBackStack(null)
                 .commit()
         }
 
         ivSearchFriend?.setOnClickListener {
-            parentFragmentManager.beginTransaction()
+            softTransaction()
                 .replace(R.id.fragment_container, FriendListFragment.newInstance(null, "SEARCH"))
                 .addToBackStack(null)
                 .commit()
@@ -334,7 +388,7 @@ class ProfileFragment : Fragment() {
         auth.signOut()
         Toast.makeText(safeContext, "로그아웃 되었습니다.", Toast.LENGTH_SHORT).show()
 
-        parentFragmentManager.beginTransaction()
+        softTransaction()
             .replace(R.id.fragment_container, com.example.colorpaper.ui.login.LoginFragment())
             .commit()
     }
@@ -435,7 +489,12 @@ class ProfileFragment : Fragment() {
         }
     }
 
-    private fun navigateToDiaryDetail(targetDate: String, diaryId: Int = 0, readOnly: Boolean = false) {
+    private fun navigateToDiaryDetail(
+        targetDate: String,
+        diaryId: Int = 0,
+        readOnly: Boolean = false,
+        bookTransition: Boolean = false
+    ) {
         val effectiveUid = if (isMyProfile) auth.currentUser?.uid else targetUserId
 
         val fragment: Fragment = if (isMyProfile) {
@@ -454,7 +513,8 @@ class ProfileFragment : Fragment() {
             )
         }
 
-        parentFragmentManager.beginTransaction()
+        val transaction = if (bookTransition) bookOpenTransaction() else softTransaction()
+        transaction
             .replace(R.id.fragment_container, fragment)
             .addToBackStack(null)
             .commit()
@@ -464,6 +524,110 @@ class ProfileFragment : Fragment() {
         super.onResume()
         loadAllProfileData()
     }
+
+    private fun openDiaryWithBookAnimation(
+        preview: View,
+        coverLayer: View,
+        flap: View,
+        onOpened: () -> Unit
+    ) {
+        if (preview.getTag(R.id.diaryBookPreview) == true) return
+        preview.setTag(R.id.diaryBookPreview, true)
+        val density = resources.displayMetrics.density
+        val paperLayer = preview.findViewById<View>(R.id.diaryBookPaperLayer)
+        allowBookToDrawOutside(preview)
+        preview.bringToFront()
+        coverLayer.bringToFront()
+        flap.bringToFront()
+
+        preview.animate().cancel()
+        coverLayer.animate().cancel()
+        flap.animate().cancel()
+        paperLayer.animate().cancel()
+        coverLayer.pivotX = 0f
+        coverLayer.pivotY = coverLayer.height / 2f
+        coverLayer.cameraDistance = 9000f * density
+        flap.pivotX = flap.width.toFloat()
+        flap.pivotY = flap.height / 2f
+        flap.cameraDistance = 9000f * density
+
+        preview.animate()
+            .scaleX(1.12f)
+            .scaleY(1.12f)
+            .translationY(-10f * density)
+            .setDuration(260L)
+            .setInterpolator(OvershootInterpolator(1.6f))
+            .start()
+
+        flap.animate()
+            .rotationY(105f)
+            .translationX(5f * density)
+            .setDuration(250L)
+            .setInterpolator(AccelerateDecelerateInterpolator())
+            .start()
+
+        paperLayer.animate()
+            .translationX(-8f * density)
+            .setStartDelay(260L)
+            .setDuration(400L)
+            .setInterpolator(AccelerateDecelerateInterpolator())
+            .start()
+
+        coverLayer.animate()
+            .rotationY(-155f)
+            .translationX(0f)
+            .setStartDelay(235L)
+            .setDuration(470L)
+            .setInterpolator(AccelerateDecelerateInterpolator())
+            .withEndAction {
+                preview.animate()
+                    .scaleX(1.55f)
+                    .scaleY(1.55f)
+                    .setDuration(210L)
+                    .setInterpolator(AccelerateInterpolator())
+                    .withEndAction {
+                        preview.scaleX = 1f
+                        preview.scaleY = 1f
+                        preview.translationY = 0f
+                        coverLayer.rotationY = 0f
+                        coverLayer.translationX = 0f
+                        flap.rotationY = 0f
+                        flap.translationX = 5f * density
+                        paperLayer.translationX = 0f
+                        preview.setTag(R.id.diaryBookPreview, false)
+                        onOpened()
+                    }
+                    .start()
+            }
+            .start()
+    }
+
+    private fun allowBookToDrawOutside(preview: View) {
+        var ancestor = preview.parent
+        while (ancestor is ViewGroup) {
+            val group = ancestor
+            group.clipChildren = false
+            group.clipToPadding = false
+            if (group.id == R.id.fragment_container) break
+            ancestor = group.parent
+        }
+    }
+
+    private fun softTransaction() = parentFragmentManager.beginTransaction()
+        .setCustomAnimations(
+            R.animator.screen_morph_enter,
+            R.animator.screen_morph_exit,
+            R.animator.screen_morph_enter,
+            R.animator.screen_morph_exit
+        )
+
+    private fun bookOpenTransaction() = parentFragmentManager.beginTransaction()
+        .setCustomAnimations(
+            R.animator.book_open_enter,
+            R.animator.book_open_exit,
+            R.animator.screen_morph_enter,
+            R.animator.screen_morph_exit
+        )
 }
 
 class PopupFriendAdapter(
@@ -492,6 +656,7 @@ class PopupFriendAdapter(
         }
 
         holder.itemView.setOnClickListener { onItemClick(item) }
+        ProfileThemeStyler.applyItem(holder.itemView)
     }
 
     override fun getItemCount(): Int = list.size

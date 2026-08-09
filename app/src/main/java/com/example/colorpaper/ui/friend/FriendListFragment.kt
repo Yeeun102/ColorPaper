@@ -98,6 +98,12 @@ class FriendListFragment : Fragment() {
             },
             onItemClick = { targetUser ->
                 parentFragmentManager.beginTransaction()
+                    .setCustomAnimations(
+                        R.animator.screen_morph_enter,
+                        R.animator.screen_morph_exit,
+                        R.animator.screen_morph_enter,
+                        R.animator.screen_morph_exit
+                    )
                     .replace(R.id.fragment_container, ProfileFragment.newInstance(targetUser.userId))
                     .addToBackStack(null)
                     .commit()

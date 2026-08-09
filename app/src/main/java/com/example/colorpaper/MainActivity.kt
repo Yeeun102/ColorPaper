@@ -27,14 +27,19 @@ import com.example.colorpaper.reminder.ReminderIntents
 import com.example.colorpaper.ui.diary.DiaryDayFragmentFactory
 import com.example.colorpaper.ui.diary.DiaryDetailFragment
 import com.example.colorpaper.ui.diary.DiaryFragment
+import com.example.colorpaper.ui.diary.FriendDiaryDetailFragment
 import com.example.colorpaper.ui.flashcard.FlashcardFragment
+import com.example.colorpaper.ui.friend.FriendListFragment
 import com.example.colorpaper.ui.home.HomeFragment
 import com.example.colorpaper.ui.login.LoginFragment
 import com.example.colorpaper.ui.login.RegisterFragment
 import com.example.colorpaper.ui.profile.ProfileFragment
+import com.example.colorpaper.ui.profile.ProfileEditFragment
+import com.example.colorpaper.ui.profile.ProfileSetupFragment
 import com.example.colorpaper.ui.reminder.ReminderHistoryFragment
 import com.example.colorpaper.ui.setting.SettingFragment
 import com.example.colorpaper.ui.theme.SoftUiStyler
+import com.example.colorpaper.ui.theme.ProfileThemeStyler
 import com.example.colorpaper.ui.theme.ThemeManager
 import com.google.android.material.card.MaterialCardView
 import com.google.firebase.auth.FirebaseAuth
@@ -74,6 +79,15 @@ class MainActivity : AppCompatActivity() {
                     savedInstanceState: Bundle?
                 ) {
                     SoftUiStyler.apply(view)
+                    if (
+                        fragment is ProfileFragment ||
+                        fragment is ProfileEditFragment ||
+                        fragment is ProfileSetupFragment ||
+                        fragment is FriendListFragment ||
+                        fragment is FriendDiaryDetailFragment
+                    ) {
+                        ProfileThemeStyler.applyScreen(view)
+                    }
                 }
             },
             true
@@ -209,8 +223,9 @@ class MainActivity : AppCompatActivity() {
                         ContextCompat.getColor(this, palette.accent),
                         72
                     )
-                    icon.background = GradientDrawable().apply {
-                        shape = GradientDrawable.OVAL
+                    row.background = GradientDrawable().apply {
+                        shape = GradientDrawable.RECTANGLE
+                        cornerRadius = dp(26).toFloat()
                         setColor(pressedColor)
                     }
                     icon.animate().cancel()
@@ -228,7 +243,7 @@ class MainActivity : AppCompatActivity() {
                         .scaleY(1f)
                         .setDuration(240L)
                         .setInterpolator(OvershootInterpolator(2.2f))
-                        .withEndAction { icon.background = null }
+                        .withEndAction { row.background = null }
                         .start()
                 }
             }

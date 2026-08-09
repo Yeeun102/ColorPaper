@@ -32,6 +32,8 @@ import com.example.colorpaper.data.local.AppDatabase
 import com.example.colorpaper.data.model.CommentEntity
 import com.example.colorpaper.data.model.DiaryEntity
 import com.example.colorpaper.databinding.FragmentFriendDiaryDetailBinding
+import com.example.colorpaper.ui.theme.AppTheme
+import com.example.colorpaper.ui.theme.ThemeManager
 import com.example.colorpaper.util.AuthUtils
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -100,6 +102,7 @@ class FriendDiaryDetailFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         val binding = _binding ?: return
+        binding.ivFixedFriendDiaryPage.setImageResource(friendDiaryPageResource())
 
         // 1. 뒤로가기
         binding.btnBack.setOnClickListener {
@@ -464,6 +467,7 @@ class FriendDiaryDetailFragment : Fragment() {
         view.translationY = diary.positionY
 
         binding.layoutDetailDiaryContainer.addView(view)
+        view.post { DiaryPageBounds.clamp(view, binding.ivFixedFriendDiaryPage) }
     }
 
     private fun renderReadOnlyDecoText(textStr: String, posX: Float, posY: Float) {
@@ -490,6 +494,9 @@ class FriendDiaryDetailFragment : Fragment() {
         }
 
         binding.layoutDetailDiaryContainer.addView(decorateTextView)
+        decorateTextView.post {
+            DiaryPageBounds.clamp(decorateTextView, binding.ivFixedFriendDiaryPage)
+        }
     }
 
     private fun renderCommentPostIt(comment: CommentEntity, authorLabel: String) {
@@ -529,6 +536,7 @@ class FriendDiaryDetailFragment : Fragment() {
         setupCommentToggle(view, emoji, startCollapsed = true)
         enableDragAndScale(view)
         binding.layoutCommentsContainer.addView(view)
+        view.post { DiaryPageBounds.clamp(view, binding.ivFixedFriendDiaryPage) }
     }
 
     private fun showAddCommentDialog() {
@@ -607,6 +615,7 @@ class FriendDiaryDetailFragment : Fragment() {
         saveNewCommentToDb(commentView, emoji, text, randomColor, todayDateStr)
 
         binding.layoutCommentsContainer.addView(commentView)
+        commentView.post { DiaryPageBounds.clamp(commentView, binding.ivFixedFriendDiaryPage) }
         commentView.bringToFront()
     }
 
@@ -729,6 +738,7 @@ class FriendDiaryDetailFragment : Fragment() {
     @SuppressLint("ClickableViewAccessibility")
     private fun enableDragAndScale(view: View) {
         val safeContext = context ?: return
+        val diaryPage = _binding?.ivFixedFriendDiaryPage ?: return
         var lastX = 0f
         var lastY = 0f
         var moved = false
@@ -766,8 +776,7 @@ class FriendDiaryDetailFragment : Fragment() {
                         moved = true
                     }
 
-                    view.translationX += dx
-                    view.translationY += dy
+                    DiaryPageBounds.move(view, diaryPage, dx, dy)
 
                     lastX = event.rawX
                     lastY = event.rawY
@@ -818,6 +827,12 @@ class FriendDiaryDetailFragment : Fragment() {
             }
         }
         etContent.setText(spannable)
+    }
+
+    private fun friendDiaryPageResource(): Int = when (ThemeManager.currentTheme(requireContext())) {
+        AppTheme.ROSE -> R.drawable.diarypage
+        AppTheme.SAGE -> R.drawable.diarypage_sage
+        AppTheme.SKY -> R.drawable.diarypage_sky
     }
 
     override fun onResume() {
