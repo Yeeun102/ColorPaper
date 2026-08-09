@@ -77,6 +77,7 @@ class FlashcardStudyFragment : Fragment() {
 
         binding.cardContainer.setCardBackgroundColor(themeColor)
         binding.tvFlipHint.setTextColor(strokeColor)
+        binding.tvSetTitle.setTextColor(strokeColor)
         binding.tvFlipHint.strokeColor = strokeColorStateList
         binding.btnNextCard.setTextColor(strokeColor)
         binding.btnNextCard.strokeColor = strokeColorStateList

@@ -286,8 +286,11 @@ class DiaryDetailFragment : Fragment() {
     private fun applyToolbarThemeColor() {
         val toolbarColor = ContextCompat.getColor(requireContext(), palette.yearsAgo)
         val toolbarStrokeColor = ContextCompat.getColor(requireContext(), palette.stroke)
+        val highlightButton = ContextCompat.getColor(requireContext(), palette.reminder)
         binding.layoutToolbarDecorateDetail.setCardBackgroundColor(toolbarColor)
         binding.layoutToolbarDecorateDetail.strokeColor = toolbarStrokeColor
+        binding.btnSaveDetail.backgroundTintList = ColorStateList.valueOf(toolbarStrokeColor)
+        binding.btnHighlightDetail.backgroundTintList = ColorStateList.valueOf(highlightButton)
     }
 
     private fun diaryPageResource(): Int = when (ThemeManager.currentTheme(requireContext())) {
