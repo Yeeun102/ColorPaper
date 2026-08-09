@@ -7,7 +7,10 @@ import android.content.res.ColorStateList
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.util.Log
+import android.view.MotionEvent
 import android.view.View
+import android.view.animation.AccelerateInterpolator
+import android.view.animation.OvershootInterpolator
 import android.widget.ImageView
 import android.widget.LinearLayout
 import androidx.activity.OnBackPressedCallback
@@ -31,6 +34,7 @@ import com.example.colorpaper.ui.login.RegisterFragment
 import com.example.colorpaper.ui.profile.ProfileFragment
 import com.example.colorpaper.ui.reminder.ReminderHistoryFragment
 import com.example.colorpaper.ui.setting.SettingFragment
+import com.example.colorpaper.ui.theme.SoftUiStyler
 import com.example.colorpaper.ui.theme.ThemeManager
 import com.google.android.material.card.MaterialCardView
 import com.google.firebase.auth.FirebaseAuth
@@ -60,6 +64,21 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
+
+        supportFragmentManager.registerFragmentLifecycleCallbacks(
+            object : androidx.fragment.app.FragmentManager.FragmentLifecycleCallbacks() {
+                override fun onFragmentViewCreated(
+                    fragmentManager: androidx.fragment.app.FragmentManager,
+                    fragment: Fragment,
+                    view: View,
+                    savedInstanceState: Bundle?
+                ) {
+                    SoftUiStyler.apply(view)
+                }
+            },
+            true
+        )
+        SoftUiStyler.apply(findViewById(R.id.main))
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -131,6 +150,8 @@ class MainActivity : AppCompatActivity() {
             hideQuickActions()
             showScreen(FlashcardFragment(), R.id.nav_flashcard)
         }
+        bindCircularQuickActionPress(R.id.quick_action_reminder, R.id.icon_quick_reminder)
+        bindCircularQuickActionPress(R.id.quick_action_flashcard, R.id.icon_quick_flashcard)
         findViewById<View>(R.id.nav_home).setOnClickListener {
             hideQuickActions()
             showScreen(HomeFragment(), R.id.nav_home)
@@ -166,10 +187,53 @@ class MainActivity : AppCompatActivity() {
             .scaleX(1f)
             .scaleY(1f)
             .translationY(0f)
-            .setDuration(220L)
+            .setDuration(300L)
+            .setInterpolator(OvershootInterpolator(1.7f))
             .start()
-        launcherIcon.animate().rotation(90f).scaleX(1f).scaleY(1f)
-            .setDuration(190L).start()
+        launcherIcon.scaleX = 0.82f
+        launcherIcon.scaleY = 1.16f
+        launcherIcon.animate().rotation(360f).scaleX(1f).scaleY(1f)
+            .setDuration(280L)
+            .setInterpolator(OvershootInterpolator(2f))
+            .start()
+    }
+
+    private fun bindCircularQuickActionPress(rowId: Int, iconId: Int) {
+        val row = findViewById<View>(rowId)
+        val icon = findViewById<ImageView>(iconId)
+        row.setOnTouchListener { _, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    val palette = ThemeManager.currentPalette(this)
+                    val pressedColor = ColorUtils.setAlphaComponent(
+                        ContextCompat.getColor(this, palette.accent),
+                        72
+                    )
+                    icon.background = GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL
+                        setColor(pressedColor)
+                    }
+                    icon.animate().cancel()
+                    icon.animate()
+                        .scaleX(0.82f)
+                        .scaleY(0.82f)
+                        .setDuration(75L)
+                        .setInterpolator(AccelerateInterpolator())
+                        .start()
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    icon.animate().cancel()
+                    icon.animate()
+                        .scaleX(1f)
+                        .scaleY(1f)
+                        .setDuration(240L)
+                        .setInterpolator(OvershootInterpolator(2.2f))
+                        .withEndAction { icon.background = null }
+                        .start()
+                }
+            }
+            false
+        }
     }
 
     private fun hideQuickActions(animate: Boolean = true) {
@@ -180,7 +244,9 @@ class MainActivity : AppCompatActivity() {
         menu.animate().cancel()
         launcherIcon.animate().cancel()
         launcherIcon.animate().rotation(0f).scaleX(1f).scaleY(1f)
-            .setDuration(if (animate) 150L else 0L).start()
+            .setDuration(if (animate) 230L else 0L)
+            .setInterpolator(OvershootInterpolator(1.8f))
+            .start()
         if (!animate) {
             menu.visibility = View.GONE
             menu.alpha = 0f
@@ -194,6 +260,7 @@ class MainActivity : AppCompatActivity() {
             .scaleY(0.92f)
             .translationY(dp(12).toFloat())
             .setDuration(170L)
+            .setInterpolator(AccelerateInterpolator())
             .withEndAction { menu.visibility = View.GONE }
             .start()
     }
@@ -216,6 +283,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         supportFragmentManager.beginTransaction()
+            .setCustomAnimations(R.animator.screen_morph_enter, R.animator.screen_morph_exit)
             .replace(R.id.fragment_container, fragment)
             .commit()
         selectNavigation(selectedId)
@@ -231,17 +299,26 @@ class MainActivity : AppCompatActivity() {
         bottomNav?.visibility = if (isVisible) View.VISIBLE else View.GONE
     }
 
+    fun refreshThemeChrome() {
+        applyThemeToNavigation()
+        selectNavigation(currentNavigationId())
+    }
+
     private fun applyThemeToNavigation() {
         val palette = ThemeManager.currentPalette(this)
         val background = ContextCompat.getColor(this, palette.screenBackground)
         val navBackground = ContextCompat.getColor(this, palette.checklist)
-        val stroke = ContextCompat.getColor(this, palette.stroke)
+        val outline = ColorUtils.setAlphaComponent(
+            ContextCompat.getColor(this, palette.primaryText),
+            38
+        )
 
         findViewById<View>(R.id.main).setBackgroundColor(background)
         window.navigationBarColor = background
         findViewById<MaterialCardView>(R.id.bottom_navigation_bar).apply {
             setCardBackgroundColor(navBackground)
-            strokeColor = stroke
+            strokeColor = outline
+            strokeWidth = dp(1)
             bringToFront()
         }
         findViewById<MaterialCardView>(R.id.card_quick_actions).apply {
@@ -285,15 +362,57 @@ class MainActivity : AppCompatActivity() {
             val selected = item.containerId == selectedId
             val color = if (selected) selectedColor else unselectedColor
             val icon = findViewById<ImageView>(item.iconId)
+            val indicator = findViewById<View>(item.indicatorId)
+            val wasSelected = indicator.background != null
             icon.imageTintList = ColorStateList.valueOf(color)
             findViewById<LinearLayout>(item.containerId).background = null
             icon.background = null
-            findViewById<View>(item.indicatorId).background = if (selected) {
-                GradientDrawable().apply {
+            indicator.animate().cancel()
+            icon.animate().cancel()
+            if (selected) {
+                indicator.background = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
                     setColor(selectionColor)
                 }
-            } else null
+                if (!wasSelected) {
+                    indicator.alpha = 0f
+                    indicator.scaleX = 0.45f
+                    indicator.scaleY = 0.45f
+                    indicator.animate()
+                        .alpha(1f)
+                        .scaleX(1f)
+                        .scaleY(1f)
+                        .setDuration(300L)
+                        .setInterpolator(OvershootInterpolator(2.4f))
+                        .start()
+                    icon.scaleX = 0.82f
+                    icon.scaleY = 1.14f
+                    icon.animate()
+                        .scaleX(1f)
+                        .scaleY(1f)
+                        .setDuration(300L)
+                        .setInterpolator(OvershootInterpolator(2f))
+                        .start()
+                }
+            } else if (wasSelected) {
+                indicator.animate()
+                    .alpha(0f)
+                    .scaleX(0.45f)
+                    .scaleY(0.45f)
+                    .setDuration(130L)
+                    .setInterpolator(AccelerateInterpolator())
+                    .withEndAction {
+                        if (selectedNavigationId != item.containerId) {
+                            indicator.background = null
+                            indicator.alpha = 1f
+                            indicator.scaleX = 1f
+                            indicator.scaleY = 1f
+                        }
+                    }
+                    .start()
+            } else {
+                indicator.background = null
+            }
         }
     }
 

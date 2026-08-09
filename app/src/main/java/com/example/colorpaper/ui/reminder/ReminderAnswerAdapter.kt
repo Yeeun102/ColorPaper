@@ -6,6 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 import androidx.recyclerview.widget.RecyclerView
 import com.example.colorpaper.R
 import com.example.colorpaper.data.model.ReminderAnswerWithDiary
@@ -56,7 +57,8 @@ class ReminderAnswerAdapter(
             val dateKey = item.diaryCreatedAt
 
             answerCard.setCardBackgroundColor(ContextCompat.getColor(context, palette.checklist))
-            answerCard.strokeColor = ContextCompat.getColor(context, palette.stroke)
+            answerCard.strokeColor = ColorUtils.setAlphaComponent(textColor, 38)
+            answerCard.strokeWidth = maxOf(1, context.resources.displayMetrics.density.toInt())
             questionCard.setCardBackgroundColor(ContextCompat.getColor(context, palette.reminder))
             divider.backgroundTintList = ColorStateList.valueOf(
                 ContextCompat.getColor(context, palette.stroke)

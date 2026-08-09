@@ -17,4 +17,7 @@
     <dimen name="bottom_nav_corner_radius">26dp</dimen>
     <dimen name="bottom_nav_icon_size">28dp</dimen>
     <dimen name="bottom_nav_item_vertical_padding">8dp</dimen>
+    <dimen name="soft_card_corner_radius">24dp</dimen>
+    <dimen name="soft_button_corner_radius">20dp</dimen>
+    <dimen name="soft_small_corner_radius">16dp</dimen>
 </resources>

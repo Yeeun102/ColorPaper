@@ -7,6 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 import androidx.recyclerview.widget.RecyclerView
 import com.example.colorpaper.R
 import com.example.colorpaper.ui.theme.ThemePalette
@@ -68,7 +69,7 @@ class MonthCalendarAdapter(
                     }
                 )
                 if (selected || day.isToday) {
-                    setStroke(1, ContextCompat.getColor(context, palette.stroke))
+                    setStroke(1, ColorUtils.setAlphaComponent(textColor, 38))
                 }
             }
             itemView.setOnClickListener {

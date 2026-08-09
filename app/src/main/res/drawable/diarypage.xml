@@ -1,74 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="401dp"
     android:height="510dp"
     android:viewportWidth="401"
     android:viewportHeight="510">
-  <path
-      android:pathData="M15,0h382v502h-382z"
-      android:fillColor="#FAF9F6"/>
-  <path
-      android:strokeWidth="1"
-      android:pathData="M15.5,0.5h381v501h-381z"
-      android:fillColor="#00000000"
-      android:strokeColor="#000000"/>
-  <path
-      android:strokeWidth="1"
-      android:pathData="M31,406m-6.5,0a6.5,6.5 0,1 1,13 0a6.5,6.5 0,1 1,-13 0"
-      android:fillColor="#FAFAFA"
-      android:strokeColor="#000000"/>
-  <path
-      android:strokeWidth="1"
-      android:pathData="M31,375m-6.5,0a6.5,6.5 0,1 1,13 0a6.5,6.5 0,1 1,-13 0"
-      android:fillColor="#FAFAFA"
-      android:strokeColor="#000000"/>
-  <path
-      android:strokeWidth="1"
-      android:pathData="M31,348m-6.5,0a6.5,6.5 0,1 1,13 0a6.5,6.5 0,1 1,-13 0"
-      android:fillColor="#FAFAFA"
-      android:strokeColor="#000000"/>
-  <path
-      android:strokeWidth="1"
-      android:pathData="M31,142m-6.5,0a6.5,6.5 0,1 1,13 0a6.5,6.5 0,1 1,-13 0"
-      android:fillColor="#FAFAFA"
-      android:strokeColor="#000000"/>
-  <path
-      android:strokeWidth="1"
-      android:pathData="M31,114m-6.5,0a6.5,6.5 0,1 1,13 0a6.5,6.5 0,1 1,-13 0"
-      android:fillColor="#FAFAFA"
-      android:strokeColor="#000000"/>
-  <path
-      android:strokeWidth="1"
-      android:pathData="M31,88m-6.5,0a6.5,6.5 0,1 1,13 0a6.5,6.5 0,1 1,-13 0"
-      android:fillColor="#FAFAFA"
-      android:strokeColor="#000000"/>
-  <path
-      android:pathData="M30,88.5L4,88.5"
-      android:strokeWidth="5"
-      android:fillColor="#00000000"
-      android:strokeColor="#000000"/>
-  <path
-      android:pathData="M30,347.5L4,347.5"
-      android:strokeWidth="5"
-      android:fillColor="#00000000"
-      android:strokeColor="#000000"/>
-  <path
-      android:pathData="M30,405.5L4,405.5"
-      android:strokeWidth="5"
-      android:fillColor="#00000000"
-      android:strokeColor="#000000"/>
-  <path
-      android:pathData="M30,375.5L4,375.5"
-      android:strokeWidth="5"
-      android:fillColor="#00000000"
-      android:strokeColor="#000000"/>
-  <path
-      android:pathData="M30,142.5L4,142.5"
-      android:strokeWidth="5"
-      android:fillColor="#00000000"
-      android:strokeColor="#000000"/>
-  <path
-      android:pathData="M30,114.5L4,114.5"
-      android:strokeWidth="5"
-      android:fillColor="#00000000"
-      android:strokeColor="#000000"/>
+
+    <!-- 종이 아래에 살짝 보이는 부드러운 그림자 -->
+    <path
+        android:fillColor="#18443838"
+        android:pathData="M38,8H381C391,8 398,15 398,25V486C398,497 391,504 381,504H38C28,504 21,497 21,486V25C21,15 28,8 38,8Z" />
+
+    <!-- 둥근 다이어리 종이 자체 -->
+    <path
+        android:fillColor="#FFFDFC"
+        android:pathData="M35,3H378C388,3 395,10 395,20V482C395,492 388,499 378,499H35C25,499 18,492 18,482V20C18,10 25,3 35,3Z" />
+
+    <!-- 제본 쪽의 은은한 색 띠 -->
+    <path
+        android:fillColor="#F8EEEE"
+        android:pathData="M35,3H58V499H35C25,499 18,492 18,482V20C18,10 25,3 35,3Z" />
+
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M35,3H378C388,3 395,10 395,20V482C395,492 388,499 378,499H35C25,499 18,492 18,482V20C18,10 25,3 35,3Z"
+        android:strokeColor="#26443838"
+        android:strokeWidth="1" />
+
+    <!-- 부드러운 제본 구멍 -->
+    <path android:fillColor="#E8DADB" android:pathData="M31,88m-7,0a7,7 0,1 1,14 0a7,7 0,1 1,-14 0" />
+    <path android:fillColor="#E8DADB" android:pathData="M31,114m-7,0a7,7 0,1 1,14 0a7,7 0,1 1,-14 0" />
+    <path android:fillColor="#E8DADB" android:pathData="M31,142m-7,0a7,7 0,1 1,14 0a7,7 0,1 1,-14 0" />
+    <path android:fillColor="#E8DADB" android:pathData="M31,348m-7,0a7,7 0,1 1,14 0a7,7 0,1 1,-14 0" />
+    <path android:fillColor="#E8DADB" android:pathData="M31,375m-7,0a7,7 0,1 1,14 0a7,7 0,1 1,-14 0" />
+    <path android:fillColor="#E8DADB" android:pathData="M31,406m-7,0a7,7 0,1 1,14 0a7,7 0,1 1,-14 0" />
+
+    <!-- 검은 막대 대신 끝이 둥근 제본 링 -->
+    <path android:pathData="M5,88H30" android:strokeColor="#BDA7AA" android:strokeWidth="5" android:strokeLineCap="round" />
+    <path android:pathData="M5,114H30" android:strokeColor="#BDA7AA" android:strokeWidth="5" android:strokeLineCap="round" />
+    <path android:pathData="M5,142H30" android:strokeColor="#BDA7AA" android:strokeWidth="5" android:strokeLineCap="round" />
+    <path android:pathData="M5,348H30" android:strokeColor="#BDA7AA" android:strokeWidth="5" android:strokeLineCap="round" />
+    <path android:pathData="M5,375H30" android:strokeColor="#BDA7AA" android:strokeWidth="5" android:strokeLineCap="round" />
+    <path android:pathData="M5,406H30" android:strokeColor="#BDA7AA" android:strokeWidth="5" android:strokeLineCap="round" />
+
 </vector>

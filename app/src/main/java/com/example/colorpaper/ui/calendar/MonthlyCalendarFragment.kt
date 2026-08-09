@@ -6,6 +6,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
@@ -59,7 +60,11 @@ class MonthlyCalendarFragment : Fragment() {
         binding.tvCalendarMonth.setTextColor(ContextCompat.getColor(safeContext, palette.primaryText))
         binding.tvCalendarSelectionTitle.setTextColor(ContextCompat.getColor(safeContext, palette.primaryText))
         binding.cardCalendarSelection.setCardBackgroundColor(ContextCompat.getColor(safeContext, palette.checklist))
-        binding.cardCalendarSelection.strokeColor = ContextCompat.getColor(safeContext, palette.stroke)
+        binding.cardCalendarSelection.strokeColor = ColorUtils.setAlphaComponent(
+            ContextCompat.getColor(safeContext, palette.primaryText),
+            38
+        )
+        binding.cardCalendarSelection.strokeWidth = maxOf(1, resources.displayMetrics.density.toInt())
         binding.btnCalendarRecord.backgroundTintList = ColorStateList.valueOf(
             ContextCompat.getColor(safeContext, palette.accent)
         )

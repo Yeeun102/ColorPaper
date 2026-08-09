@@ -81,14 +81,14 @@
     <!-- [중앙 콘텐츠 구역] 투명 스크롤 레이어 (과거 일기 본문 + 셀프 댓글 목록) -->
     <FrameLayout
         android:id="@+id/layoutContentWrapperDetail"
-        android:layout_width="300dp"
-        android:layout_height="450dp"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
         android:clipChildren="false"
         android:clipToPadding="false"
-        android:paddingLeft="20dp"
-        android:paddingTop="50dp"
-        android:paddingRight="20dp"
-        android:paddingBottom="150dp"
+        android:paddingStart="54dp"
+        android:paddingTop="4dp"
+        android:paddingEnd="8dp"
+        android:paddingBottom="12dp"
         app:layout_constraintBottom_toBottomOf="@id/ivFixedDiaryPageDetail"
         app:layout_constraintEnd_toEndOf="@id/ivFixedDiaryPageDetail"
         app:layout_constraintStart_toStartOf="@id/ivFixedDiaryPageDetail"
@@ -122,7 +122,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnHighlightDetail"
             style="?android:attr/buttonBarStyle"
             android:layout_width="120dp"
@@ -135,7 +135,7 @@
             android:textColor="#111111"
             android:layout_marginEnd="10dp"/>
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnSaveDetail"
             style="?android:attr/buttonBarStyle"
             android:layout_width="120dp"

@@ -63,14 +63,15 @@
 
     <FrameLayout
         android:id="@+id/layoutDiaryContainer"
-        android:layout_width="300dp"
-        android:layout_height="450dp"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
         android:orientation="vertical"
         android:clipChildren="false"
         android:clipToPadding="false"
-        android:paddingTop="50dp"
-        android:paddingRight="20dp"
-        android:paddingLeft="20dp"
+        android:paddingStart="54dp"
+        android:paddingTop="4dp"
+        android:paddingEnd="8dp"
+        android:paddingBottom="12dp"
         app:layout_constraintBottom_toBottomOf="@id/ivFixedDiaryPage"
         app:layout_constraintEnd_toEndOf="@id/ivFixedDiaryPage"
         app:layout_constraintStart_toStartOf="@id/ivFixedDiaryPage"
@@ -98,7 +99,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnHighlightState"
             style="?android:attr/buttonBarStyle"
             android:layout_width="120dp"
@@ -111,7 +112,7 @@
             android:textColor="#111111"
             android:layout_marginEnd="10dp"/>
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnSave"
             style="?android:attr/buttonBarStyle"
             android:layout_width="120dp"
@@ -214,7 +215,7 @@
                 <View android:id="@+id/viewColorGreen" android:layout_width="24dp" android:layout_height="24dp" android:layout_marginEnd="8dp" android:background="#9BCEC1"/>
                 <View android:id="@+id/viewColorBlue" android:layout_width="24dp" android:layout_height="24dp" android:background="#67A2C5"/>
             </LinearLayout>
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnSettingSave"
                 style="?android:attr/buttonBarStyle"
                 android:layout_width="100dp"
@@ -245,7 +246,7 @@
                 android:text="@string/tag"
                 android:textStyle="bold"
                 android:textColor="#000000"/>
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/chipTagDaily"
                 style="?android:attr/buttonBarStyle"
                 android:layout_width="wrap_content"
@@ -262,7 +263,7 @@
                 android:backgroundTint="#FFCDCD"
                 android:textColor="#000000"
                 android:layout_marginEnd="8dp"/>
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/chipTagWork"
                 style="?android:attr/buttonBarStyle"
                 android:layout_width="wrap_content"
@@ -316,7 +317,7 @@
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:layout_marginEnd="0dp"/>
-                <Button
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnSelectEmotion"
                     style="?android:attr/buttonBarStyle"
                     android:layout_width="wrap_content"
@@ -347,7 +348,7 @@
                     android:text="@string/repeat_cycle"
                     android:textStyle="bold"
                     android:textColor="#000000"/>
-                <Button
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnRepeatAuto"
                     style="?android:attr/buttonBarStyle"
                     android:layout_width="wrap_content"
@@ -364,7 +365,7 @@
                     android:textColor="#000000"
                     android:backgroundTint="#ECECEC"
                     android:layout_marginEnd="8dp"/>
-                <Button
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnRepeatUser"
                     style="?android:attr/buttonBarStyle"
                     android:layout_width="wrap_content"
@@ -381,7 +382,7 @@
                     android:textColor="#000000"
                     android:backgroundTint="#D2FFDA"
                     android:layout_marginEnd="8dp"/>
-                <Button
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnRepeatNone"
                     style="?android:attr/buttonBarStyle"
                     android:layout_width="wrap_content"
@@ -412,7 +413,7 @@
                     android:text="@string/end_date"
                     android:textStyle="bold"
                     android:textColor="#000000"/>
-                <Button
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnEndDateNone"
                     style="?android:attr/buttonBarStyle"
                     android:layout_width="wrap_content"
@@ -429,7 +430,7 @@
                     android:textColor="#000000"
                     android:backgroundTint="#F0E2B4"
                     android:layout_marginEnd="8dp"/>
-                <Button
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnEndDateUser"
                     style="?android:attr/buttonBarStyle"
                     android:layout_width="wrap_content"
@@ -460,7 +461,7 @@
                     android:text="@string/f_visibility"
                     android:textStyle="bold"
                     android:textColor="#000000"/>
-                <Button
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnVisibilityPublic"
                     style="?android:attr/buttonBarStyle"
                     android:layout_width="wrap_content"
@@ -477,7 +478,7 @@
                     android:textColor="#000000"
                     android:backgroundTint="#DFD5FF"
                     android:layout_marginEnd="8dp"/>
-                <Button
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnVisibilityFriendOnly"
                     style="?android:attr/buttonBarStyle"
                     android:layout_width="wrap_content"
@@ -494,7 +495,7 @@
                     android:textColor="#000000"
                     android:backgroundTint="#D7E7FF"
                     android:layout_marginEnd="8dp"/>
-                <Button
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnVisibilityPrivate"
                     style="?android:attr/buttonBarStyle"
                     android:layout_width="wrap_content"
@@ -538,7 +539,7 @@
                 android:textSize="18sp"
                 android:textStyle="bold"
                 android:textColor="#000000"/>
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnEmotionPopupConfirm"
                 style="?android:attr/buttonBarStyle"
                 android:minHeight="0dp"
@@ -562,7 +563,7 @@
             android:orientation="horizontal"
             android:layout_marginBottom="8dp"
             style="?android:attr/buttonBarStyle">
-            <Button android:id="@+id/emo1"
+            <com.google.android.material.button.MaterialButton android:id="@+id/emo1"
                 style="?android:attr/buttonBarButtonStyle"
                 android:layout_width="100dp" android:layout_weight="1" android:layout_height="34dp"
                 android:minHeight="0dp"
@@ -573,7 +574,7 @@
                 android:text="@string/sharp_happy"
                 android:backgroundTint="#FFFDD0"
                 android:layout_marginEnd="4dp" android:textSize="11sp" android:textColor="#000000"/>
-            <Button android:id="@+id/emo2"
+            <com.google.android.material.button.MaterialButton android:id="@+id/emo2"
                 style="?android:attr/buttonBarButtonStyle"
                 android:layout_width="100dp" android:layout_weight="1" android:layout_height="34dp"
                 android:minHeight="0dp"
@@ -584,7 +585,7 @@
                 android:text="@string/sharp_excited"
                 android:backgroundTint="#FFB348"
                 android:layout_marginEnd="4dp" android:textSize="11sp" android:textColor="#000000"/>
-            <Button android:id="@+id/emo3"
+            <com.google.android.material.button.MaterialButton android:id="@+id/emo3"
                 style="?android:attr/buttonBarButtonStyle"
                 android:layout_width="100dp" android:layout_weight="1" android:layout_height="34dp"
                 android:text="@string/sharp_satisfied"
@@ -595,7 +596,7 @@
                 app:strokeColor="#000000" app:strokeWidth="1dp"
                 android:backgroundTint="#FFA4C8"
                 android:layout_marginEnd="4dp" android:textSize="11sp" android:textColor="#000000"/>
-            <Button android:id="@+id/emo4"
+            <com.google.android.material.button.MaterialButton android:id="@+id/emo4"
                 style="?android:attr/buttonBarStyle"
                 android:layout_width="100dp" android:layout_weight="1" android:layout_height="34dp"
                 android:text="@string/sharp_relaxed"
@@ -608,7 +609,7 @@
                 android:textSize="11sp" android:textColor="#000000"/>
         </LinearLayout>
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="8dp">
-            <Button android:id="@+id/emo5"
+            <com.google.android.material.button.MaterialButton android:id="@+id/emo5"
                 style="?android:attr/buttonBarButtonStyle"
                 android:layout_width="100dp" android:layout_weight="1" android:layout_height="34dp"
                 android:text="@string/sharp_annoyed"
@@ -619,7 +620,7 @@
                 app:strokeColor="#000000" app:strokeWidth="1dp"
                 android:backgroundTint="#BEFFBA"
                 android:layout_marginEnd="4dp" android:textSize="11sp" android:textColor="#000000"/>
-            <Button android:id="@+id/emo6"
+            <com.google.android.material.button.MaterialButton android:id="@+id/emo6"
                 style="?android:attr/buttonBarButtonStyle"
                 android:layout_width="100dp" android:layout_weight="1" android:layout_height="34dp"
                 android:text="@string/sharp_exhausted"
@@ -630,7 +631,7 @@
                 app:strokeColor="#000000" app:strokeWidth="1dp"
                 android:backgroundTint="#FFDDBD"
                 android:layout_marginEnd="4dp" android:textSize="11sp" android:textColor="#000000"/>
-            <Button android:id="@+id/emo7"
+            <com.google.android.material.button.MaterialButton android:id="@+id/emo7"
                 style="?android:attr/buttonBarButtonStyle"
                 android:layout_width="100dp" android:layout_weight="1" android:layout_height="34dp"
                 android:text="@string/sharp_angry"
@@ -641,7 +642,7 @@
                 app:strokeColor="#000000" app:strokeWidth="1dp"
                 android:backgroundTint="#FF0004"
                 android:layout_marginEnd="4dp" android:textSize="11sp" android:textColor="#000000"/>
-            <Button android:id="@+id/emo8"
+            <com.google.android.material.button.MaterialButton android:id="@+id/emo8"
                 style="?android:attr/buttonBarButtonStyle"
                 android:layout_width="100dp" android:layout_weight="1" android:layout_height="34dp"
                 android:text="@string/sharp_tired"
@@ -653,7 +654,7 @@
                 android:backgroundTint="#C0E1D2" android:textSize="11sp" android:textColor="#000000"/>
         </LinearLayout>
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
-            <Button android:id="@+id/emo9"
+            <com.google.android.material.button.MaterialButton android:id="@+id/emo9"
                 style="?android:attr/buttonBarButtonStyle"
                 android:layout_width="100dp" android:layout_weight="1" android:layout_height="34dp"
                 android:text="@string/sharp_depressed"
@@ -664,7 +665,7 @@
                 app:strokeColor="#000000" app:strokeWidth="1dp"
                 android:backgroundTint="#BACFFF"
                 android:layout_marginEnd="4dp" android:textSize="11sp" android:textColor="#000000"/>
-            <Button android:id="@+id/emo10"
+            <com.google.android.material.button.MaterialButton android:id="@+id/emo10"
                 style="?android:attr/buttonBarButtonStyle"
                 android:layout_width="100dp" android:layout_weight="1" android:layout_height="34dp"
                 android:text="@string/sharp_upset"
@@ -675,7 +676,7 @@
                 app:strokeColor="#000000" app:strokeWidth="1dp"
                 android:backgroundTint="#DFBAFF"
                 android:layout_marginEnd="4dp" android:textSize="11sp" android:textColor="#000000"/>
-            <Button android:id="@+id/emo11"
+            <com.google.android.material.button.MaterialButton android:id="@+id/emo11"
                 style="?android:attr/buttonBarButtonStyle"
                 android:layout_width="100dp" android:layout_weight="1" android:layout_height="34dp"
                 android:text="@string/sharp_anxious"
@@ -686,7 +687,7 @@
                 app:strokeColor="#000000" app:strokeWidth="1dp"
                 android:backgroundTint="#DC73FF"
                 android:layout_marginEnd="4dp" android:textSize="11sp" android:textColor="#000000"/>
-            <Button android:id="@+id/emo12"
+            <com.google.android.material.button.MaterialButton android:id="@+id/emo12"
                 style="?android:attr/buttonBarButtonStyle"
                 android:layout_width="100dp" android:layout_weight="1" android:layout_height="34dp"
                 android:text="@string/sharp_sad"

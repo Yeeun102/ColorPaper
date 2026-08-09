@@ -10,10 +10,10 @@
     android:foreground="@null"
     android:longClickable="false"
     app:cardBackgroundColor="@color/home_widget_checklist"
-    app:cardCornerRadius="16dp"
+    app:cardCornerRadius="24dp"
     app:cardElevation="0dp"
     app:rippleColor="@android:color/transparent"
-    app:strokeColor="@color/home_widget_stroke"
+    app:strokeColor="@color/soft_outline"
     app:strokeWidth="1dp">
 
     <LinearLayout
