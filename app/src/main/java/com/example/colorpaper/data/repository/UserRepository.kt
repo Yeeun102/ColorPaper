@@ -257,30 +257,81 @@ class UserRepository(
         }
     }
 
-    // 8. 특정 유저의 하이라이트 목록 조회 (Firestore & Room Fallback)
+    // 8. 특정 유저의 하이라이트 목록 조회
+    // 하이라이트 전용 컬렉션 대신, 실제 다이어리의 isHighlighted 상태를 단일 소스로 사용한다.
     suspend fun getHighlightsByUserId(targetUserId: String): List<HighlightEntity> {
+        val resolvedUid = resolveUidOrNull(targetUserId) ?: targetUserId
+
         return try {
-            val snapshot = firestore.collection("users")
-                .document(targetUserId)
-                .collection("highlights")
+            val snapshot = firestore.collection("diaries")
+                .whereEqualTo("userId", resolvedUid)
+                .whereEqualTo("isHighlighted", true)
                 .get()
                 .await()
 
-            snapshot.documents.mapNotNull { doc ->
-                val diaryId = doc.getLong("diaryId")?.toInt() ?: 0
-                val date = doc.getString("date") ?: ""
-                val highlightedText = doc.getString("highlightedText") ?: ""
+            val remoteItems = snapshot.documents.mapNotNull { doc ->
+                val diary = doc.toObject(DiaryEntity::class.java) ?: return@mapNotNull null
+                if (diary.content.startsWith("[DECO]:")) return@mapNotNull null
 
                 HighlightEntity(
-                    highlightId = doc.id.hashCode(),
-                    diaryId = diaryId,
-                    date = date,
-                    highlightedText = highlightedText
+                    highlightId = if (diary.diaryId != 0) diary.diaryId else doc.id.hashCode(),
+                    diaryId = diary.diaryId,
+                    date = diary.createdAt,
+                    highlightedText = diary.content
                 )
+            }.sortedByDescending { it.date }
+
+            if (remoteItems.isNotEmpty()) {
+                remoteItems
+            } else {
+                db.diaryDao().getDiariesByUserId(resolvedUid)
+                    .asSequence()
+                    .filter { it.isHighlighted && !it.content.startsWith("[DECO]:") }
+                    .sortedByDescending { it.createdAt }
+                    .map { diary ->
+                        HighlightEntity(
+                            highlightId = diary.diaryId,
+                            diaryId = diary.diaryId,
+                            date = diary.createdAt,
+                            highlightedText = diary.content
+                        )
+                    }
+                    .toList()
             }
-        } catch (e: Exception) {
-            // 네트워크 에러 시 로컬 DB에서 조회
-            db.highlightDao().getAllHighlights()
+        } catch (_: Exception) {
+            // 네트워크 에러 시 로컬 DB에서 동일 조건으로 조회
+            db.diaryDao().getDiariesByUserId(resolvedUid)
+                .asSequence()
+                .filter { it.isHighlighted && !it.content.startsWith("[DECO]:") }
+                .sortedByDescending { it.createdAt }
+                .map { diary ->
+                    HighlightEntity(
+                        highlightId = diary.diaryId,
+                        diaryId = diary.diaryId,
+                        date = diary.createdAt,
+                        highlightedText = diary.content
+                    )
+                }
+                .toList()
+        }
+    }
+
+    private suspend fun resolveUidOrNull(targetUserId: String): String? {
+        return try {
+            val directDoc = firestore.collection("users").document(targetUserId).get().await()
+            if (directDoc.exists()) {
+                targetUserId
+            } else {
+                val querySnap = firestore.collection("users")
+                    .whereEqualTo("userCode", targetUserId)
+                    .limit(1)
+                    .get()
+                    .await()
+
+                querySnap.documents.firstOrNull()?.id
+            }
+        } catch (_: Exception) {
+            null
         }
     }
 

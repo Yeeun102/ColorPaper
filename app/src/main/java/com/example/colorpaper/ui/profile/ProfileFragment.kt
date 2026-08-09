@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -11,6 +12,9 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import java.util.Date
+import java.util.Locale
+import java.text.SimpleDateFormat
 import androidx.core.view.isVisible
 import com.example.colorpaper.ui.diary.FriendDiaryDetailFragment
 import androidx.fragment.app.Fragment
@@ -27,13 +31,13 @@ import com.example.colorpaper.ui.friend.FriendListFragment
 import com.google.android.material.card.MaterialCardView
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 // 팝업 리스트용 데이터 모델
 data class PopupUser(
@@ -86,6 +90,8 @@ class ProfileFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        val safeContext = context?.applicationContext ?: return
+
         val ivBack = view.findViewById<ImageView>(R.id.ivBack)
         val tvUserCodeTop = view.findViewById<TextView>(R.id.tvUserCodeTop)
         val ivSearchFriend = view.findViewById<ImageView>(R.id.ivSearchFriend)
@@ -124,11 +130,11 @@ class ProfileFragment : Fragment() {
                 .addToBackStack(null)
                 .commit()
         }
-        rvPopupFriendList?.layoutManager = LinearLayoutManager(context)
+        rvPopupFriendList?.layoutManager = LinearLayoutManager(safeContext)
         rvPopupFriendList?.adapter = popupFriendAdapter
 
         // 🌟 2. 공유 단어장 어댑터 세팅
-        rvSharedFlashcards?.layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
+        rvSharedFlashcards?.layoutManager = LinearLayoutManager(safeContext, LinearLayoutManager.HORIZONTAL, false)
         profileFlashcardAdapter = ProfileFlashcardAdapter(
             setList = emptyList(),
             onStartClick = { folder ->
@@ -150,7 +156,7 @@ class ProfileFragment : Fragment() {
         )
         rvSharedFlashcards?.adapter = profileFlashcardAdapter
 
-        // 🌟 3. 데이터 로딩 최초 트리거 실행 (가장 중요!)
+        // 🌟 3. 데이터 로딩 최초 트리거 실행
         loadAllProfileData()
 
         // 🌟 4. 유저 프로필 정보 관찰
@@ -193,7 +199,7 @@ class ProfileFragment : Fragment() {
             }
         }
 
-        // 🌟 6. 하이라이트 세팅 (하드코딩 완전히 제거 및 생성될 때마다 실시간 연동)
+        // 🌟 6. 하이라이트 세팅
         viewModel.highlights.observe(viewLifecycleOwner) { highlights ->
             val list = highlights ?: emptyList()
             rvHighlights?.adapter = HighlightAdapter(
@@ -204,7 +210,7 @@ class ProfileFragment : Fragment() {
             )
         }
 
-// 🌟 7. 공개 다이어리 관찰 부분
+        // 🌟 7. 공개 다이어리 관찰 부분
         viewModel.publicDiaries.observe(viewLifecycleOwner) { diaries ->
             if (isSharedDiaryClicked) {
                 isSharedDiaryClicked = false
@@ -212,7 +218,9 @@ class ProfileFragment : Fragment() {
                     Toast.makeText(context, "공개 중인 다이어리가 없습니다.", Toast.LENGTH_SHORT).show()
                 } else {
                     val latestDiary = diaries.last()
-                    val targetDateStr = latestDiary.createdAt.toString()
+                    // 💡 Date().toString()은 java.util.Date.parse()에서 인식 못 할 수 있으므로
+                    // 일관된 yyyy-MM-dd 형식으로 변환하여 전달
+                    val targetDateStr = latestDiary.createdAt
 
                     // diaryId 함께 전달
                     navigateToDiaryDetail(targetDateStr, latestDiary.diaryId)
@@ -236,10 +244,11 @@ class ProfileFragment : Fragment() {
         tvUserCodeTop?.setOnClickListener {
             val userCode = tvUserCodeTop.text.toString().removePrefix("#")
             if (userCode.isNotBlank()) {
-                val clipboard = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                val currentContext = context ?: return@setOnClickListener
+                val clipboard = currentContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                 val clip = ClipData.newPlainText("UserCode", userCode)
                 clipboard.setPrimaryClip(clip)
-                Toast.makeText(requireContext(), "유저 코드가 복사되었습니다.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(currentContext, "유저 코드가 복사되었습니다.", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -288,26 +297,34 @@ class ProfileFragment : Fragment() {
     private fun loadAllProfileData() {
         viewModel.fetchUserProfile(targetUserId)
         viewModel.fetchMySharedFolders(targetUserId)
-        viewModel.fetchHighlights(targetUserId) // 🔥 하이라이트 데이터 요청 추가
+        viewModel.fetchHighlights(targetUserId)
     }
 
     private fun checkFollowStatus(targetUid: String, btnToggle: TextView) {
         val myUid = auth.currentUser?.uid ?: return
-        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
-                val doc = firestore.collection("users").document(myUid)
-                    .collection("following").document(targetUid).get().await()
-
-                withContext(Dispatchers.Main) {
-                    btnToggle.text = if (doc.exists()) "팔로우 취소" else "팔로우"
+                val isFollowing = withContext(Dispatchers.IO) {
+                    val doc = firestore.collection("users").document(myUid)
+                        .collection("following").document(targetUid).get().await()
+                    doc.exists()
                 }
-            } catch (_: Exception) { }
+
+                if (!isAdded || view == null) return@launch
+                btnToggle.text = if (isFollowing) "팔로우 취소" else "팔로우"
+
+            } catch (e: Exception) {
+                if (e !is CancellationException) {
+                    Log.e("ProfileFragment", "Follow Status Check Error", e)
+                }
+            }
         }
     }
 
     private fun performLogout() {
+        val safeContext = context?.applicationContext ?: return
         auth.signOut()
-        Toast.makeText(requireContext(), "로그아웃 되었습니다.", Toast.LENGTH_SHORT).show()
+        Toast.makeText(safeContext, "로그아웃 되었습니다.", Toast.LENGTH_SHORT).show()
 
         parentFragmentManager.beginTransaction()
             .replace(R.id.fragment_container, com.example.colorpaper.ui.login.LoginFragment())
@@ -316,70 +333,95 @@ class ProfileFragment : Fragment() {
 
     private fun toggleFollow(targetUid: String, btnToggle: TextView, tvFollower: TextView?, tvFollowing: TextView?) {
         val myUid = auth.currentUser?.uid ?: return
-        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
-                val myFollowingRef = firestore.collection("users").document(myUid).collection("following").document(targetUid)
-                val targetFollowerRef = firestore.collection("users").document(targetUid).collection("followers").document(myUid)
+                withContext(Dispatchers.IO) {
+                    val myFollowingRef = firestore.collection("users").document(myUid).collection("following").document(targetUid)
+                    val targetFollowerRef = firestore.collection("users").document(targetUid).collection("followers").document(myUid)
 
-                val doc = myFollowingRef.get().await()
-                if (doc.exists()) {
-                    myFollowingRef.delete().await()
-                    targetFollowerRef.delete().await()
-                } else {
-                    val data = mapOf("createdAt" to System.currentTimeMillis())
-                    myFollowingRef.set(data).await()
-                    targetFollowerRef.set(data).await()
+                    val doc = myFollowingRef.get().await()
+                    if (doc.exists()) {
+                        myFollowingRef.delete().await()
+                        targetFollowerRef.delete().await()
+                    } else {
+                        val data = mapOf("createdAt" to System.currentTimeMillis())
+                        myFollowingRef.set(data).await()
+                        targetFollowerRef.set(data).await()
+                    }
                 }
 
-                withContext(Dispatchers.Main) {
-                    checkFollowStatus(targetUid, btnToggle)
-                    loadFollowCounts(targetUid, tvFollower, tvFollowing)
+                if (!isAdded || view == null) return@launch
+                checkFollowStatus(targetUid, btnToggle)
+                loadFollowCounts(targetUid, tvFollower, tvFollowing)
+
+            } catch (e: Exception) {
+                if (e !is CancellationException) {
+                    Log.e("ProfileFragment", "Toggle Follow Error", e)
                 }
-            } catch (_: Exception) { }
+            }
         }
     }
 
     private fun loadFollowCounts(userId: String, tvFollower: TextView?, tvFollowing: TextView?) {
-        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
-                val followersCount = firestore.collection("users").document(userId).collection("followers").get().await().size()
-                val followingCount = firestore.collection("users").document(userId).collection("following").get().await().size()
-
-                withContext(Dispatchers.Main) {
-                    tvFollower?.text = "팔로워 $followersCount"
-                    tvFollowing?.text = "팔로잉 $followingCount"
+                val (followersCount, followingCount) = withContext(Dispatchers.IO) {
+                    val followers = firestore.collection("users").document(userId).collection("followers").get().await().size()
+                    val following = firestore.collection("users").document(userId).collection("following").get().await().size()
+                    Pair(followers, following)
                 }
-            } catch (_: Exception) { }
+
+                if (!isAdded || view == null) return@launch
+                tvFollower?.text = "팔로워 $followersCount"
+                tvFollowing?.text = "팔로잉 $followingCount"
+
+            } catch (e: Exception) {
+                if (e !is CancellationException) {
+                    Log.e("ProfileFragment", "Load Follow Counts Error", e)
+                }
+            }
         }
     }
 
+    // 💡 async 병렬 처리를 통한 팔로워/팔로잉 팝업 리스트 최적화
     private fun fetchFollowData(userId: String, subCollection: String) {
-        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+        val safeContext = context?.applicationContext ?: return
+
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
-                val snapshot = firestore.collection("users").document(userId)
-                    .collection(subCollection).get().await()
+                val userList = withContext(Dispatchers.IO) {
+                    val snapshot = firestore.collection("users").document(userId)
+                        .collection(subCollection).get().await()
 
-                val userList = mutableListOf<PopupUser>()
-
-                for (doc in snapshot.documents) {
-                    val targetUid = doc.id
-                    val userDoc = firestore.collection("users").document(targetUid).get().await()
-                    if (userDoc.exists()) {
-                        val nickname = userDoc.getString("nickname") ?: "알 수 없음"
-                        val profileImageUrl = userDoc.getString("profileImageUrl")
-                        userList.add(PopupUser(targetUid, nickname, profileImageUrl))
+                    // async 병렬 호출로 Firestore 문서들을 동시에 가져와 속도 향상
+                    coroutineScope {
+                        val deferredUsers = snapshot.documents.map { doc ->
+                            async {
+                                val targetUid = doc.id
+                                val userDoc = firestore.collection("users").document(targetUid).get().await()
+                                if (userDoc.exists()) {
+                                    val nickname = userDoc.getString("nickname") ?: "알 수 없음"
+                                    val profileImageUrl = userDoc.getString("profileImageUrl")
+                                    PopupUser(targetUid, nickname, profileImageUrl)
+                                } else {
+                                    null
+                                }
+                            }
+                        }
+                        deferredUsers.mapNotNull { it.await() }
                     }
                 }
 
-                withContext(Dispatchers.Main) {
-                    popupFriendAdapter?.updateList(userList)
-                    if (userList.isEmpty()) {
-                        Toast.makeText(context, "목록이 비어 있습니다.", Toast.LENGTH_SHORT).show()
-                    }
+                if (!isAdded || view == null) return@launch
+                popupFriendAdapter?.updateList(userList)
+                if (userList.isEmpty()) {
+                    Toast.makeText(safeContext, "목록이 비어 있습니다.", Toast.LENGTH_SHORT).show()
                 }
+
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "데이터를 불러 오지 못했습니다.", Toast.LENGTH_SHORT).show()
+                if (!isAdded || view == null) return@launch
+                if (e !is CancellationException) {
+                    Toast.makeText(safeContext, "데이터를 불러 오지 못했습니다.", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -398,7 +440,7 @@ class ProfileFragment : Fragment() {
                 }
             }
         } else {
-            // 2. 친구 프로필인 경우 -> 날짜(targetDate) 포함 전달 🌟
+            // 2. 친구 프로필인 경우 -> 날짜(targetDate) 포함 전달
             FriendDiaryDetailFragment.newInstance(
                 targetUserId = effectiveUid ?: "",
                 diaryId = diaryId,

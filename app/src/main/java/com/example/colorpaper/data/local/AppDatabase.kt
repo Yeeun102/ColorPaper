@@ -56,7 +56,9 @@ abstract class AppDatabase : RoomDatabase() {
         private var INSTANCE: AppDatabase? = null
 
         fun getDatabase(context: Context): AppDatabase {
+            android.util.Log.d("AppDatabase", "getDatabase() called")
             return INSTANCE ?: synchronized(this) {
+                android.util.Log.d("AppDatabase", "Creating new database instance")
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
@@ -66,7 +68,8 @@ abstract class AppDatabase : RoomDatabase() {
                     .fallbackToDestructiveMigration()
                     .allowMainThreadQueries()
                     .build()
-
+                
+                android.util.Log.d("AppDatabase", "Database instance built: $instance")
                 INSTANCE = instance
                 instance
             }
