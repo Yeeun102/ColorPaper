@@ -1,16 +1,20 @@
 package com.example.colorpaper.ui.flashcard
 
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import android.widget.Button
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import androidx.core.content.ContextCompat
 import com.example.colorpaper.R
 import com.example.colorpaper.data.local.AppDatabase
 import com.example.colorpaper.data.model.WordEntity
 import com.example.colorpaper.databinding.FragmentFlashcardStudyBinding
+import com.example.colorpaper.ui.theme.ThemeManager
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.Dispatchers
@@ -31,6 +35,7 @@ class FlashcardStudyFragment : Fragment() {
 
     private val auth = FirebaseAuth.getInstance()
     private val firestore = FirebaseFirestore.getInstance()
+    private val palette by lazy { ThemeManager.currentPalette(requireContext()) }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -63,6 +68,27 @@ class FlashcardStudyFragment : Fragment() {
         }
 
         setupEmojiClickListeners()
+        applyThemeColor()
+    }
+    private fun applyThemeColor() {
+        val themeColor = ContextCompat.getColor(requireContext(), palette.yearsAgo)
+        val strokeColor = ContextCompat.getColor(requireContext(), palette.stroke)
+        val strokeColorStateList = ColorStateList.valueOf(strokeColor)
+
+        binding.cardContainer.setCardBackgroundColor(themeColor)
+        binding.tvFlipHint.setTextColor(strokeColor)
+        binding.tvFlipHint.strokeColor = strokeColorStateList
+        binding.btnNextCard.setTextColor(strokeColor)
+        binding.btnNextCard.strokeColor = strokeColorStateList
+
+        binding.btnAgain.strokeColor = strokeColorStateList
+        binding.btnHard.strokeColor = strokeColorStateList
+        binding.btnGood.strokeColor = strokeColorStateList
+        binding.btnEasy.strokeColor = strokeColorStateList
+
+        binding.btnExitStudy.setTextColor(strokeColor)
+        binding.btnExitStudy.strokeColor = strokeColorStateList
+
     }
 
     // 🌟 로컬 DB 및 Firebase Firestore 카드 데이터 동기화 불러오기
