@@ -1,4 +1,4 @@
-package com.example.colorpaper.ui.setting
+package com.example.colorpaper.ui.setting.com.example.colorpaper.ui.setting
 
 import android.app.AlertDialog
 import android.content.res.ColorStateList
@@ -19,7 +19,6 @@ class TagManageFragment : Fragment() {
     private var _binding: FragmentTagManageBinding? = null
     private val binding get() = _binding!!
 
-    // 태그에 입힐 색상들
     private val tagColors = listOf(
         "#E6D0D0", // 핑크베이지
         "#D0E6D0", // 민트
@@ -56,7 +55,7 @@ class TagManageFragment : Fragment() {
         val builder = AlertDialog.Builder(requireContext())
         builder.setTitle("새 태그 추가")
 
-        // 팝업 안에 들어갈 입력창 생성
+        // 팝업 안에 들어갈 입력창(EditText) 생성
         val input = EditText(requireContext()).apply {
             hint = "태그 이름을 입력하세요 (예: 공부)"
             // 패딩을 살짝 줘서 예쁘게 만들기
@@ -104,12 +103,17 @@ class TagManageFragment : Fragment() {
         binding.cgTags.addView(chip, insertIndex)
     }
 
-    // sp 단위를 px로 변경 (에러 방지용)
+    // sp 단위를 px로 바꿔주는 작은 소스 (에러 방지용)
     private fun Int.spToPx(): Float {
         return TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_SP,
             this.toFloat(),
             resources.displayMetrics
         )
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
     }
 }
