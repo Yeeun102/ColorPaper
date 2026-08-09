@@ -1,60 +1,118 @@
 package com.example.colorpaper.ui.setting
 
+import android.content.res.ColorStateList
 import android.os.Bundle
-import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.TextView
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
+import androidx.fragment.app.Fragment
+import com.example.colorpaper.MainActivity
 import com.example.colorpaper.R
+import com.example.colorpaper.ui.theme.AppTheme
+import com.example.colorpaper.ui.theme.ThemeManager
+import com.google.android.material.card.MaterialCardView
 
-// TODO: Rename parameter arguments, choose names that match
-// the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
-private const val ARG_PARAM1 = "param1"
-private const val ARG_PARAM2 = "param2"
-
-/**
- * A simple [Fragment] subclass.
- * Use the [SettingFragment.newInstance] factory method to
- * create an instance of this fragment.
- */
 class SettingFragment : Fragment() {
-    // TODO: Rename and change types of parameters
-    private var param1: String? = null
-    private var param2: String? = null
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        arguments?.let {
-            param1 = it.getString(ARG_PARAM1)
-            param2 = it.getString(ARG_PARAM2)
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View = inflater.inflate(R.layout.fragment_setting, container, false)
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        view.findViewById<View>(R.id.iv_back_setting).setOnClickListener {
+            requireActivity().onBackPressedDispatcher.onBackPressed()
+        }
+        view.findViewById<View>(R.id.card_theme_sage).setOnClickListener {
+            selectTheme(AppTheme.SAGE)
+        }
+        view.findViewById<View>(R.id.card_theme_sky).setOnClickListener {
+            selectTheme(AppTheme.SKY)
+        }
+
+        applyTheme(view)
+    }
+
+    private fun selectTheme(theme: AppTheme) {
+        if (ThemeManager.currentTheme(requireContext()) != theme) {
+            ThemeManager.setTheme(requireContext(), theme)
+        }
+        applyTheme(requireView())
+        (activity as? MainActivity)?.refreshThemeChrome()
+    }
+
+    private fun applyTheme(root: View) {
+        val palette = ThemeManager.currentPalette(requireContext())
+        val background = color(palette.screenBackground)
+        val text = color(palette.primaryText)
+        val surface = color(palette.todo)
+        val selectedSurface = color(palette.checklist)
+
+        root.setBackgroundColor(background)
+        tintTextRecursively(root, text)
+        root.findViewById<ImageView>(R.id.iv_back_setting).imageTintList =
+            ColorStateList.valueOf(text)
+
+        listOf(
+            root.findViewById<MaterialCardView>(R.id.cv_setting_group),
+            root.findViewById<MaterialCardView>(R.id.cv_decorate_group)
+        ).forEach { card ->
+            card.setCardBackgroundColor(surface)
+            card.strokeWidth = 0
+        }
+        root.findViewById<MaterialCardView>(R.id.cv_premium)
+            .setCardBackgroundColor(color(palette.yearsAgo))
+
+        val currentTheme = ThemeManager.currentTheme(requireContext())
+        styleThemeOption(
+            root.findViewById(R.id.card_theme_sage),
+            root.findViewById(R.id.tv_sage_selected),
+            currentTheme == AppTheme.SAGE,
+            surface,
+            selectedSurface
+        )
+        styleThemeOption(
+            root.findViewById(R.id.card_theme_sky),
+            root.findViewById(R.id.tv_sky_selected),
+            currentTheme == AppTheme.SKY,
+            surface,
+            selectedSurface
+        )
+
+        val secondaryText = ColorUtils.setAlphaComponent(text, 170)
+        root.findViewById<TextView>(R.id.tv_setting_subtitle).setTextColor(secondaryText)
+        root.findViewById<TextView>(R.id.tv_decorate_subtitle).setTextColor(secondaryText)
+        root.findViewById<TextView>(R.id.tv_theme_description).setTextColor(secondaryText)
+    }
+
+    private fun styleThemeOption(
+        card: MaterialCardView,
+        selectedLabel: TextView,
+        selected: Boolean,
+        surface: Int,
+        selectedSurface: Int
+    ) {
+        card.setCardBackgroundColor(if (selected) selectedSurface else surface)
+        card.strokeWidth = 0
+        selectedLabel.visibility = if (selected) View.VISIBLE else View.GONE
+    }
+
+    private fun tintTextRecursively(view: View, color: Int) {
+        if (view is TextView) view.setTextColor(color)
+        if (view is ViewGroup) {
+            for (index in 0 until view.childCount) {
+                tintTextRecursively(view.getChildAt(index), color)
+            }
         }
     }
 
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_setting, container, false)
-    }
+    private fun color(colorRes: Int): Int = ContextCompat.getColor(requireContext(), colorRes)
 
-    companion object {
-        /**
-         * Use this factory method to create a new instance of
-         * this fragment using the provided parameters.
-         *
-         * @param param1 Parameter 1.
-         * @param param2 Parameter 2.
-         * @return A new instance of fragment SettingFragment.
-         */
-        // TODO: Rename and change types and number of parameters
-        @JvmStatic
-        fun newInstance(param1: String, param2: String) =
-            SettingFragment().apply {
-                arguments = Bundle().apply {
-                    putString(ARG_PARAM1, param1)
-                    putString(ARG_PARAM2, param2)
-                }
-            }
-    }
 }

@@ -31,6 +31,7 @@ import com.example.colorpaper.ui.login.RegisterFragment
 import com.example.colorpaper.ui.profile.ProfileFragment
 import com.example.colorpaper.ui.reminder.ReminderHistoryFragment
 import com.example.colorpaper.ui.setting.SettingFragment
+import com.example.colorpaper.ui.theme.SoftUiStyler
 import com.example.colorpaper.ui.theme.ThemeManager
 import com.google.android.material.card.MaterialCardView
 import com.google.firebase.auth.FirebaseAuth
@@ -60,6 +61,21 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
+
+        supportFragmentManager.registerFragmentLifecycleCallbacks(
+            object : androidx.fragment.app.FragmentManager.FragmentLifecycleCallbacks() {
+                override fun onFragmentViewCreated(
+                    fragmentManager: androidx.fragment.app.FragmentManager,
+                    fragment: Fragment,
+                    view: View,
+                    savedInstanceState: Bundle?
+                ) {
+                    SoftUiStyler.apply(view)
+                }
+            },
+            true
+        )
+        SoftUiStyler.apply(findViewById(R.id.main))
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -231,17 +247,21 @@ class MainActivity : AppCompatActivity() {
         bottomNav?.visibility = if (isVisible) View.VISIBLE else View.GONE
     }
 
+    fun refreshThemeChrome() {
+        applyThemeToNavigation()
+        selectNavigation(currentNavigationId())
+    }
+
     private fun applyThemeToNavigation() {
         val palette = ThemeManager.currentPalette(this)
         val background = ContextCompat.getColor(this, palette.screenBackground)
         val navBackground = ContextCompat.getColor(this, palette.checklist)
-        val stroke = ContextCompat.getColor(this, palette.stroke)
 
         findViewById<View>(R.id.main).setBackgroundColor(background)
         window.navigationBarColor = background
         findViewById<MaterialCardView>(R.id.bottom_navigation_bar).apply {
             setCardBackgroundColor(navBackground)
-            strokeColor = stroke
+            strokeWidth = 0
             bringToFront()
         }
         findViewById<MaterialCardView>(R.id.card_quick_actions).apply {

@@ -67,9 +67,6 @@ class MonthCalendarAdapter(
                         else -> Color.TRANSPARENT
                     }
                 )
-                if (selected || day.isToday) {
-                    setStroke(1, ContextCompat.getColor(context, palette.stroke))
-                }
             }
             itemView.setOnClickListener {
                 if (day.dateKey != null) {

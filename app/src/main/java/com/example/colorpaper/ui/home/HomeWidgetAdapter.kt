@@ -137,7 +137,7 @@ class HomeWidgetAdapter(
             val offColor = color(palette.switchOff)
 
             card.setCardBackgroundColor(color(widgetColor(widget.type)))
-            card.strokeColor = color(palette.stroke)
+            card.strokeWidth = 0
             title.text = when (widget.type) {
                 "YEARS_AGO" -> yearsAgo?.let { "${it.yearsAgo}년 전 오늘" } ?: display.first
                 else -> display.first
@@ -236,7 +236,6 @@ class HomeWidgetAdapter(
             weeklyCalendar.background = GradientDrawable().apply {
                 cornerRadius = dp(22).toFloat()
                 setColor(color(palette.reminder))
-                setStroke(dp(1), color(palette.stroke))
             }
             calendarDays.forEachIndexed { index, day ->
                 weeklyCalendar.addView(createDayCell(day, textColor))

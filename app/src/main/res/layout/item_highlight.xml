@@ -9,7 +9,7 @@
     app:cardCornerRadius="28dp"
     app:cardElevation="0dp"
     app:strokeColor="#D1B8B8"
-    app:strokeWidth="1.5dp">
+    app:strokeWidth="0dp">
 
     <FrameLayout
         android:layout_width="match_parent"

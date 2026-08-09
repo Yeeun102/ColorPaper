@@ -56,7 +56,7 @@ class ReminderAnswerAdapter(
             val dateKey = item.diaryCreatedAt
 
             answerCard.setCardBackgroundColor(ContextCompat.getColor(context, palette.checklist))
-            answerCard.strokeColor = ContextCompat.getColor(context, palette.stroke)
+            answerCard.strokeWidth = 0
             questionCard.setCardBackgroundColor(ContextCompat.getColor(context, palette.reminder))
             divider.backgroundTintList = ColorStateList.valueOf(
                 ContextCompat.getColor(context, palette.stroke)

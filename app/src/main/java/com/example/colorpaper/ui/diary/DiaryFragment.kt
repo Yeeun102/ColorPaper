@@ -85,18 +85,14 @@ class DiaryFragment : Fragment() {
     // 💡 버튼 선택(하이라이트 + 2dp 테두리) 및 원상복구 제어 유틸 함수
     private fun applyCustomButtonState(button: Button, isSelected: Boolean, originalColor: Int = 0) {
         if (button is MaterialButton) {
-            val density = resources.displayMetrics.density
             val defaultColor = if (originalColor != 0) originalColor else (buttonColorMap[button] ?: "#EDEDED".toColorInt())
 
             if (isSelected) {
                 button.backgroundTintList = ColorStateList.valueOf("#FFF59D".toColorInt())
-                button.strokeColor = ColorStateList.valueOf("#000000".toColorInt())
-                button.strokeWidth = (2 * density).toInt()
             } else {
                 button.backgroundTintList = ColorStateList.valueOf(defaultColor)
-                button.strokeColor = ColorStateList.valueOf("#000000".toColorInt())
-                button.strokeWidth = (1 * density).toInt()
             }
+            button.strokeWidth = 0
         }
 
     }
@@ -345,16 +341,12 @@ class DiaryFragment : Fragment() {
 
     private fun applyEmotionButtonState(button: Button, isSelected: Boolean, originalColor: Int = 0) {
         if (button is MaterialButton) {
-            val density = resources.displayMetrics.density
             if (isSelected) {
                 button.backgroundTintList = ColorStateList.valueOf("#FFF59D".toColorInt())
-                button.strokeColor = ColorStateList.valueOf("#000000".toColorInt())
-                button.strokeWidth = (2 * density).toInt()
             } else {
                 button.backgroundTintList = ColorStateList.valueOf(originalColor)
-                button.strokeColor = ColorStateList.valueOf("#000000".toColorInt())
-                button.strokeWidth = (1 * density).toInt()
             }
+            button.strokeWidth = 0
         }
     }
 

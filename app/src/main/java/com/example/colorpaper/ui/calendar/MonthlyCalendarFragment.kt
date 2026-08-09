@@ -59,7 +59,7 @@ class MonthlyCalendarFragment : Fragment() {
         binding.tvCalendarMonth.setTextColor(ContextCompat.getColor(safeContext, palette.primaryText))
         binding.tvCalendarSelectionTitle.setTextColor(ContextCompat.getColor(safeContext, palette.primaryText))
         binding.cardCalendarSelection.setCardBackgroundColor(ContextCompat.getColor(safeContext, palette.checklist))
-        binding.cardCalendarSelection.strokeColor = ContextCompat.getColor(safeContext, palette.stroke)
+        binding.cardCalendarSelection.strokeWidth = 0
         binding.btnCalendarRecord.backgroundTintList = ColorStateList.valueOf(
             ContextCompat.getColor(safeContext, palette.accent)
         )
