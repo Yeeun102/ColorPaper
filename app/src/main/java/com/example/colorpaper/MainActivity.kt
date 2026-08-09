@@ -223,8 +223,9 @@ class MainActivity : AppCompatActivity() {
                         ContextCompat.getColor(this, palette.accent),
                         72
                     )
-                    icon.background = GradientDrawable().apply {
-                        shape = GradientDrawable.OVAL
+                    row.background = GradientDrawable().apply {
+                        shape = GradientDrawable.RECTANGLE
+                        cornerRadius = dp(26).toFloat()
                         setColor(pressedColor)
                     }
                     icon.animate().cancel()
@@ -242,7 +243,7 @@ class MainActivity : AppCompatActivity() {
                         .scaleY(1f)
                         .setDuration(240L)
                         .setInterpolator(OvershootInterpolator(2.2f))
-                        .withEndAction { icon.background = null }
+                        .withEndAction { row.background = null }
                         .start()
                 }
             }

@@ -9,6 +9,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AccelerateInterpolator
+import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.OvershootInterpolator
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -105,6 +106,9 @@ class ProfileFragment : Fragment() {
         val tvFollowingCount = view.findViewById<TextView>(R.id.tvFollowingCount)
         val tvFriendUpdateBadge = view.findViewById<TextView>(R.id.tvFriendUpdateBadge)
         val llSharedDiary = view.findViewById<LinearLayout>(R.id.llSharedDiary)
+        val diaryBookPreview = view.findViewById<View>(R.id.diaryBookPreview)
+        val diaryBookCoverLayer = view.findViewById<View>(R.id.diaryBookCoverLayer)
+        val diaryBookFlap = view.findViewById<View>(R.id.diaryBookFlap)
         val btnFollowToggle = view.findViewById<TextView?>(R.id.btnFollowToggle)
         val btnLogout = view.findViewById<TextView?>(R.id.btnLogout)
 
@@ -269,7 +273,19 @@ class ProfileFragment : Fragment() {
                     val targetDateStr = latestDiary.createdAt
 
                     // diaryId 함께 전달
-                    navigateToDiaryDetail(targetDateStr, latestDiary.diaryId)
+                    openDiaryWithBookAnimation(
+                        diaryBookPreview,
+                        diaryBookCoverLayer,
+                        diaryBookFlap
+                    ) {
+                        if (isAdded) {
+                            navigateToDiaryDetail(
+                                targetDateStr,
+                                latestDiary.diaryId,
+                                bookTransition = true
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -473,7 +489,12 @@ class ProfileFragment : Fragment() {
         }
     }
 
-    private fun navigateToDiaryDetail(targetDate: String, diaryId: Int = 0, readOnly: Boolean = false) {
+    private fun navigateToDiaryDetail(
+        targetDate: String,
+        diaryId: Int = 0,
+        readOnly: Boolean = false,
+        bookTransition: Boolean = false
+    ) {
         val effectiveUid = if (isMyProfile) auth.currentUser?.uid else targetUserId
 
         val fragment: Fragment = if (isMyProfile) {
@@ -492,7 +513,8 @@ class ProfileFragment : Fragment() {
             )
         }
 
-        softTransaction()
+        val transaction = if (bookTransition) bookOpenTransaction() else softTransaction()
+        transaction
             .replace(R.id.fragment_container, fragment)
             .addToBackStack(null)
             .commit()
@@ -503,10 +525,106 @@ class ProfileFragment : Fragment() {
         loadAllProfileData()
     }
 
+    private fun openDiaryWithBookAnimation(
+        preview: View,
+        coverLayer: View,
+        flap: View,
+        onOpened: () -> Unit
+    ) {
+        if (preview.getTag(R.id.diaryBookPreview) == true) return
+        preview.setTag(R.id.diaryBookPreview, true)
+        val density = resources.displayMetrics.density
+        val paperLayer = preview.findViewById<View>(R.id.diaryBookPaperLayer)
+        allowBookToDrawOutside(preview)
+        preview.bringToFront()
+        coverLayer.bringToFront()
+        flap.bringToFront()
+
+        preview.animate().cancel()
+        coverLayer.animate().cancel()
+        flap.animate().cancel()
+        paperLayer.animate().cancel()
+        coverLayer.pivotX = 0f
+        coverLayer.pivotY = coverLayer.height / 2f
+        coverLayer.cameraDistance = 9000f * density
+        flap.pivotX = flap.width.toFloat()
+        flap.pivotY = flap.height / 2f
+        flap.cameraDistance = 9000f * density
+
+        preview.animate()
+            .scaleX(1.12f)
+            .scaleY(1.12f)
+            .translationY(-10f * density)
+            .setDuration(260L)
+            .setInterpolator(OvershootInterpolator(1.6f))
+            .start()
+
+        flap.animate()
+            .rotationY(105f)
+            .translationX(5f * density)
+            .setDuration(250L)
+            .setInterpolator(AccelerateDecelerateInterpolator())
+            .start()
+
+        paperLayer.animate()
+            .translationX(-8f * density)
+            .setStartDelay(260L)
+            .setDuration(400L)
+            .setInterpolator(AccelerateDecelerateInterpolator())
+            .start()
+
+        coverLayer.animate()
+            .rotationY(-155f)
+            .translationX(0f)
+            .setStartDelay(235L)
+            .setDuration(470L)
+            .setInterpolator(AccelerateDecelerateInterpolator())
+            .withEndAction {
+                preview.animate()
+                    .scaleX(1.55f)
+                    .scaleY(1.55f)
+                    .setDuration(210L)
+                    .setInterpolator(AccelerateInterpolator())
+                    .withEndAction {
+                        preview.scaleX = 1f
+                        preview.scaleY = 1f
+                        preview.translationY = 0f
+                        coverLayer.rotationY = 0f
+                        coverLayer.translationX = 0f
+                        flap.rotationY = 0f
+                        flap.translationX = 5f * density
+                        paperLayer.translationX = 0f
+                        preview.setTag(R.id.diaryBookPreview, false)
+                        onOpened()
+                    }
+                    .start()
+            }
+            .start()
+    }
+
+    private fun allowBookToDrawOutside(preview: View) {
+        var ancestor = preview.parent
+        while (ancestor is ViewGroup) {
+            val group = ancestor
+            group.clipChildren = false
+            group.clipToPadding = false
+            if (group.id == R.id.fragment_container) break
+            ancestor = group.parent
+        }
+    }
+
     private fun softTransaction() = parentFragmentManager.beginTransaction()
         .setCustomAnimations(
             R.animator.screen_morph_enter,
             R.animator.screen_morph_exit,
+            R.animator.screen_morph_enter,
+            R.animator.screen_morph_exit
+        )
+
+    private fun bookOpenTransaction() = parentFragmentManager.beginTransaction()
+        .setCustomAnimations(
+            R.animator.book_open_enter,
+            R.animator.book_open_exit,
             R.animator.screen_morph_enter,
             R.animator.screen_morph_exit
         )
