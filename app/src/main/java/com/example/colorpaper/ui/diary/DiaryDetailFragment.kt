@@ -116,7 +116,7 @@ class DiaryDetailFragment : Fragment() {
         val currentBinding = _binding ?: return
 
         buttonColorMap = mapOf(
-            currentBinding.btnVisibilityDetail to "#E4D0D0".toColorInt(),
+            //currentBinding.btnVisibilityDetail to "#E4D0D0".toColorInt(),
             currentBinding.btnSaveDetail to "#867070".toColorInt(),
             currentBinding.btnHighlightDetail to "#D5B4B4".toColorInt()
         )
@@ -150,19 +150,6 @@ class DiaryDetailFragment : Fragment() {
 
         currentBinding.btnSaveDetail.setOnClickListener {
             saveAllCommentsAndDiaryState()
-        }
-
-        currentBinding.btnVisibilityDetail.setOnClickListener {
-            val safeBinding = _binding ?: return@setOnClickListener
-            if (currentVisibility == "전체공개") {
-                currentVisibility = "비공개"
-                safeBinding.btnVisibilityDetail.text = getString(R.string.flashcard_private)
-                applyCustomButtonState(safeBinding.btnVisibilityDetail, isSelected = true)
-            } else {
-                currentVisibility = "전체공개"
-                safeBinding.btnVisibilityDetail.text = getString(R.string.flashcard_public)
-                applyCustomButtonState(safeBinding.btnVisibilityDetail, isSelected = false)
-            }
         }
 
         currentBinding.btnHighlightDetail.setOnClickListener {
