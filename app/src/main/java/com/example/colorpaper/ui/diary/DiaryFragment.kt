@@ -290,12 +290,6 @@ class DiaryFragment : Fragment() {
             }
         }
 
-        // (1) 공개여부 토글 버튼
-        binding.btnVisibility.setOnClickListener {
-            currentVisibility = if (currentVisibility == "전체공개") "비공개" else "전체공개"
-            binding.btnVisibility.text = currentVisibility
-        }
-
 
         // (2) [수정] 인스타그램식 하이라이트 토글 버튼
         binding.btnHighlightState.setOnClickListener {
@@ -381,12 +375,7 @@ class DiaryFragment : Fragment() {
     private fun initSingleChoiceGroups() {
         setupReminderChoiceGroup()
         setupEndDateChoiceGroup()
-
-        // 3. Visibility (Default: Public)
-        setupSingleChoiceGroup(
-            listOf(binding.btnVisibilityPublic, binding.btnVisibilityFriendOnly, binding.btnVisibilityPrivate),
-            defaultSelectedView = binding.btnVisibilityPublic
-        )
+        setupVisibilityChoiceGroup()
     }
 
 
@@ -502,6 +491,37 @@ class DiaryFragment : Fragment() {
             }.show()
         }
 
+    }
+
+    private fun setupVisibilityChoiceGroup() {
+        val visibilityButtons = listOf(
+            binding.btnVisibilityPublic,
+            binding.btnVisibilityFriendOnly,
+            binding.btnVisibilityPrivate
+        )
+
+        // 초기 상태 세팅 ("전체공개")
+        currentVisibility = "전체공개"
+        setupSingleChoiceGroup(visibilityButtons, defaultSelectedView = binding.btnVisibilityPublic)
+
+        // 각 버튼 클릭 시 currentVisibility 값 동기화
+        binding.btnVisibilityPublic.setOnClickListener {
+            visibilityButtons.forEach { btn -> applyCustomButtonState(btn, isSelected = false) }
+            applyCustomButtonState(binding.btnVisibilityPublic, isSelected = true)
+            currentVisibility = "전체공개"
+        }
+
+        binding.btnVisibilityFriendOnly.setOnClickListener {
+            visibilityButtons.forEach { btn -> applyCustomButtonState(btn, isSelected = false) }
+            applyCustomButtonState(binding.btnVisibilityFriendOnly, isSelected = true)
+            currentVisibility = "팔로워공개"
+        }
+
+        binding.btnVisibilityPrivate.setOnClickListener {
+            visibilityButtons.forEach { btn -> applyCustomButtonState(btn, isSelected = false) }
+            applyCustomButtonState(binding.btnVisibilityPrivate, isSelected = true)
+            currentVisibility = "비공개"
+        }
     }
 
     private fun resetPostItSettingUI() {
