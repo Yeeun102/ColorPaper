@@ -12,8 +12,9 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.example.colorpaper.databinding.FragmentTagManageBinding
 import com.google.android.material.chip.Chip
+import android.util.TypedValue
 
-class TagManagerFragment : Fragment() {
+class TagManageFragment : Fragment() {
 
     private var _binding: FragmentTagManageBinding? = null
     private val binding get() = _binding!!
@@ -103,15 +104,12 @@ class TagManagerFragment : Fragment() {
         binding.cgTags.addView(chip, insertIndex)
     }
 
-    // sp 단위를 px로 바꿔주는 작은 소스 (에러 방지용)
+    // sp 단위를 px로 변경 (에러 방지용)
     private fun Int.spToPx(): Float {
-        return this * resources.displayMetrics.scaledDensity
-    }
-    private val Int.spToPx: Float
-        get() = this * resources.displayMetrics.scaledDensity
-
-    override fun onDestroyView() {
-        super.onDestroyView()
-        _binding = null
+        return TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_SP,
+            this.toFloat(),
+            resources.displayMetrics
+        )
     }
 }
