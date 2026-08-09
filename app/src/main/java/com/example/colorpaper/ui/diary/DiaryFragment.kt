@@ -130,6 +130,8 @@ class DiaryFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        val binding = _binding ?: return
+
         arguments?.getString(ARG_INITIAL_DATE)?.let { initialDate ->
             dateFormat.parse(initialDate)?.let { selectedDate ->
                 selectedDateCalendar.time = selectedDate
@@ -322,17 +324,17 @@ class DiaryFragment : Fragment() {
     private fun setupSaveObserver() {
         viewModel.saveSuccess.observe(viewLifecycleOwner) { isSuccess ->
             val safeContext = context ?: return@observe
-            val currentBinding = _binding ?: return@observe
+            val binding = _binding ?: return@observe
 
             if (isSuccess) {
                 Toast.makeText(safeContext, "다이어리가 성공적으로 저장되었습니다!", Toast.LENGTH_SHORT).show()
 
                 // 작성 화면 뷰 상태 정리
-                currentBinding.layoutPostItSetting.visibility = View.GONE
+                binding.layoutPostItSetting.visibility = View.GONE
                 selectedEmotions.clear()
 
                 // 컨테이너 내부의 포스트잇 입력창 잠금 처리
-                val container = currentBinding.layoutDiaryContainer
+                val container = binding.layoutDiaryContainer
                 for (i in 0 until container.childCount) {
                     val childView = container.getChildAt(i) ?: continue
                     val etContent = childView.findViewById<EditText>(R.id.etPostItContent) ?: continue
@@ -664,14 +666,20 @@ class DiaryFragment : Fragment() {
         }
 
     }
+
     private fun loadTodayDiary() {
+        val safeContext = context?.applicationContext ?: return
         val dateKey = dateFormat.format(selectedDateCalendar.time)
         val currentUid = AuthUtils.getCurrentUserId()
-        lifecycleScope.launch {
-            val db = AppDatabase.getDatabase(requireContext())
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            val db = AppDatabase.getDatabase(safeContext)
             val postIts = withContext(Dispatchers.IO) {
                 db.diaryDao().getPostItsByDateAndUserId(dateKey, currentUid)
             }
+
+            val binding = _binding ?: return@launch
+            if (!isAdded) return@launch
 
             // 다이어리 컨테이너와 동적 태그 컨테이너 초기화
             binding.layoutDiaryContainer.removeAllViews()
@@ -694,9 +702,8 @@ class DiaryFragment : Fragment() {
 
                 for (postIt in postIts) {
                     val isDecoText = postIt.content.startsWith("[DECO]:")
-                        // 꾸미기 텍스트 복원
+                    // 꾸미기 텍스트 복원
                     if (isDecoText) {
-                        // [DECO]: 머리말을 잘라내고 순수 텍스트만 추출
                         val pureText = postIt.content.replace("[DECO]:", "")
                         restoreDecorateTextView(pureText, postIt.positionX, postIt.positionY, postIt.diaryId)
                     } else {
@@ -708,7 +715,6 @@ class DiaryFragment : Fragment() {
             }
         }
     }
-
 
     private fun restoreDecorateTextView(textStr: String, posX: Float, posY: Float, diaryId: Int) {
         val decorateTextView = TextView(requireContext()).apply {
@@ -799,9 +805,9 @@ class DiaryFragment : Fragment() {
         binding.layoutPostItSetting.bringToFront()
 
     }
-private fun saveCurrentDiaryWithPosition() {
-        // 1. Safe Context 및 Binding 가드
-        val safeContext = context ?: return
+
+    private fun saveCurrentDiaryWithPosition() {
+        val safeContext = context?.applicationContext ?: return
         val currentBinding = _binding ?: return
 
         val dateKey = dateFormat.format(selectedDateCalendar.time)
@@ -822,7 +828,6 @@ private fun saveCurrentDiaryWithPosition() {
             return
         }
 
-        // 2. Main 스레드에서 View 데이터 사전 수집 (반복문 내 IO/Main 스레드 전환 최소화)
         val diariesToSave = mutableListOf<DiaryEntity>()
 
         for (i in 0 until childCount) {
@@ -881,7 +886,6 @@ private fun saveCurrentDiaryWithPosition() {
 
         if (diariesToSave.isEmpty()) return
 
-        // 3. viewLifecycleOwner 기반의 안전한 코루틴으로 ViewModel 호출
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.saveDiaries(diariesToSave)
         }
@@ -972,31 +976,31 @@ private fun saveCurrentDiaryWithPosition() {
     }
 
     private fun applyHighlightToSelectedText() {
+        val safeContext = context?.applicationContext ?: return
+
         val activeView = currentActivePostIt
         if (activeView == null) {
-            Toast.makeText(requireContext(), "형광펜을 칠할 포스트잇을 먼저 선택해 주세요.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(safeContext, "형광펜을 칠할 포스트잇을 먼저 선택해 주세요.", Toast.LENGTH_SHORT).show()
             return
         }
 
         val etContent = activeView.findViewById<EditText>(R.id.etPostItContent)
         if (etContent == null) {
-            Toast.makeText(requireContext(), "포스트잇 내 텍스트 영역을 찾을 수 없습니다.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(safeContext, "포스트잇 내 텍스트 영역을 찾을 수 없습니다.", Toast.LENGTH_SHORT).show()
             return
         }
 
         val start = etContent.selectionStart
         val end = etContent.selectionEnd
 
-        // 블록 지정이 되어있는지 확인 (start와 end가 같으면 블록 지정 안 됨)
         if (start < 0 || end < 0 || start == end) {
-            Toast.makeText(requireContext(), "형광펜을 칠할 텍스트 영역을 드래그하여 선택해 주세요.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(safeContext, "형광펜을 칠할 텍스트 영역을 드래그하여 선택해 주세요.", Toast.LENGTH_SHORT).show()
             return
         }
 
         val editableText = etContent.text
         val highlightedPart = editableText.substring(start, end)
 
-        // 텍스트에 형광펜 배경색(노란색) Spannable 적용
         val spannable = if (editableText is Spannable) editableText else SpannableString(editableText)
 
         spannable.setSpan(
@@ -1008,26 +1012,26 @@ private fun saveCurrentDiaryWithPosition() {
         etContent.setText(spannable)
         etContent.setSelection(end)
 
-        // 선택된 날짜 및 텍스트 DB 적재
         val dateKey = dateFormat.format(selectedDateCalendar.time)
         val existingDiaryId = (activeView.getTag(R.id.ivPostItBg) as? Int) ?: 0
 
-        lifecycleScope.launch(Dispatchers.IO) {
-            val db = AppDatabase.getDatabase(requireContext())
-
-            db.diaryDao().insertHighlight(
-                HighlightEntity(
-                    diaryId = existingDiaryId,
-                    date = dateKey,
-                    highlightedText = highlightedPart
+        viewLifecycleOwner.lifecycleScope.launch {
+            withContext(Dispatchers.IO) {
+                val db = AppDatabase.getDatabase(safeContext)
+                db.diaryDao().insertHighlight(
+                    HighlightEntity(
+                        diaryId = existingDiaryId,
+                        date = dateKey,
+                        highlightedText = highlightedPart
+                    )
                 )
-            )
-            withContext(Dispatchers.Main) {
-                Toast.makeText(requireContext(), "'${highlightedPart}' 형광펜 텍스트가 저장되었습니다!", Toast.LENGTH_SHORT).show()
+            }
+
+            if (isAdded && _binding != null) {
+                Toast.makeText(safeContext, "'${highlightedPart}' 형광펜 텍스트가 저장되었습니다!", Toast.LENGTH_SHORT).show()
             }
         }
     }
-
     // =========================================================================
     // 📝 3. 텍스트 추가 기능: 일기장 컨테이너 자체에 꾸미기용 텍스트 추가
     // =========================================================================
@@ -1209,4 +1213,4 @@ private fun saveCurrentDiaryWithPosition() {
         fun newInstance(dateKey: String) = DiaryFragment().apply {
             arguments = Bundle().apply { putString(ARG_INITIAL_DATE, dateKey) }
         }
-    }
+    } }
