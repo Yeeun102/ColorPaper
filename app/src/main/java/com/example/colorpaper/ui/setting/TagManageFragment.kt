@@ -1,9 +1,10 @@
-// package com.example.colorpaper.ui.setting (네 프로젝트 패키지명 그대로!)
+package com.example.colorpaper.ui.setting
 
 import android.app.AlertDialog
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
+import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -12,7 +13,6 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.example.colorpaper.databinding.FragmentTagManageBinding
 import com.google.android.material.chip.Chip
-import android.util.TypedValue
 
 class TagManageFragment : Fragment() {
 
