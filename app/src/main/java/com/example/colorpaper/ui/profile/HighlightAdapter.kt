@@ -4,6 +4,8 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.example.colorpaper.databinding.ItemHighlightBinding
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 class HighlightAdapter(
     private var items: List<HighlightItem>,
@@ -26,7 +28,7 @@ class HighlightAdapter(
         val item = items[position]
 
         // 날짜 및 하이라이트 텍스트 바인딩
-        holder.binding.tvHighlightDate.text = item.date
+        holder.binding.tvHighlightDate.text = formatDateForCircle(item.date)
 
         // item_highlight.xml에 텍스트뷰(예: tvHighlightText)가 있다면 바인딩
         // holder.binding.tvHighlightText?.text = item.highlightedText
@@ -41,5 +43,19 @@ class HighlightAdapter(
     fun updateItems(newItems: List<HighlightItem>) {
         this.items = newItems
         notifyDataSetChanged()
+    }
+
+    private fun formatDateForCircle(rawDate: String): String {
+        return try {
+            val parsed = SOURCE_DATE_FORMAT.parse(rawDate) ?: return rawDate
+            DISPLAY_DATE_FORMAT.format(parsed)
+        } catch (_: Exception) {
+            rawDate
+        }
+    }
+
+    companion object {
+        private val SOURCE_DATE_FORMAT = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        private val DISPLAY_DATE_FORMAT = SimpleDateFormat("MM/dd", Locale.getDefault())
     }
 }

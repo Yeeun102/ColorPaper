@@ -108,6 +108,8 @@ class ProfileFragment : Fragment() {
         val cardEmptySharedFlashcard = view.findViewById<MaterialCardView>(R.id.cardEmptySharedFlashcard)
         val rvSharedFlashcards = view.findViewById<RecyclerView>(R.id.rvSharedFlashcards)
         val rvHighlights = view.findViewById<RecyclerView>(R.id.rvHighlights)
+        val dividerHighlightsTop = view.findViewById<View>(R.id.dividerHighlightsTop)
+        val dividerHighlightsBottom = view.findViewById<View>(R.id.dividerHighlightsBottom)
 
         val flFriendListPopup = view.findViewById<View>(R.id.flFriendListPopup)
         val cardPopupContent = view.findViewById<View>(R.id.cardPopupContent)
@@ -202,10 +204,16 @@ class ProfileFragment : Fragment() {
         // 🌟 6. 하이라이트 세팅
         viewModel.highlights.observe(viewLifecycleOwner) { highlights ->
             val list = highlights ?: emptyList()
+            val hasHighlights = list.isNotEmpty()
+
+            dividerHighlightsTop?.visibility = if (hasHighlights) View.VISIBLE else View.GONE
+            dividerHighlightsBottom?.visibility = View.VISIBLE
+            rvHighlights?.visibility = if (hasHighlights) View.VISIBLE else View.GONE
+
             rvHighlights?.adapter = HighlightAdapter(
                 items = list,
                 onItemClick = { item ->
-                    navigateToDiaryDetail(item.date, item.diaryId)
+                    navigateToDiaryDetail(item.date, item.diaryId, readOnly = true)
                 }
             )
         }
@@ -427,18 +435,16 @@ class ProfileFragment : Fragment() {
         }
     }
 
-    private fun navigateToDiaryDetail(targetDate: String, diaryId: Int = 0) {
+    private fun navigateToDiaryDetail(targetDate: String, diaryId: Int = 0, readOnly: Boolean = false) {
         val effectiveUid = if (isMyProfile) auth.currentUser?.uid else targetUserId
 
         val fragment: Fragment = if (isMyProfile) {
             // 1. 내 프로필인 경우 -> 내 일기 상세 화면
-            DiaryDetailFragment().apply {
-                arguments = Bundle().apply {
-                    putString("TARGET_DATE", targetDate)
-                    putString("TARGET_USER_ID", effectiveUid)
-                    putInt("DIARY_ID", diaryId)
-                }
-            }
+            DiaryDetailFragment.newInstance(
+                targetDate = targetDate,
+                targetUserId = effectiveUid,
+                readOnly = readOnly
+            )
         } else {
             // 2. 친구 프로필인 경우 -> 날짜(targetDate) 포함 전달
             FriendDiaryDetailFragment.newInstance(

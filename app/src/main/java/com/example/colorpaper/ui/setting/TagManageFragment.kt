@@ -88,7 +88,7 @@ class TagManageFragment : Fragment() {
         val chip = Chip(requireContext()).apply {
             text = tagName
             setTextColor(Color.parseColor("#333333"))
-            textSize = 14spToPx() // 글자 크기
+            textSize = 14.spToPx() // 글자 크기
             chipStrokeWidth = 0f
 
             // 색상 리스트에서 순서대로 배경색 칠하기

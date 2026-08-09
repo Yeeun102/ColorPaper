@@ -1,20 +1,24 @@
 package com.example.colorpaper.ui.diary
 
 import android.annotation.SuppressLint
+import android.app.AlertDialog
 import android.app.DatePickerDialog
 import android.graphics.Color
 import android.os.Bundle
 import android.text.SpannableString
 import android.text.Spanned
 import android.text.style.BackgroundColorSpan
+import android.text.method.PasswordTransformationMethod
 import android.util.Log
 import android.view.GestureDetector
 import android.view.LayoutInflater
 import android.view.MotionEvent
+import android.view.ScaleGestureDetector
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.graphics.toColorInt
@@ -70,8 +74,10 @@ class FriendDiaryDetailFragment : Fragment() {
     private val calendar = Calendar.getInstance()
     private val dateFormatFull = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     private val dateFormatDisplay = SimpleDateFormat("M월 d일", Locale.KOREA)
+    private val dateFormatCheck = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
     private lateinit var gestureDetector: GestureDetector
+    private var isFollowingUser: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -117,18 +123,32 @@ class FriendDiaryDetailFragment : Fragment() {
         // 4. 프로필 홈 및 팔로우 버튼
         binding.btnProfileHome.setOnClickListener { parentFragmentManager.popBackStack() }
         binding.btnFollow.setOnClickListener {
-            Toast.makeText(context, "팔로우 상태가 변경되었습니다.", Toast.LENGTH_SHORT).show()
+            toggleFollowStatus()
         }
 
         // 5. 하단 액션 버튼
         binding.btnFriendComment.setOnClickListener {
-            addNewCommentPostIt()
+            if (!isFollowingUser) {
+                Toast.makeText(context, "팔로우한 사용자에게만 댓글을 작성할 수 있습니다.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            val todayStr = dateFormatCheck.format(Date())
+            val isCurrentDateOrFuture = selectedDate >= todayStr
+
+            if (isCurrentDateOrFuture) {
+                Toast.makeText(context, "오늘 이후의 일기에는 댓글을 작성할 수 없습니다.", Toast.LENGTH_SHORT).show()
+            } else {
+                showAddCommentDialog()
+            }
         }
-        binding.btnFriendStamp.setOnClickListener {
-            Toast.makeText(context, "스탬프 기능 준비 중입니다.", Toast.LENGTH_SHORT).show()
-        }
-        binding.btnFriendText.setOnClickListener {
-            Toast.makeText(context, "텍스트 기능 준비 중입니다.", Toast.LENGTH_SHORT).show()
+
+        val todayStr = dateFormatCheck.format(Date())
+        val isCurrentDateOrFuture = selectedDate >= todayStr
+        if (isCurrentDateOrFuture) {
+            binding.btnFriendComment.alpha = 0.3f
+        } else {
+            binding.btnFriendComment.alpha = 1.0f
         }
 
         // 6. 최초 데이터 로드
@@ -176,9 +196,27 @@ class FriendDiaryDetailFragment : Fragment() {
             }
             selectedDate = dateFormatFull.format(cal.time)
             updateDateTextDisplay()
+            updateCommentButtonState()
             loadFriendDiaryData()
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+    private fun updateCommentButtonState() {
+        val binding = _binding ?: return
+
+        if (!isFollowingUser) {
+            binding.btnFriendComment.alpha = 0.3f
+            return
+        }
+
+        val todayStr = dateFormatCheck.format(Date())
+        val isCurrentDateOrFuture = selectedDate >= todayStr
+        if (isCurrentDateOrFuture) {
+            binding.btnFriendComment.alpha = 0.3f
+        } else {
+            binding.btnFriendComment.alpha = 1.0f
         }
     }
 
@@ -210,6 +248,7 @@ class FriendDiaryDetailFragment : Fragment() {
                 calendar.set(year, month, dayOfMonth)
                 selectedDate = dateFormatFull.format(calendar.time)
                 updateDateTextDisplay()
+                updateCommentButtonState()
                 loadFriendDiaryData()
             },
             calendar.get(Calendar.YEAR),
@@ -222,9 +261,18 @@ class FriendDiaryDetailFragment : Fragment() {
     private fun loadFriendDiaryData() {
         val uid = targetUserId ?: return
         val safeContext = context ?: return
+        val myUid = auth.currentUser?.uid ?: ""
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
+                val followDoc = firestore.collection("users")
+                    .document(myUid)
+                    .collection("following")
+                    .document(uid)
+                    .get()
+                    .await()
+                isFollowingUser = followDoc.exists()
+
                 // 1) 유저 정보 조회
                 val userDoc = firestore.collection("users").document(uid).get().await()
                 val nickname = userDoc.getString("nickname") ?: userDoc.getString("name") ?: "친구"
@@ -252,12 +300,29 @@ class FriendDiaryDetailFragment : Fragment() {
                     postIts = db.diaryDao().getPostItsByDateAndUserId(selectedDate, uid)
                 }
 
-                // 3) 댓글 정보 가져오기 (Local DB / Firestore)
-                val comments = db.diaryDao().getCommentsByDateAndUserId(selectedDate, uid)
+                // 3) 댓글 정보 가져오기 (소유자 기준: diaryId=ownerUid.hashCode)
+                val ownerKey = uid.hashCode()
+                val comments = db.diaryDao().getCommentsByDate(selectedDate)
+                    .filter { comment ->
+                        comment.diaryId == ownerKey || (comment.diaryId == 0 && comment.userId == uid)
+                    }
+
+                val commentAuthorMap = mutableMapOf<String, String>()
+                val commentUserIds = comments.map { it.userId }.toSet()
+                for (commentUserId in commentUserIds) {
+                    commentAuthorMap[commentUserId] = when {
+                        commentUserId == myUid -> "나"
+                        commentUserId == uid -> "작성자"
+                        else -> resolveUserNickname(commentUserId)
+                    }
+                }
 
                 withContext(Dispatchers.Main) {
                     val binding = _binding ?: return@withContext
                     if (!isAdded) return@withContext
+
+                    refreshFollowButtonUi()
+                    updateCommentButtonState()
 
                     binding.tvFriendNickname.text = nickname
                     binding.ivFriendProfile.load(profileImg) {
@@ -279,14 +344,14 @@ class FriendDiaryDetailFragment : Fragment() {
                                 val pureText = postIt.content.replace("[DECO]:", "")
                                 renderReadOnlyDecoText(pureText, postIt.positionX, postIt.positionY)
                             } else {
-                                renderReadOnlyPostIt(postIt)
+                                renderReadOnlyPostIt(postIt, isFollowingUser)
                             }
                         }
                     }
 
                     // 5) 댓글 그려주기
                     for (comment in comments) {
-                        renderCommentPostIt(comment)
+                        renderCommentPostIt(comment, commentAuthorMap[comment.userId] ?: "알 수 없음")
                     }
                 }
             } catch (e: Exception) {
@@ -295,9 +360,80 @@ class FriendDiaryDetailFragment : Fragment() {
         }
     }
 
-    private fun renderReadOnlyPostIt(diary: DiaryEntity) {
+    private fun refreshFollowButtonUi() {
+        val binding = _binding ?: return
+        binding.btnFollow.text = if (isFollowingUser) "팔로우 중" else "팔로우"
+    }
+
+    private fun toggleFollowStatus() {
+        val myUid = auth.currentUser?.uid ?: return
+        val friendUid = targetUserId ?: return
+        val safeContext = context ?: return
+
+        lifecycleScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    val myFollowingRef = firestore.collection("users")
+                        .document(myUid)
+                        .collection("following")
+                        .document(friendUid)
+
+                    val friendFollowerRef = firestore.collection("users")
+                        .document(friendUid)
+                        .collection("followers")
+                        .document(myUid)
+
+                    val existing = myFollowingRef.get().await()
+                    if (existing.exists()) {
+                        myFollowingRef.delete().await()
+                        friendFollowerRef.delete().await()
+                        isFollowingUser = false
+                    } else {
+                        val data = mapOf("createdAt" to System.currentTimeMillis())
+                        myFollowingRef.set(data).await()
+                        friendFollowerRef.set(data).await()
+                        isFollowingUser = true
+                    }
+                }
+
+                if (!isAdded || _binding == null) return@launch
+                refreshFollowButtonUi()
+                updateCommentButtonState()
+                Toast.makeText(
+                    safeContext,
+                    if (isFollowingUser) "팔로우했습니다." else "팔로우를 취소했습니다.",
+                    Toast.LENGTH_SHORT
+                ).show()
+                loadFriendDiaryData()
+            } catch (e: Exception) {
+                if (!isAdded || _binding == null) return@launch
+                Toast.makeText(safeContext, "팔로우 상태를 변경하지 못했습니다.", Toast.LENGTH_SHORT).show()
+                Log.e("FriendDiaryDetail", "toggleFollowStatus failed", e)
+            }
+        }
+    }
+
+    private suspend fun resolveUserNickname(userId: String): String {
+        if (userId.isBlank()) return "알 수 없음"
+        return try {
+            val doc = firestore.collection("users").document(userId).get().await()
+            doc.getString("nickname") ?: "알 수 없음"
+        } catch (_: Exception) {
+            "알 수 없음"
+        }
+    }
+
+    private fun renderReadOnlyPostIt(diary: DiaryEntity, isCurrUserFollowing: Boolean = false) {
         val safeContext = context ?: return
         val binding = _binding ?: return
+
+        val shouldHide = !isCurrUserFollowing && diary.visibility == "비공개"
+        val shouldBlur = !isCurrUserFollowing && diary.visibility == "팔로워공개"
+
+        if (shouldHide) {
+            return
+        }
+
         val inflater = LayoutInflater.from(safeContext)
         val view = inflater.inflate(R.layout.item_diary_postit, binding.layoutDetailDiaryContainer, false)
 
@@ -309,9 +445,13 @@ class FriendDiaryDetailFragment : Fragment() {
 
         if (etContent is EditText) {
             etContent.setText(diary.content)
-            applyHighlightRangesToEditText(etContent, diary.highlightRanges)
             etContent.isEnabled = false
             etContent.isFocusable = false
+            applyHighlightRangesToEditText(etContent, diary.highlightRanges, shouldBlur)
+            if (shouldBlur) {
+                etContent.alpha = 0.35f
+                etContent.transformationMethod = PasswordTransformationMethod.getInstance()
+            }
         } else {
             etContent?.text = diary.content
         }
@@ -352,7 +492,7 @@ class FriendDiaryDetailFragment : Fragment() {
         binding.layoutDetailDiaryContainer.addView(decorateTextView)
     }
 
-    private fun renderCommentPostIt(comment: CommentEntity) {
+    private fun renderCommentPostIt(comment: CommentEntity, authorLabel: String) {
         val safeContext = context ?: return
         val binding = _binding ?: return
         val inflater = LayoutInflater.from(safeContext)
@@ -361,16 +501,23 @@ class FriendDiaryDetailFragment : Fragment() {
         val ivCommentBg = view.findViewById<ImageView>(R.id.ivCommentBg)
         val etCommentContent = view.findViewById<EditText>(R.id.etCommentContent)
         val tvTime = view.findViewById<TextView>(R.id.tvCommentTime)
+        val tvAuthor = view.findViewById<TextView>(R.id.tvCommentAuthor)
         val btnCommentDone = view.findViewById<TextView>(R.id.btnCommentDone)
+        val tvEmoji = view.findViewById<TextView>(R.id.tvCommentEmoji)
 
-        etCommentContent.setText(comment.content)
+        val (emoji, plainText) = decodeCommentContent(comment.content)
+        etCommentContent.setText(plainText)
+        tvEmoji.text = emoji
         tvTime.text = comment.timestamp.ifBlank { comment.date }
+        tvAuthor.text = "작성자 : $authorLabel"
 
         val resId = commentResourceMap[comment.color] ?: R.drawable.comment_blue
         ivCommentBg.setImageResource(resId)
 
         view.setTag(R.id.ivCommentBg, comment.commentId)
         view.tag = comment.color
+        view.setTag(R.id.btnFollow, comment.userId)
+        view.setTag(R.id.btnProfileHome, targetUserId ?: "")
 
         view.translationX = comment.posX
         view.translationY = comment.posY
@@ -379,11 +526,50 @@ class FriendDiaryDetailFragment : Fragment() {
         etCommentContent.isFocusable = false
         btnCommentDone.visibility = View.GONE
 
-        makeViewDraggable(view)
+        setupCommentToggle(view, emoji, startCollapsed = true)
+        enableDragAndScale(view)
         binding.layoutCommentsContainer.addView(view)
     }
 
-    private fun addNewCommentPostIt() {
+    private fun showAddCommentDialog() {
+        val safeContext = context ?: return
+
+        val emojiInput = EditText(safeContext).apply {
+            hint = "표시 이모지 (예: 😀)"
+            setSingleLine()
+            setText(DEFAULT_COMMENT_EMOJI)
+        }
+        val contentInput = EditText(safeContext).apply {
+            hint = "내용"
+            setSingleLine(false)
+            minLines = 3
+        }
+
+        val container = LinearLayout(safeContext).apply {
+            orientation = LinearLayout.VERTICAL
+            val pad = (16 * resources.displayMetrics.density).toInt()
+            setPadding(pad, pad, pad, pad)
+            addView(emojiInput)
+            addView(contentInput)
+        }
+
+        AlertDialog.Builder(safeContext)
+            .setTitle("댓글 추가")
+            .setView(container)
+            .setNegativeButton("취소", null)
+            .setPositiveButton("등록") { _, _ ->
+                val emoji = emojiInput.text.toString().trim().ifBlank { DEFAULT_COMMENT_EMOJI }
+                val text = contentInput.text.toString().trim()
+                if (text.isBlank()) {
+                    Toast.makeText(safeContext, "내용을 입력해 주세요.", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                addNewCommentPostIt(emoji, text)
+            }
+            .show()
+    }
+
+    private fun addNewCommentPostIt(emoji: String, text: String) {
         val safeContext = context ?: return
         val binding = _binding ?: return
         val randomColor = listOf("orange", "yellow", "green", "blue").random()
@@ -398,39 +584,42 @@ class FriendDiaryDetailFragment : Fragment() {
         val etCommentContent = commentView.findViewById<EditText>(R.id.etCommentContent)
         val btnCommentDone = commentView.findViewById<TextView>(R.id.btnCommentDone)
         val tvTime = commentView.findViewById<TextView>(R.id.tvCommentTime)
+        val tvAuthor = commentView.findViewById<TextView>(R.id.tvCommentAuthor)
+        val tvEmoji = commentView.findViewById<TextView>(R.id.tvCommentEmoji)
 
         val todayDateStr = dateFormatFull.format(Date())
         tvTime.text = todayDateStr
+        tvAuthor.text = "작성자 : 나"
         commentView.tag = randomColor
+        val currentUid = auth.currentUser?.uid ?: ""
+        val ownerUid = targetUserId ?: ""
+        commentView.setTag(R.id.btnFollow, currentUid)
+        commentView.setTag(R.id.btnProfileHome, ownerUid)
 
-        etCommentContent.isEnabled = true
-        etCommentContent.requestFocus()
+        etCommentContent.setText(text)
+        etCommentContent.isEnabled = false
+        etCommentContent.isFocusable = false
+        btnCommentDone.visibility = View.GONE
+        tvEmoji.text = emoji
 
-        btnCommentDone.setOnClickListener {
-            val text = etCommentContent.text.toString().trim()
-            if (text.isNotBlank()) {
-                etCommentContent.isEnabled = false
-                btnCommentDone.visibility = View.GONE
-                makeViewDraggable(commentView)
-                saveNewCommentToDb(commentView, text, randomColor, todayDateStr)
-            } else {
-                Toast.makeText(safeContext, "댓글 내용을 입력해 주세요.", Toast.LENGTH_SHORT).show()
-            }
-        }
+        setupCommentToggle(commentView, emoji, startCollapsed = true)
+        enableDragAndScale(commentView)
+        saveNewCommentToDb(commentView, emoji, text, randomColor, todayDateStr)
 
         binding.layoutCommentsContainer.addView(commentView)
         commentView.bringToFront()
     }
 
-    private fun saveNewCommentToDb(view: View, text: String, color: String, timestamp: String) {
+    private fun saveNewCommentToDb(view: View, emoji: String, text: String, color: String, timestamp: String) {
         val safeContext = context?.applicationContext ?: return
         val ownerUid = targetUserId ?: return
+        val currentUid = auth.currentUser?.uid ?: ownerUid
 
         val newComment = CommentEntity(
-            diaryId = 0,
-            userId = ownerUid,
+            diaryId = ownerUid.hashCode(),
+            userId = currentUid,
             date = selectedDate,
-            content = text,
+            content = encodeCommentContent(emoji, text),
             color = color,
             timestamp = timestamp,
             posX = view.translationX,
@@ -444,47 +633,173 @@ class FriendDiaryDetailFragment : Fragment() {
             withContext(Dispatchers.Main) {
                 if (_binding != null) {
                     view.setTag(R.id.ivCommentBg, savedId.toInt())
+                    view.setTag(R.id.btnFollow, currentUid)
+                    view.setTag(R.id.btnProfileHome, ownerUid)
                     Toast.makeText(safeContext, "댓글이 등록되었습니다.", Toast.LENGTH_SHORT).show()
                 }
             }
         }
     }
 
+    private fun persistCommentPosition(commentView: View) {
+        val safeContext = context?.applicationContext ?: return
+        val commentId = (commentView.getTag(R.id.ivCommentBg) as? Int) ?: return
+        if (commentId <= 0) return
+
+        val color = (commentView.tag as? String) ?: "blue"
+        val etContent = commentView.findViewById<EditText>(R.id.etCommentContent)
+        val tvEmoji = commentView.findViewById<TextView>(R.id.tvCommentEmoji)
+        val tvTime = commentView.findViewById<TextView>(R.id.tvCommentTime)
+
+        val authorUid = (commentView.getTag(R.id.btnFollow) as? String).orEmpty()
+        val ownerUid = (commentView.getTag(R.id.btnProfileHome) as? String).orEmpty()
+        val effectiveOwnerUid = if (ownerUid.isBlank()) (targetUserId ?: "") else ownerUid
+        val effectiveAuthorUid = if (authorUid.isBlank()) (auth.currentUser?.uid ?: effectiveOwnerUid) else authorUid
+
+        val payload = encodeCommentContent(
+            tvEmoji.text?.toString().orEmpty().ifBlank { DEFAULT_COMMENT_EMOJI },
+            etContent.text?.toString().orEmpty()
+        )
+
+        val updated = CommentEntity(
+            commentId = commentId,
+            diaryId = effectiveOwnerUid.hashCode(),
+            userId = effectiveAuthorUid,
+            date = selectedDate,
+            content = payload,
+            color = color,
+            timestamp = tvTime.text?.toString().orEmpty(),
+            posX = commentView.translationX,
+            posY = commentView.translationY
+        )
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            AppDatabase.getDatabase(safeContext).diaryDao().insertComment(updated)
+        }
+    }
+
+    private fun encodeCommentContent(emoji: String, content: String): String {
+        val safeEmoji = emoji.replace(COMMENT_SEPARATOR, "")
+        return "$safeEmoji$COMMENT_SEPARATOR$content"
+    }
+
+    private fun decodeCommentContent(raw: String): Pair<String, String> {
+        val splitIndex = raw.indexOf(COMMENT_SEPARATOR)
+        if (splitIndex <= 0) return Pair(DEFAULT_COMMENT_EMOJI, raw)
+
+        val emoji = raw.substring(0, splitIndex).ifBlank { DEFAULT_COMMENT_EMOJI }
+        val text = raw.substring(splitIndex + COMMENT_SEPARATOR.length)
+        return Pair(emoji, text)
+    }
+
+    private fun setupCommentToggle(commentView: View, emoji: String, startCollapsed: Boolean) {
+        val ivCommentBg = commentView.findViewById<ImageView>(R.id.ivCommentBg)
+        val etCommentContent = commentView.findViewById<EditText>(R.id.etCommentContent)
+        val tvTime = commentView.findViewById<TextView>(R.id.tvCommentTime)
+        val tvAuthor = commentView.findViewById<TextView>(R.id.tvCommentAuthor)
+        val tvEmoji = commentView.findViewById<TextView>(R.id.tvCommentEmoji)
+        val btnCommentDone = commentView.findViewById<TextView>(R.id.btnCommentDone)
+
+        tvEmoji.text = emoji
+        btnCommentDone.visibility = View.GONE
+
+        fun setCollapsed(collapsed: Boolean) {
+            commentView.setTag(R.id.btnFriendComment, !collapsed)
+            ivCommentBg.visibility = if (collapsed) View.GONE else View.VISIBLE
+            etCommentContent.visibility = if (collapsed) View.GONE else View.VISIBLE
+            tvTime.visibility = if (collapsed) View.GONE else View.VISIBLE
+            tvAuthor.visibility = if (collapsed) View.GONE else View.VISIBLE
+            tvEmoji.visibility = if (collapsed) View.VISIBLE else View.GONE
+        }
+
+        val toggleClick = View.OnClickListener {
+            val expanded = (commentView.getTag(R.id.btnFriendComment) as? Boolean) ?: false
+            setCollapsed(expanded)
+        }
+
+        commentView.setOnClickListener(toggleClick)
+        tvEmoji.setOnClickListener(toggleClick)
+        ivCommentBg.setOnClickListener(toggleClick)
+        etCommentContent.setOnClickListener(toggleClick)
+        tvTime.setOnClickListener(toggleClick)
+
+        setCollapsed(startCollapsed)
+    }
+
     @SuppressLint("ClickableViewAccessibility")
-    private fun makeViewDraggable(view: View) {
+    private fun enableDragAndScale(view: View) {
+        val safeContext = context ?: return
         var lastX = 0f
         var lastY = 0f
+        var moved = false
 
-        view.setOnTouchListener { v, event ->
+        val scaleDetector = ScaleGestureDetector(safeContext, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+            override fun onScale(detector: ScaleGestureDetector): Boolean {
+                val tvEmoji = view.findViewById<TextView>(R.id.tvCommentEmoji)
+                val ivCommentBg = view.findViewById<ImageView>(R.id.ivCommentBg)
+                if (tvEmoji.visibility != View.VISIBLE || ivCommentBg.visibility == View.VISIBLE) {
+                    return false
+                }
+
+                val nextScale = (tvEmoji.scaleX * detector.scaleFactor).coerceIn(MIN_COMMENT_SCALE, MAX_COMMENT_SCALE)
+                tvEmoji.scaleX = nextScale
+                tvEmoji.scaleY = nextScale
+                return true
+            }
+        })
+
+        val dragAndScaleTouchListener = View.OnTouchListener { _, event ->
+            scaleDetector.onTouchEvent(event)
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     lastX = event.rawX
                     lastY = event.rawY
+                    moved = false
                 }
                 MotionEvent.ACTION_MOVE -> {
+                    if (event.pointerCount > 1 || scaleDetector.isInProgress) return@OnTouchListener true
+
                     val dx = event.rawX - lastX
                     val dy = event.rawY - lastY
 
-                    v.translationX += dx
-                    v.translationY += dy
+                    if (kotlin.math.abs(dx) > 2f || kotlin.math.abs(dy) > 2f) {
+                        moved = true
+                    }
+
+                    view.translationX += dx
+                    view.translationY += dy
 
                     lastX = event.rawX
                     lastY = event.rawY
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    v.performClick()
+                    if (moved) {
+                        persistCommentPosition(view)
+                    }
+                    if (!moved) {
+                        view.performClick()
+                    }
                 }
             }
             true
         }
+
+        view.setOnTouchListener(dragAndScaleTouchListener)
+        view.findViewById<View>(R.id.ivCommentBg)?.setOnTouchListener(dragAndScaleTouchListener)
+        view.findViewById<View>(R.id.etCommentContent)?.setOnTouchListener(dragAndScaleTouchListener)
+        view.findViewById<View>(R.id.tvCommentTime)?.setOnTouchListener(dragAndScaleTouchListener)
+        view.findViewById<View>(R.id.tvCommentAuthor)?.setOnTouchListener(dragAndScaleTouchListener)
+        view.findViewById<View>(R.id.tvCommentEmoji)?.setOnTouchListener(dragAndScaleTouchListener)
     }
 
-    private fun applyHighlightRangesToEditText(etContent: EditText, rangesStr: String) {
-        if (rangesStr.isBlank()) return
+    private fun applyHighlightRangesToEditText(etContent: EditText, rangesStr: String?, shouldBlur: Boolean = false) {
+        if (rangesStr.isNullOrBlank()) return
+
+        if (shouldBlur) return
 
         val text = etContent.text.toString()
         val spannable = SpannableString(text)
-        val pairs = rangesStr.split(",")
+        val pairs = rangesStr?.split(",") ?: return
 
         for (pair in pairs) {
             val parts = pair.split("-")
@@ -521,6 +836,11 @@ class FriendDiaryDetailFragment : Fragment() {
     }
 
     companion object {
+        private const val COMMENT_SEPARATOR = "||"
+        private const val DEFAULT_COMMENT_EMOJI = "💬"
+        private const val MIN_COMMENT_SCALE = 0.7f
+        private const val MAX_COMMENT_SCALE = 1.8f
+
         fun newInstance(targetUserId: String, diaryId: Int = 0, targetDate: String? = null) =
             FriendDiaryDetailFragment().apply {
                 arguments = Bundle().apply {
