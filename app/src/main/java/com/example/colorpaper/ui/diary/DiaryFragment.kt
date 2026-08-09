@@ -41,6 +41,7 @@ import com.example.colorpaper.data.model.DiaryEntity
 import com.example.colorpaper.data.model.HighlightEntity
 import com.example.colorpaper.reminder.ReminderSchedulePolicy
 import com.example.colorpaper.reminder.ReminderScheduler
+import com.example.colorpaper.ui.theme.AppTheme
 import com.example.colorpaper.ui.theme.ThemeManager
 import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.Dispatchers
@@ -97,7 +98,6 @@ class DiaryFragment : Fragment() {
             } else {
                 button.backgroundTintList = ColorStateList.valueOf(defaultColor)
             }
-            button.strokeWidth = 0
         }
 
     }
@@ -132,6 +132,7 @@ class DiaryFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         val binding = _binding ?: return
+        binding.ivFixedDiaryPage.setImageResource(diaryPageResource())
 
         arguments?.getString(ARG_INITIAL_DATE)?.let { initialDate ->
             dateFormat.parse(initialDate)?.let { selectedDate ->
@@ -324,6 +325,12 @@ class DiaryFragment : Fragment() {
         binding.layoutToolbarDecorate.strokeColor = toolbarStrokeColor
     }
 
+    private fun diaryPageResource(): Int = when (ThemeManager.currentTheme(requireContext())) {
+        AppTheme.ROSE -> R.drawable.diarypage
+        AppTheme.SAGE -> R.drawable.diarypage_sage
+        AppTheme.SKY -> R.drawable.diarypage_sky
+    }
+
     private fun setupSaveObserver() {
         viewModel.saveSuccess.observe(viewLifecycleOwner) { isSuccess ->
             val safeContext = context ?: return@observe
@@ -359,7 +366,6 @@ class DiaryFragment : Fragment() {
             } else {
                 button.backgroundTintList = ColorStateList.valueOf(originalColor)
             }
-            button.strokeWidth = 0
         }
     }
 
@@ -385,22 +391,16 @@ class DiaryFragment : Fragment() {
 
 
     private fun setupReminderChoiceGroup() {
-        val buttons = listOf(binding.btnRepeatAuto, binding.btnRepeatUser, binding.btnRepeatNone)
-
-        fun select(selected: Button) {
-            buttons.forEach { applyCustomButtonState(it, it == selected) }
-        }
-
-        select(binding.btnRepeatNone)
+        applyReminderChoiceState(ReminderSchedulePolicy.DISABLED)
         binding.btnRepeatAuto.setOnClickListener {
             selectedReminderCycleDays = ReminderSchedulePolicy.AUTO_CURVE
             reminderSelectionTouched = true
-            select(binding.btnRepeatAuto)
+            applyReminderChoiceState(selectedReminderCycleDays)
         }
         binding.btnRepeatNone.setOnClickListener {
             selectedReminderCycleDays = ReminderSchedulePolicy.DISABLED
             reminderSelectionTouched = true
-            select(binding.btnRepeatNone)
+            applyReminderChoiceState(selectedReminderCycleDays)
         }
 
         binding.btnRepeatUser.setOnClickListener {
@@ -418,7 +418,7 @@ class DiaryFragment : Fragment() {
                     if (days != null && days > 0) {
                         selectedReminderCycleDays = days
                         reminderSelectionTouched = true
-                        select(binding.btnRepeatUser)
+                        applyReminderChoiceState(selectedReminderCycleDays)
                     } else {
                         Toast.makeText(
                             requireContext(),
@@ -529,6 +529,16 @@ class DiaryFragment : Fragment() {
         }
     }
 
+    private fun applyReminderChoiceState(cycleDays: Int) {
+        val selected = when {
+            cycleDays == ReminderSchedulePolicy.AUTO_CURVE -> binding.btnRepeatAuto
+            cycleDays > 0 -> binding.btnRepeatUser
+            else -> binding.btnRepeatNone
+        }
+        listOf(binding.btnRepeatAuto, binding.btnRepeatUser, binding.btnRepeatNone)
+            .forEach { applyCustomButtonState(it, it == selected) }
+    }
+
     private fun resetPostItSettingUI() {
         currentSelectedColor = "yellow"
         selectedReminderCycleDays = ReminderSchedulePolicy.DISABLED
@@ -612,8 +622,7 @@ class DiaryFragment : Fragment() {
                     val dy = event.rawY - lastY
 
                     // 부모 포스트잇 뷰(view)의 위치 이동
-                    view.translationX += dx
-                    view.translationY += dy
+                    moveViewWithinParent(view, dx, dy)
 
                     // 기준점 갱신
                     lastX = event.rawX
@@ -715,11 +724,18 @@ class DiaryFragment : Fragment() {
             applyCustomButtonState(binding.chipTagWork, isSelected = false)
 
             if (postIts.isEmpty()) {
+                selectedReminderCycleDays = ReminderSchedulePolicy.DISABLED
+                applyReminderChoiceState(selectedReminderCycleDays)
                 binding.tvEmptyHint.visibility = View.VISIBLE
 
                 isHighlightedState = false
                 applyCustomButtonState(binding.btnHighlightState, isSelected = false)
             } else {
+                selectedReminderCycleDays = postIts
+                    .firstOrNull { !it.content.startsWith("[DECO]:") }
+                    ?.reviewCycleDays
+                    ?: ReminderSchedulePolicy.DISABLED
+                applyReminderChoiceState(selectedReminderCycleDays)
                 binding.tvEmptyHint.visibility = View.GONE
                 val hasHighlighted = postIts.any { !it.content.startsWith("[DECO]:") && it.isHighlighted }
                 isHighlightedState = hasHighlighted
@@ -751,7 +767,7 @@ class DiaryFragment : Fragment() {
             tag = "DECORATION_TEXT"
 
             // 💡 불러온 좌표 고정 적용
-            translationX = posX
+            translationX = posX.coerceAtLeast(0f)
             translationY = posY
             setTag(R.id.ivPostItBg, diaryId)
 
@@ -762,6 +778,7 @@ class DiaryFragment : Fragment() {
         }
         makeViewDraggable(decorateTextView)
         binding.layoutDiaryContainer.addView(decorateTextView)
+        decorateTextView.post { clampViewToParent(decorateTextView) }
         decorateTextView.bringToFront()
     }
 
@@ -793,12 +810,13 @@ class DiaryFragment : Fragment() {
         val resId = postItResourceMap[colorKey] ?: R.drawable.post_yellow
         ivBg.setImageResource(resId)
 
-        postItView.translationX = diary.positionX
+        postItView.translationX = diary.positionX.coerceAtLeast(0f)
         postItView.translationY = diary.positionY
         makeViewDraggable(postItView)
 
 
         binding.layoutDiaryContainer.addView(postItView)
+        postItView.post { clampViewToParent(postItView) }
     }
 
     private fun addNewPostItField(colorName: String = "yellow") {
@@ -821,6 +839,7 @@ class DiaryFragment : Fragment() {
         makeViewDraggable(postItView)
 
         binding.layoutDiaryContainer.addView(postItView)
+        postItView.post { clampViewToParent(postItView) }
         postItView.bringToFront()
         binding.layoutDiaryContainer.bringToFront()
 
@@ -1119,6 +1138,7 @@ class DiaryFragment : Fragment() {
 
         // 컨테이너에 뷰 추가 및 맨 앞으로 노출
         binding.layoutDiaryContainer.addView(decorateTextView)
+        decorateTextView.post { clampViewToParent(decorateTextView) }
         decorateTextView.bringToFront()
 
         Toast.makeText(requireContext(), "텍스트가 추가되었습니다. 원하는 위치로 드래그해 보세요!", Toast.LENGTH_SHORT).show()
@@ -1212,8 +1232,7 @@ class DiaryFragment : Fragment() {
                     val dy = event.rawY - lastY
 
                     // etContent 터치 시 부모 포스트잇(postItView)의 위치 이동
-                    postItView.translationX += dx
-                    postItView.translationY += dy
+                    moveViewWithinParent(postItView, dx, dy)
 
                     lastX = event.rawX
                     lastY = event.rawY
@@ -1225,6 +1244,16 @@ class DiaryFragment : Fragment() {
             }
             true
         }
+    }
+
+    private fun moveViewWithinParent(view: View, dx: Float, dy: Float) {
+        val diaryPage = _binding?.ivFixedDiaryPage ?: return
+        DiaryPageBounds.move(view, diaryPage, dx, dy)
+    }
+
+    private fun clampViewToParent(view: View) {
+        val diaryPage = _binding?.ivFixedDiaryPage ?: return
+        DiaryPageBounds.clamp(view, diaryPage)
     }
 
     override fun onResume() {

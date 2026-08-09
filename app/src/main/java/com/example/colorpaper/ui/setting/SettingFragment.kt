@@ -30,6 +30,9 @@ class SettingFragment : Fragment() {
         view.findViewById<View>(R.id.iv_back_setting).setOnClickListener {
             requireActivity().onBackPressedDispatcher.onBackPressed()
         }
+        view.findViewById<View>(R.id.card_theme_rose).setOnClickListener {
+            selectTheme(AppTheme.ROSE)
+        }
         view.findViewById<View>(R.id.card_theme_sage).setOnClickListener {
             selectTheme(AppTheme.SAGE)
         }
@@ -54,6 +57,7 @@ class SettingFragment : Fragment() {
         val text = color(palette.primaryText)
         val surface = color(palette.todo)
         val selectedSurface = color(palette.checklist)
+        val outline = ColorUtils.setAlphaComponent(text, 38)
 
         root.setBackgroundColor(background)
         tintTextRecursively(root, text)
@@ -65,25 +69,36 @@ class SettingFragment : Fragment() {
             root.findViewById<MaterialCardView>(R.id.cv_decorate_group)
         ).forEach { card ->
             card.setCardBackgroundColor(surface)
-            card.strokeWidth = 0
+            card.strokeColor = outline
+            card.strokeWidth = dp(1)
         }
         root.findViewById<MaterialCardView>(R.id.cv_premium)
             .setCardBackgroundColor(color(palette.yearsAgo))
 
         val currentTheme = ThemeManager.currentTheme(requireContext())
         styleThemeOption(
+            root.findViewById(R.id.card_theme_rose),
+            root.findViewById(R.id.tv_rose_selected),
+            currentTheme == AppTheme.ROSE,
+            surface,
+            selectedSurface,
+            outline
+        )
+        styleThemeOption(
             root.findViewById(R.id.card_theme_sage),
             root.findViewById(R.id.tv_sage_selected),
             currentTheme == AppTheme.SAGE,
             surface,
-            selectedSurface
+            selectedSurface,
+            outline
         )
         styleThemeOption(
             root.findViewById(R.id.card_theme_sky),
             root.findViewById(R.id.tv_sky_selected),
             currentTheme == AppTheme.SKY,
             surface,
-            selectedSurface
+            selectedSurface,
+            outline
         )
 
         val secondaryText = ColorUtils.setAlphaComponent(text, 170)
@@ -97,10 +112,12 @@ class SettingFragment : Fragment() {
         selectedLabel: TextView,
         selected: Boolean,
         surface: Int,
-        selectedSurface: Int
+        selectedSurface: Int,
+        outline: Int
     ) {
         card.setCardBackgroundColor(if (selected) selectedSurface else surface)
-        card.strokeWidth = 0
+        card.strokeColor = outline
+        card.strokeWidth = dp(1)
         selectedLabel.visibility = if (selected) View.VISIBLE else View.GONE
     }
 
@@ -114,5 +131,8 @@ class SettingFragment : Fragment() {
     }
 
     private fun color(colorRes: Int): Int = ContextCompat.getColor(requireContext(), colorRes)
+
+    private fun dp(value: Int): Int =
+        (value * resources.displayMetrics.density).toInt()
 
 }

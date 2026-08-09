@@ -16,6 +16,7 @@ import android.widget.TextView
 import androidx.annotation.ColorRes
 import androidx.appcompat.widget.SwitchCompat
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 import androidx.recyclerview.widget.RecyclerView
 import com.example.colorpaper.R
 import com.example.colorpaper.data.model.TodoEntity
@@ -135,9 +136,11 @@ class HomeWidgetAdapter(
             val textColor = color(palette.primaryText)
             val accentColor = color(palette.accent)
             val offColor = color(palette.switchOff)
+            val outlineColor = ColorUtils.setAlphaComponent(textColor, 38)
 
             card.setCardBackgroundColor(color(widgetColor(widget.type)))
-            card.strokeWidth = 0
+            card.strokeColor = outlineColor
+            card.strokeWidth = dp(1)
             title.text = when (widget.type) {
                 "YEARS_AGO" -> yearsAgo?.let { "${it.yearsAgo}년 전 오늘" } ?: display.first
                 else -> display.first
@@ -233,9 +236,11 @@ class HomeWidgetAdapter(
         private fun bindWeeklyCalendar(textColor: Int) {
             weeklyCalendar.removeAllViews()
             weeklyCalendar.clipToOutline = true
+            val outlineColor = ColorUtils.setAlphaComponent(textColor, 38)
             weeklyCalendar.background = GradientDrawable().apply {
                 cornerRadius = dp(22).toFloat()
                 setColor(color(palette.reminder))
+                setStroke(dp(1), outlineColor)
             }
             calendarDays.forEachIndexed { index, day ->
                 weeklyCalendar.addView(createDayCell(day, textColor))

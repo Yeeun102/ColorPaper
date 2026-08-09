@@ -15,8 +15,8 @@
         android:scaleType="centerCrop"
         android:src="@android:drawable/ic_menu_report_image"
         app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Full"
-        app:strokeColor="#D1B8B8"
-        app:strokeWidth="0dp" />
+        app:strokeColor="@color/soft_outline"
+        app:strokeWidth="1dp" />
 
     <TextView
         android:id="@+id/tvPopupNickname"

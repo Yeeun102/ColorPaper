@@ -4,12 +4,15 @@ import android.content.Context
 import android.util.Log
 import com.example.colorpaper.data.local.AppDatabase
 import com.example.colorpaper.data.model.DiaryEntity
+import com.example.colorpaper.reminder.ReminderSchedulePolicy
+import com.example.colorpaper.reminder.ReminderScheduler
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 
 class DiaryRepository(context: Context) {
 
-    private val db = AppDatabase.getDatabase(context)
+    private val appContext = context.applicationContext
+    private val db = AppDatabase.getDatabase(appContext)
     private val firestore = FirebaseFirestore.getInstance()
 
     // Firestore 및 Room에서 특정 유저의 해당 날짜 일기 가져오기
@@ -38,9 +41,30 @@ class DiaryRepository(context: Context) {
     suspend fun saveDiariesToLocalAndRemote(diaries: List<DiaryEntity>): Boolean {
         return try {
             for (diary in diaries) {
+                val existingDiary = diary.diaryId.takeIf { it > 0 }
+                    ?.let { db.diaryDao().getDiaryById(it) }
+                val reminderEnabled = diary.reviewCycleDays != ReminderSchedulePolicy.DISABLED
+                val keepExistingSchedule = reminderEnabled &&
+                    existingDiary?.reviewCycleDays == diary.reviewCycleDays &&
+                    existingDiary.reminderAnchorAt > 0L
+                val diaryToSave = diary.copy(
+                    reminderAnchorAt = when {
+                        !reminderEnabled -> 0L
+                        keepExistingSchedule -> existingDiary.reminderAnchorAt
+                        else -> System.currentTimeMillis()
+                    },
+                    reminderStage = if (keepExistingSchedule) existingDiary.reminderStage else 0,
+                    lastRemindedAt = if (keepExistingSchedule) existingDiary.lastRemindedAt else 0L
+                )
                 // 1. Room 로컬 DB 저장
-                val savedId = db.diaryDao().insertPostIt(diary)
-                val updatedDiary = diary.copy(diaryId = savedId.toInt())
+                val savedId = db.diaryDao().insertPostIt(diaryToSave)
+                val updatedDiary = diaryToSave.copy(diaryId = savedId.toInt())
+
+                if (reminderEnabled) {
+                    ReminderScheduler.schedule(appContext, updatedDiary)
+                } else {
+                    ReminderScheduler.cancel(appContext, updatedDiary.diaryId)
+                }
 
                 // 2. Firebase Firestore 백엔드 서버 적재
                 val docRef = firestore.collection("diaries")

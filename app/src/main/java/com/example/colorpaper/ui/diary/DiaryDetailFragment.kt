@@ -32,6 +32,7 @@ import com.example.colorpaper.data.model.DiaryCommentEntity
 import com.example.colorpaper.data.model.DiaryEntity
 import com.example.colorpaper.databinding.FragmentDiaryDetailBinding
 import com.example.colorpaper.util.AuthUtils
+import com.example.colorpaper.ui.theme.AppTheme
 import com.example.colorpaper.ui.theme.ThemeManager
 import com.google.android.material.button.MaterialButton
 import com.google.firebase.auth.FirebaseAuth
@@ -131,6 +132,7 @@ class DiaryDetailFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         val currentBinding = _binding ?: return
+        currentBinding.ivFixedDiaryPageDetail.setImageResource(diaryPageResource())
 
         buttonColorMap = mapOf(
             binding.btnHighlightDetail to ContextCompat.getColor(requireContext(), palette.reminder),
@@ -274,6 +276,7 @@ class DiaryDetailFragment : Fragment() {
             }
 
             activeBinding.layoutCommentsContainer.addView(commentView)
+            commentView.post { clampViewToParent(commentView) }
             commentView.bringToFront()
             commentView.elevation = 10f
             activeBinding.layoutCommentsContainer.bringToFront()
@@ -285,6 +288,12 @@ class DiaryDetailFragment : Fragment() {
         val toolbarStrokeColor = ContextCompat.getColor(requireContext(), palette.stroke)
         binding.layoutToolbarDecorateDetail.setCardBackgroundColor(toolbarColor)
         binding.layoutToolbarDecorateDetail.strokeColor = toolbarStrokeColor
+    }
+
+    private fun diaryPageResource(): Int = when (ThemeManager.currentTheme(requireContext())) {
+        AppTheme.ROSE -> R.drawable.diarypage
+        AppTheme.SAGE -> R.drawable.diarypage_sage
+        AppTheme.SKY -> R.drawable.diarypage_sky
     }
 
     override fun onResume() {
@@ -308,7 +317,6 @@ class DiaryDetailFragment : Fragment() {
             } else {
                 button.backgroundTintList = ColorStateList.valueOf(defaultColor)
             }
-            button.strokeWidth = 0
             button.invalidate()
             button.refreshDrawableState()
         }
@@ -601,7 +609,7 @@ class DiaryDetailFragment : Fragment() {
             setBackgroundColor(Color.TRANSPARENT)
             setPadding(paddingHorizontal, paddingVertical, paddingHorizontal, paddingVertical)
 
-            translationX = posX
+            translationX = posX.coerceAtLeast(0f)
             translationY = posY
 
             layoutParams = ViewGroup.LayoutParams(
@@ -611,6 +619,7 @@ class DiaryDetailFragment : Fragment() {
         }
 
         currentBinding.layoutDetailDiaryContainer.addView(decorateTextView)
+        decorateTextView.post { clampViewToParent(decorateTextView) }
     }
 
     private fun renderReadOnlyPostIt(diary: DiaryEntity, isCurrUserFollowing: Boolean = true) {
@@ -645,7 +654,7 @@ class DiaryDetailFragment : Fragment() {
         val resId = postItResourceMap[diary.color] ?: R.drawable.post_yellow
         ivBg?.setImageResource(resId)
 
-        view.translationX = diary.positionX
+        view.translationX = diary.positionX.coerceAtLeast(0f)
         view.translationY = diary.positionY
 
         if (shouldBlur && etContent is EditText) {
@@ -654,6 +663,7 @@ class DiaryDetailFragment : Fragment() {
         }
 
         currentBinding.layoutDetailDiaryContainer.addView(view)
+        view.post { clampViewToParent(view) }
     }
 
     private fun applyHighlightRangesToEditText(etContent: EditText, rangesStr: String, shouldBlur: Boolean = false) {
@@ -709,7 +719,7 @@ class DiaryDetailFragment : Fragment() {
         view.setTag(R.id.btnFollow, comment.userId)
         view.setTag(R.id.btnProfileHome, if (isMyDiary) AuthUtils.getCurrentUserId() else (targetUserId ?: ""))
 
-        view.translationX = comment.posX
+        view.translationX = comment.posX.coerceAtLeast(0f)
         view.translationY = comment.posY
 
         btnCommentDone.visibility = View.GONE
@@ -717,6 +727,7 @@ class DiaryDetailFragment : Fragment() {
         lockCommentEditText(view, etCommentContent)
 
         currentBinding.layoutCommentsContainer.addView(view)
+        view.post { clampViewToParent(view) }
     }
 
     private fun insertCommentToDb(view: View, commentText: String, colorName: String, timestamp: String) {
@@ -868,8 +879,7 @@ class DiaryDetailFragment : Fragment() {
                     val dx = event.rawX - lastX
                     val dy = event.rawY - lastY
 
-                    v.translationX += dx
-                    v.translationY += dy
+                    moveViewWithinParent(v, dx, dy)
 
                     lastX = event.rawX
                     lastY = event.rawY
@@ -904,8 +914,7 @@ class DiaryDetailFragment : Fragment() {
                     val dx = event.rawX - lastX
                     val dy = event.rawY - lastY
 
-                    commentView.translationX += dx
-                    commentView.translationY += dy
+                    moveViewWithinParent(commentView, dx, dy)
 
                     lastX = event.rawX
                     lastY = event.rawY
@@ -917,6 +926,16 @@ class DiaryDetailFragment : Fragment() {
             }
             true
         }
+    }
+
+    private fun moveViewWithinParent(view: View, dx: Float, dy: Float) {
+        val diaryPage = _binding?.ivFixedDiaryPageDetail ?: return
+        DiaryPageBounds.move(view, diaryPage, dx, dy)
+    }
+
+    private fun clampViewToParent(view: View) {
+        val diaryPage = _binding?.ivFixedDiaryPageDetail ?: return
+        DiaryPageBounds.clamp(view, diaryPage)
     }
 
     override fun onDestroyView() {

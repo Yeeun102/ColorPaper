@@ -8,8 +8,8 @@
     app:cardBackgroundColor="#E8D3D3"
     app:cardCornerRadius="28dp"
     app:cardElevation="0dp"
-    app:strokeColor="#D1B8B8"
-    app:strokeWidth="0dp">
+    app:strokeColor="@color/soft_outline"
+    app:strokeWidth="1dp">
 
     <FrameLayout
         android:layout_width="match_parent"
