@@ -108,6 +108,8 @@ class ProfileFragment : Fragment() {
         val cardEmptySharedFlashcard = view.findViewById<MaterialCardView>(R.id.cardEmptySharedFlashcard)
         val rvSharedFlashcards = view.findViewById<RecyclerView>(R.id.rvSharedFlashcards)
         val rvHighlights = view.findViewById<RecyclerView>(R.id.rvHighlights)
+        val dividerHighlightsTop = view.findViewById<View>(R.id.dividerHighlightsTop)
+        val dividerHighlightsBottom = view.findViewById<View>(R.id.dividerHighlightsBottom)
 
         val flFriendListPopup = view.findViewById<View>(R.id.flFriendListPopup)
         val cardPopupContent = view.findViewById<View>(R.id.cardPopupContent)
@@ -202,6 +204,12 @@ class ProfileFragment : Fragment() {
         // 🌟 6. 하이라이트 세팅
         viewModel.highlights.observe(viewLifecycleOwner) { highlights ->
             val list = highlights ?: emptyList()
+            val hasHighlights = list.isNotEmpty()
+
+            dividerHighlightsTop?.visibility = if (hasHighlights) View.VISIBLE else View.GONE
+            dividerHighlightsBottom?.visibility = View.VISIBLE
+            rvHighlights?.visibility = if (hasHighlights) View.VISIBLE else View.GONE
+
             rvHighlights?.adapter = HighlightAdapter(
                 items = list,
                 onItemClick = { item ->

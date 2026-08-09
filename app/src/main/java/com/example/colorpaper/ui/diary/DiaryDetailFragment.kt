@@ -34,6 +34,7 @@ import com.example.colorpaper.util.AuthUtils
 import com.google.android.material.button.MaterialButton
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -205,10 +206,7 @@ class DiaryDetailFragment : Fragment() {
             }
         }
 
-        val todayStr = dateFormat.format(Date())
-        val isFutureDate = targetDate > todayStr
-
-        if (isFutureDate || isReadOnlyMode) {
+        if (isCurrentDateOrFuture() || isReadOnlyMode) {
             currentBinding.btnToolbarCommentDetail.alpha = 0.3f
         } else {
             currentBinding.btnToolbarCommentDetail.alpha = 1.0f
@@ -223,8 +221,8 @@ class DiaryDetailFragment : Fragment() {
                 return@setOnClickListener
             }
 
-            if (isFutureDate) {
-                Toast.makeText(safeContext, "미래의 일기에는 댓글을 작성할 수 없습니다.", Toast.LENGTH_SHORT).show()
+            if (isCurrentDateOrFuture()) {
+                Toast.makeText(safeContext, "오늘 이후의 일기에는 댓글을 작성할 수 없습니다.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             val randomColor = listOf("orange", "yellow", "green", "blue").random()
@@ -239,9 +237,11 @@ class DiaryDetailFragment : Fragment() {
             val etCommentContent = commentView.findViewById<EditText>(R.id.etCommentContent)
             val btnCommentDone = commentView.findViewById<TextView>(R.id.btnCommentDone)
             val tvTime = commentView.findViewById<TextView>(R.id.tvCommentTime)
+            val tvAuthor = commentView.findViewById<TextView>(R.id.tvCommentAuthor)
 
             val todayDateStr = dateFormat.format(Date())
             tvTime.text = todayDateStr
+            tvAuthor.text = "작성자 : 나"
 
             commentView.tag = randomColor
 
@@ -414,10 +414,25 @@ class DiaryDetailFragment : Fragment() {
             targetDate = dateFormat.format(cal.time)
 
             updateTitleDateText()
+            updateCommentButtonState()
             checkFollowStateAndLoad()
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    private fun updateCommentButtonState() {
+        val currentBinding = _binding ?: return
+        if (isCurrentDateOrFuture() || isReadOnlyMode) {
+            currentBinding.btnToolbarCommentDetail.alpha = 0.3f
+        } else {
+            currentBinding.btnToolbarCommentDetail.alpha = 1.0f
+        }
+    }
+
+    private fun isCurrentDateOrFuture(): Boolean {
+        val todayStr = dateFormat.format(Date())
+        return targetDate >= todayStr
     }
 
     private fun updateTitleDateText() {
@@ -457,6 +472,7 @@ class DiaryDetailFragment : Fragment() {
                 } else if (selectedStr != targetDate) {
                     targetDate = selectedStr
                     updateTitleDateText()
+                    updateCommentButtonState()
                     checkFollowStateAndLoad()
                 }
             },
@@ -503,10 +519,27 @@ class DiaryDetailFragment : Fragment() {
                 }
 
                 comments = withContext(Dispatchers.IO) {
-                    db.diaryDao().getCommentsByDateAndUserId(targetDate, effectiveUidString)
+                    val ownerKey = effectiveUidString.hashCode()
+                    db.diaryDao().getCommentsByDate(targetDate)
+                        .filter { comment ->
+                            comment.diaryId == ownerKey || (comment.diaryId == 0 && comment.userId == effectiveUidString)
+                        }
                 }
             } catch (e: Exception) {
                 Log.e("DiaryDetail", "로컬 DB 조회 실패", e)
+            }
+
+            val commentAuthorMap = withContext(Dispatchers.IO) {
+                val labels = mutableMapOf<String, String>()
+                val userIds = comments.map { it.userId }.toSet()
+                for (uid in userIds) {
+                    labels[uid] = when {
+                        uid == myUid -> "나"
+                        uid == effectiveUidString && !isMyDiary -> "작성자"
+                        else -> resolveUserNickname(uid)
+                    }
+                }
+                labels
             }
 
             // 비동기 작업 종료 직후 _binding 및 Lifecycle을 안전하게 확인
@@ -530,8 +563,18 @@ class DiaryDetailFragment : Fragment() {
 
             binding.layoutCommentsContainer.removeAllViews()
             for (comment in comments) {
-                renderCommentPostIt(comment)
+                renderCommentPostIt(comment, commentAuthorMap[comment.userId] ?: "알 수 없음")
             }
+        }
+    }
+
+    private suspend fun resolveUserNickname(userId: String): String {
+        if (userId.isBlank()) return "알 수 없음"
+        return try {
+            val doc = firestore.collection("users").document(userId).get().await()
+            doc.getString("nickname") ?: "알 수 없음"
+        } catch (_: Exception) {
+            "알 수 없음"
         }
     }
 
@@ -633,7 +676,7 @@ class DiaryDetailFragment : Fragment() {
         etContent.setText(spannable)
     }
 
-    private fun renderCommentPostIt(comment: CommentEntity) {
+    private fun renderCommentPostIt(comment: CommentEntity, authorLabel: String) {
         val safeContext = context ?: return
         val currentBinding = _binding ?: return
 
@@ -643,16 +686,20 @@ class DiaryDetailFragment : Fragment() {
         val ivCommentBg = view.findViewById<ImageView>(R.id.ivCommentBg)
         val etCommentContent = view.findViewById<EditText>(R.id.etCommentContent)
         val tvTime = view.findViewById<TextView>(R.id.tvCommentTime)
+        val tvAuthor = view.findViewById<TextView>(R.id.tvCommentAuthor)
         val btnCommentDone = view.findViewById<TextView>(R.id.btnCommentDone)
 
         etCommentContent.setText(comment.content)
         tvTime.text = comment.timestamp.ifBlank { comment.date }
+        tvAuthor.text = "작성자 : $authorLabel"
 
         val resId = commentResourceMap[comment.color] ?: R.drawable.comment_blue
         ivCommentBg.setImageResource(resId)
 
         view.setTag(R.id.ivCommentBg, comment.commentId)
         view.tag = comment.color
+        view.setTag(R.id.btnFollow, comment.userId)
+        view.setTag(R.id.btnProfileHome, if (isMyDiary) AuthUtils.getCurrentUserId() else (targetUserId ?: ""))
 
         view.translationX = comment.posX
         view.translationY = comment.posY
@@ -667,12 +714,13 @@ class DiaryDetailFragment : Fragment() {
     private fun insertCommentToDb(view: View, commentText: String, colorName: String, timestamp: String) {
         val safeContext = context?.applicationContext ?: return
         val currentUid = AuthUtils.getCurrentUserId()
+        val ownerUid = if (isMyDiary) currentUid else (targetUserId ?: currentUid)
 
         val posX = view.translationX
         val posY = view.translationY
 
         val newComment = CommentEntity(
-            diaryId = 0,
+            diaryId = ownerUid.hashCode(),
             userId = currentUid,
             date = targetDate,
             content = commentText,
@@ -691,6 +739,8 @@ class DiaryDetailFragment : Fragment() {
             if (_binding == null || !isAdded) return@launch
 
             view.setTag(R.id.ivCommentBg, savedId.toInt())
+            view.setTag(R.id.btnFollow, currentUid)
+            view.setTag(R.id.btnProfileHome, ownerUid)
             Toast.makeText(safeContext, "셀프 댓글이 등록되었습니다.", Toast.LENGTH_SHORT).show()
         }
     }
@@ -698,10 +748,10 @@ class DiaryDetailFragment : Fragment() {
     private fun saveAllCommentsAndDiaryState() {
         val safeContext = context?.applicationContext ?: return
         val currentBinding = _binding ?: return
+        val currentUid = AuthUtils.getCurrentUserId()
 
         val container = currentBinding.layoutCommentsContainer
         val childCount = container.childCount
-        val currentUid = AuthUtils.getCurrentUserId()
 
         val commentsToSave = mutableListOf<Pair<View, CommentEntity>>()
 
@@ -717,11 +767,15 @@ class DiaryDetailFragment : Fragment() {
                 val posX = commentView.translationX
                 val posY = commentView.translationY
                 val commentDate = tvTime.text.toString()
+                val authorUid = (commentView.getTag(R.id.btnFollow) as? String).orEmpty().ifBlank { currentUid }
+                val ownerUid = (commentView.getTag(R.id.btnProfileHome) as? String)
+                    .orEmpty()
+                    .ifBlank { if (isMyDiary) currentUid else (targetUserId ?: currentUid) }
 
                 val updatedComment = CommentEntity(
                     commentId = existingCommentId,
-                    diaryId = 0,
-                    userId = currentUid,
+                    diaryId = ownerUid.hashCode(),
+                    userId = authorUid,
                     date = targetDate,
                     content = text,
                     color = colorName,
@@ -745,6 +799,15 @@ class DiaryDetailFragment : Fragment() {
                         visibility = currentVisibility
                     )
                     db.diaryDao().insertPostIt(updatedPostIt)
+
+                    try {
+                        firestore.collection("diaries")
+                            .document("${currentUid}_${targetDate}_${updatedPostIt.diaryId}")
+                            .set(updatedPostIt, SetOptions.merge())
+                            .await()
+                    } catch (e: Exception) {
+                        Log.e("DiaryDetail", "Firestore 포스트잇 동기화 실패", e)
+                    }
                 }
             }
 
@@ -753,6 +816,19 @@ class DiaryDetailFragment : Fragment() {
                     commentsToSave.map { (view, comment) ->
                         val savedId = db.diaryDao().insertComment(comment)
                         Pair(view, savedId)
+                    }
+                }
+
+                withContext(Dispatchers.IO) {
+                    for ((_, comment) in commentsToSave) {
+                        try {
+                            firestore.collection("comments")
+                                .document("${currentUid}_${targetDate}_${System.currentTimeMillis()}")
+                                .set(comment)
+                                .await()
+                        } catch (e: Exception) {
+                            Log.e("DiaryDetail", "Firestore 댓글 동기화 실패", e)
+                        }
                     }
                 }
 

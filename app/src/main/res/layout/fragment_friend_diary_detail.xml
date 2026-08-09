@@ -224,48 +224,37 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- 4. 하단 친구 전용 액션바 [ 💬 😄 T ] -->
+    <!-- 4. 하단 친구 전용 액션바 [댓글] -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/layoutFriendBottomBar"
-        android:layout_width="wrap_content"
+        android:layout_width="120dp"
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
-        app:cardBackgroundColor="#EFEBE4"
+        app:cardBackgroundColor="#E4D0D0"
         app:cardCornerRadius="24dp"
         app:cardElevation="4dp"
-        app:strokeColor="#D5CFC5"
+        app:strokeColor="@color/theme_rose_stroke"
         app:strokeWidth="1dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
             android:orientation="horizontal"
-            android:paddingHorizontal="24dp"
+            android:paddingHorizontal="10dp"
             android:paddingVertical="10dp">
 
-            <ImageView
+            <ImageButton
                 android:id="@+id/btnFriendComment"
-                android:layout_width="28dp"
-                android:layout_height="28dp"
-                android:layout_marginEnd="20dp"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="댓글"
                 android:src="@drawable/ic_comment_bubble" />
 
-            <ImageView
-                android:id="@+id/btnFriendStamp"
-                android:layout_width="28dp"
-                android:layout_height="28dp"
-                android:layout_marginEnd="20dp"
-                android:src="@drawable/ic_emoji_smile" />
-
-            <ImageView
-                android:id="@+id/btnFriendText"
-                android:layout_width="28dp"
-                android:layout_height="28dp"
-                android:src="@drawable/ic_text_tool" />
 
         </LinearLayout>
 

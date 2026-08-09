@@ -1222,6 +1222,11 @@ class DiaryFragment : Fragment() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        loadTodayDiary()
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
