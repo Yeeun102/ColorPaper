@@ -205,7 +205,7 @@ class ProfileFragment : Fragment() {
             rvHighlights?.adapter = HighlightAdapter(
                 items = list,
                 onItemClick = { item ->
-                    navigateToDiaryDetail(item.date, item.diaryId)
+                    navigateToDiaryDetail(item.date, item.diaryId, readOnly = true)
                 }
             )
         }
@@ -427,18 +427,16 @@ class ProfileFragment : Fragment() {
         }
     }
 
-    private fun navigateToDiaryDetail(targetDate: String, diaryId: Int = 0) {
+    private fun navigateToDiaryDetail(targetDate: String, diaryId: Int = 0, readOnly: Boolean = false) {
         val effectiveUid = if (isMyProfile) auth.currentUser?.uid else targetUserId
 
         val fragment: Fragment = if (isMyProfile) {
             // 1. 내 프로필인 경우 -> 내 일기 상세 화면
-            DiaryDetailFragment().apply {
-                arguments = Bundle().apply {
-                    putString("TARGET_DATE", targetDate)
-                    putString("TARGET_USER_ID", effectiveUid)
-                    putInt("DIARY_ID", diaryId)
-                }
-            }
+            DiaryDetailFragment.newInstance(
+                targetDate = targetDate,
+                targetUserId = effectiveUid,
+                readOnly = readOnly
+            )
         } else {
             // 2. 친구 프로필인 경우 -> 날짜(targetDate) 포함 전달
             FriendDiaryDetailFragment.newInstance(

@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.text.SpannableString
 import android.text.Spanned
 import android.text.style.BackgroundColorSpan
+import android.text.method.PasswordTransformationMethod
 import android.util.Log
 import android.view.GestureDetector
 import android.view.LayoutInflater
@@ -67,22 +68,31 @@ class DiaryDetailFragment : Fragment() {
     private var targetDate: String = dateFormat.format(Date())
     private var targetUserId: String? = null
     private var isMyDiary: Boolean = true
+    private var isReadOnlyMode: Boolean = false
     private var currentVisibility: String = "전체공개"
 
     private var buttonColorMap: Map<Button, Int> = emptyMap()
     private lateinit var gestureDetector: GestureDetector
 
     private var isPastHighlighted = false
+    private var currentPostIts: List<DiaryEntity> = emptyList()
+    private var isFollowingUser: Boolean = true
 
     companion object {
         private const val ARG_TARGET_DATE = "TARGET_DATE"
         private const val ARG_TARGET_USER_ID = "TARGET_USER_ID"
+        private const val ARG_READ_ONLY = "READ_ONLY"
 
-        fun newInstance(targetDate: String? = null, targetUserId: String? = null): DiaryDetailFragment {
+        fun newInstance(
+            targetDate: String? = null,
+            targetUserId: String? = null,
+            readOnly: Boolean = false
+        ): DiaryDetailFragment {
             return DiaryDetailFragment().apply {
                 arguments = Bundle().apply {
                     putString(ARG_TARGET_DATE, targetDate)
                     putString(ARG_TARGET_USER_ID, targetUserId)
+                    putBoolean(ARG_READ_ONLY, readOnly)
                 }
             }
         }
@@ -97,6 +107,7 @@ class DiaryDetailFragment : Fragment() {
         }
 
         targetUserId = arguments?.getString(ARG_TARGET_USER_ID)
+        isReadOnlyMode = arguments?.getBoolean(ARG_READ_ONLY, false) ?: false
 
         val myUid = auth.currentUser?.uid
         isMyDiary = targetUserId.isNullOrEmpty() || targetUserId == myUid
@@ -142,48 +153,54 @@ class DiaryDetailFragment : Fragment() {
             showDatePicker()
         }
 
-        currentBinding.btnSaveDetail.visibility = View.VISIBLE
+        currentBinding.btnSaveDetail.visibility = if (isReadOnlyMode) View.GONE else View.VISIBLE
+        currentBinding.btnHighlightDetail.visibility = if (isReadOnlyMode) View.GONE else View.VISIBLE
         currentBinding.btnToolbarAddDetail.isEnabled = false
         currentBinding.btnToolbarAddDetail.alpha = 0.3f
 
         checkFollowStateAndLoad()
 
-        currentBinding.btnSaveDetail.setOnClickListener {
-            saveAllCommentsAndDiaryState()
-        }
+        if (!isReadOnlyMode) {
+            currentBinding.btnSaveDetail.setOnClickListener {
+                saveAllCommentsAndDiaryState()
+            }
 
-        currentBinding.btnHighlightDetail.setOnClickListener {
-            val safeContext = context?.applicationContext ?: return@setOnClickListener
-            val currentUid = AuthUtils.getCurrentUserId()
+            currentBinding.btnHighlightDetail.setOnClickListener {
+                val safeContext = context?.applicationContext ?: return@setOnClickListener
+                val currentUid = AuthUtils.getCurrentUserId()
 
-            viewLifecycleOwner.lifecycleScope.launch {
-                val db = AppDatabase.getDatabase(safeContext)
+                viewLifecycleOwner.lifecycleScope.launch {
+                    val db = AppDatabase.getDatabase(safeContext)
 
-                val postIts = withContext(Dispatchers.IO) {
-                    db.diaryDao().getPostItsByDateAndUserId(targetDate, currentUid)
-                }
-
-                val binding = _binding ?: return@launch
-                if (!isAdded) return@launch
-
-                if (postIts.isEmpty()) {
-                    Toast.makeText(safeContext, "하이라이트에 등록할 다이어리가 없습니다.", Toast.LENGTH_SHORT).show()
-                    return@launch
-                }
-
-                isPastHighlighted = !isPastHighlighted
-                applyCustomButtonState(binding.btnHighlightDetail, isSelected = isPastHighlighted)
-
-                withContext(Dispatchers.IO) {
-                    for (postIt in postIts) {
-                        val updatedPostIt = postIt.copy(isHighlighted = isPastHighlighted)
-                        db.diaryDao().insertPostIt(updatedPostIt)
+                    var postIts = currentPostIts
+                    if (postIts.isEmpty()) {
+                        postIts = withContext(Dispatchers.IO) {
+                            db.diaryDao().getPostItsByDateAndUserId(targetDate, currentUid)
+                        }
                     }
-                }
 
-                if (isAdded && _binding != null) {
-                    val msg = if (isPastHighlighted) "하이라이트에 등록되었습니다." else "하이라이트 등록이 해제되었습니다."
-                    Toast.makeText(safeContext, msg, Toast.LENGTH_SHORT).show()
+                    val binding = _binding ?: return@launch
+                    if (!isAdded) return@launch
+
+                    if (postIts.isEmpty()) {
+                        Toast.makeText(safeContext, "하이라이트에 등록할 다이어리가 없습니다.", Toast.LENGTH_SHORT).show()
+                        return@launch
+                    }
+
+                    isPastHighlighted = !isPastHighlighted
+                    applyCustomButtonState(binding.btnHighlightDetail, isSelected = isPastHighlighted)
+
+                    withContext(Dispatchers.IO) {
+                        for (postIt in postIts) {
+                            val updatedPostIt = postIt.copy(isHighlighted = isPastHighlighted)
+                            db.diaryDao().insertPostIt(updatedPostIt)
+                        }
+                    }
+
+                    if (isAdded && _binding != null) {
+                        val msg = if (isPastHighlighted) "하이라이트에 등록되었습니다." else "하이라이트 등록이 해제되었습니다."
+                        Toast.makeText(safeContext, msg, Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         }
@@ -191,7 +208,7 @@ class DiaryDetailFragment : Fragment() {
         val todayStr = dateFormat.format(Date())
         val isFutureDate = targetDate > todayStr
 
-        if (isFutureDate) {
+        if (isFutureDate || isReadOnlyMode) {
             currentBinding.btnToolbarCommentDetail.alpha = 0.3f
         } else {
             currentBinding.btnToolbarCommentDetail.alpha = 1.0f
@@ -200,6 +217,11 @@ class DiaryDetailFragment : Fragment() {
         currentBinding.btnToolbarCommentDetail.setOnClickListener {
             val safeContext = context ?: return@setOnClickListener
             val activeBinding = _binding ?: return@setOnClickListener
+
+            if (isReadOnlyMode) {
+                Toast.makeText(safeContext, "하이라이트에서 연 화면은 읽기 전용입니다.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
 
             if (isFutureDate) {
                 Toast.makeText(safeContext, "미래의 일기에는 댓글을 작성할 수 없습니다.", Toast.LENGTH_SHORT).show()
@@ -288,7 +310,6 @@ class DiaryDetailFragment : Fragment() {
         if (isMyDiary) {
             loadDiaryAndComments()
         } else {
-            val safeContext = context?.applicationContext ?: return
             val myUid = auth.currentUser?.uid ?: return
             val friendUid = targetUserId ?: return
 
@@ -304,15 +325,12 @@ class DiaryDetailFragment : Fragment() {
                     }
 
                     if (!isAdded || _binding == null) return@launch
-
-                    if (followDoc.exists()) {
-                        loadDiaryAndComments()
-                    } else {
-                        Toast.makeText(safeContext, "팔로우 중인 친구의 다이어리만 조회할 수 있습니다.", Toast.LENGTH_SHORT).show()
-                    }
+                    isFollowingUser = followDoc.exists()
+                    loadDiaryAndComments()
                 } catch (e: Exception) {
                     Log.e("DiaryDetail", "팔로우 상태 확인 실패", e)
                     if (isAdded && _binding != null) {
+                        isFollowingUser = false
                         loadDiaryAndComments()
                     }
                 }
@@ -498,6 +516,7 @@ class DiaryDetailFragment : Fragment() {
             isPastHighlighted = postIts.any { it.isHighlighted }
             applyCustomButtonState(binding.btnHighlightDetail, isSelected = isPastHighlighted)
 
+            currentPostIts = postIts
             binding.layoutDetailDiaryContainer.removeAllViews()
             for (postIt in postIts) {
                 val isDecoText = postIt.content.startsWith("[DECO]:")
@@ -505,7 +524,7 @@ class DiaryDetailFragment : Fragment() {
                     val pureText = postIt.content.replace("[DECO]:", "")
                     renderReadOnlyDecoText(pureText, postIt.positionX, postIt.positionY)
                 } else {
-                    renderReadOnlyPostIt(postIt)
+                    renderReadOnlyPostIt(postIt, isFollowingUser)
                 }
             }
 
@@ -543,9 +562,16 @@ class DiaryDetailFragment : Fragment() {
         currentBinding.layoutDetailDiaryContainer.addView(decorateTextView)
     }
 
-    private fun renderReadOnlyPostIt(diary: DiaryEntity) {
+    private fun renderReadOnlyPostIt(diary: DiaryEntity, isCurrUserFollowing: Boolean = true) {
         val safeContext = context ?: return
         val currentBinding = _binding ?: return
+
+        val shouldHide = !isMyDiary && !isCurrUserFollowing && diary.visibility == "비공개"
+        val shouldBlur = !isMyDiary && !isCurrUserFollowing && diary.visibility == "팔로워공개"
+
+        if (shouldHide) {
+            return
+        }
 
         val inflater = LayoutInflater.from(safeContext)
         val view = inflater.inflate(R.layout.item_diary_postit, currentBinding.layoutDetailDiaryContainer, false)
@@ -560,7 +586,7 @@ class DiaryDetailFragment : Fragment() {
             etContent.setText(diary.content)
             etContent.isEnabled = false
             etContent.isFocusable = false
-            applyHighlightRangesToEditText(etContent, diary.highlightRanges ?: "")
+            applyHighlightRangesToEditText(etContent, diary.highlightRanges ?: "", shouldBlur)
         } else {
             etContent?.text = diary.content
         }
@@ -571,11 +597,18 @@ class DiaryDetailFragment : Fragment() {
         view.translationX = diary.positionX
         view.translationY = diary.positionY
 
+        if (shouldBlur && etContent is EditText) {
+            etContent.alpha = 0.35f
+            etContent.transformationMethod = PasswordTransformationMethod.getInstance()
+        }
+
         currentBinding.layoutDetailDiaryContainer.addView(view)
     }
 
-    private fun applyHighlightRangesToEditText(etContent: EditText, rangesStr: String) {
+    private fun applyHighlightRangesToEditText(etContent: EditText, rangesStr: String, shouldBlur: Boolean = false) {
         if (rangesStr.isBlank()) return
+
+        if (shouldBlur) return
 
         val text = etContent.text.toString()
         val spannable = SpannableString(text)

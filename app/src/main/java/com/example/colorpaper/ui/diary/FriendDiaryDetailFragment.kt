@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.text.SpannableString
 import android.text.Spanned
 import android.text.style.BackgroundColorSpan
+import android.text.method.PasswordTransformationMethod
 import android.util.Log
 import android.view.GestureDetector
 import android.view.LayoutInflater
@@ -72,6 +73,7 @@ class FriendDiaryDetailFragment : Fragment() {
     private val dateFormatDisplay = SimpleDateFormat("M월 d일", Locale.KOREA)
 
     private lateinit var gestureDetector: GestureDetector
+    private var isFollowingUser: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -222,9 +224,18 @@ class FriendDiaryDetailFragment : Fragment() {
     private fun loadFriendDiaryData() {
         val uid = targetUserId ?: return
         val safeContext = context ?: return
+        val myUid = auth.currentUser?.uid ?: ""
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
+                val followDoc = firestore.collection("users")
+                    .document(myUid)
+                    .collection("following")
+                    .document(uid)
+                    .get()
+                    .await()
+                isFollowingUser = followDoc.exists()
+
                 // 1) 유저 정보 조회
                 val userDoc = firestore.collection("users").document(uid).get().await()
                 val nickname = userDoc.getString("nickname") ?: userDoc.getString("name") ?: "친구"
@@ -279,7 +290,7 @@ class FriendDiaryDetailFragment : Fragment() {
                                 val pureText = postIt.content.replace("[DECO]:", "")
                                 renderReadOnlyDecoText(pureText, postIt.positionX, postIt.positionY)
                             } else {
-                                renderReadOnlyPostIt(postIt)
+                                renderReadOnlyPostIt(postIt, isFollowingUser)
                             }
                         }
                     }
@@ -295,9 +306,17 @@ class FriendDiaryDetailFragment : Fragment() {
         }
     }
 
-    private fun renderReadOnlyPostIt(diary: DiaryEntity) {
+    private fun renderReadOnlyPostIt(diary: DiaryEntity, isCurrUserFollowing: Boolean = false) {
         val safeContext = context ?: return
         val binding = _binding ?: return
+
+        val shouldHide = !isCurrUserFollowing && diary.visibility == "비공개"
+        val shouldBlur = !isCurrUserFollowing && diary.visibility == "팔로워공개"
+
+        if (shouldHide) {
+            return
+        }
+
         val inflater = LayoutInflater.from(safeContext)
         val view = inflater.inflate(R.layout.item_diary_postit, binding.layoutDetailDiaryContainer, false)
 
@@ -309,9 +328,13 @@ class FriendDiaryDetailFragment : Fragment() {
 
         if (etContent is EditText) {
             etContent.setText(diary.content)
-            applyHighlightRangesToEditText(etContent, diary.highlightRanges)
             etContent.isEnabled = false
             etContent.isFocusable = false
+            applyHighlightRangesToEditText(etContent, diary.highlightRanges, shouldBlur)
+            if (shouldBlur) {
+                etContent.alpha = 0.35f
+                etContent.transformationMethod = PasswordTransformationMethod.getInstance()
+            }
         } else {
             etContent?.text = diary.content
         }
@@ -479,12 +502,14 @@ class FriendDiaryDetailFragment : Fragment() {
         }
     }
 
-    private fun applyHighlightRangesToEditText(etContent: EditText, rangesStr: String) {
-        if (rangesStr.isBlank()) return
+    private fun applyHighlightRangesToEditText(etContent: EditText, rangesStr: String?, shouldBlur: Boolean = false) {
+        if (rangesStr.isNullOrBlank()) return
+
+        if (shouldBlur) return
 
         val text = etContent.text.toString()
         val spannable = SpannableString(text)
-        val pairs = rangesStr.split(",")
+        val pairs = rangesStr?.split(",") ?: return
 
         for (pair in pairs) {
             val parts = pair.split("-")

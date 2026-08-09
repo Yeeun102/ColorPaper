@@ -168,7 +168,11 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                     }
                 }
 
-                val uiItems = (entities ?: emptyList()).map { entity ->
+                val dedupedByDate = (entities ?: emptyList())
+                    .sortedByDescending { it.date }
+                    .distinctBy { it.date }
+
+                val uiItems = dedupedByDate.map { entity ->
                     HighlightItem(
                         id = entity.highlightId.toString(),
                         diaryId = entity.diaryId,
