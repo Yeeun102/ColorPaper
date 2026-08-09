@@ -65,4 +65,30 @@
         android:layout_marginBottom="12dp"
         app:layout_constraintBottom_toBottomOf="@id/ivCommentBg"
         app:layout_constraintEnd_toEndOf="@id/ivCommentBg"/>
+
+    <TextView
+        android:id="@+id/tvCommentAuthor"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_marginBottom="12dp"
+        android:text="작성자 : 나"
+        android:textColor="#111111"
+        android:textSize="11sp"
+        app:layout_constraintBottom_toBottomOf="@id/ivCommentBg"
+        app:layout_constraintStart_toStartOf="@id/ivCommentBg" />
+
+    <TextView
+        android:id="@+id/tvCommentEmoji"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="💬"
+        android:textColor="#3F2F2F"
+        android:textSize="38sp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 </androidx.constraintlayout.widget.ConstraintLayout>

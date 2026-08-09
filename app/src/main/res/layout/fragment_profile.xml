@@ -188,6 +188,7 @@
                 </RelativeLayout>
             </com.google.android.material.card.MaterialCardView>
             <View
+                android:id="@+id/dividerHighlightsTop"
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:background="#D1B8B8"
@@ -206,6 +207,7 @@
                 app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
 
             <View
+                android:id="@+id/dividerHighlightsBottom"
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:background="#D1B8B8"
