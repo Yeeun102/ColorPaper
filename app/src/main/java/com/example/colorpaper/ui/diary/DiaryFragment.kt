@@ -153,7 +153,7 @@ class DiaryFragment : Fragment() {
             binding.btnVisibilityFriendOnly to "#D7E7FF".toColorInt(),
             binding.btnVisibilityPrivate to "#FFD7D7".toColorInt(),
             binding.btnHighlightState to ContextCompat.getColor(requireContext(), palette.reminder),
-            binding.btnSave to ContextCompat.getColor(requireContext(), palette.accent)
+            binding.btnSave to ContextCompat.getColor(requireContext(), palette.stroke)
         )
 
         emotionColorMap = mapOf(
@@ -321,8 +321,11 @@ class DiaryFragment : Fragment() {
     private fun applyToolbarThemeColor() {
         val toolbarColor = ContextCompat.getColor(requireContext(), palette.yearsAgo)
         val toolbarStrokeColor = ContextCompat.getColor(requireContext(), palette.stroke)
+        val highlightButton = ContextCompat.getColor(requireContext(), palette.reminder)
         binding.layoutToolbarDecorate.setCardBackgroundColor(toolbarColor)
         binding.layoutToolbarDecorate.strokeColor = toolbarStrokeColor
+        binding.btnSave.backgroundTintList = ColorStateList.valueOf(toolbarStrokeColor)
+        binding.btnHighlightState.backgroundTintList = ColorStateList.valueOf(highlightButton)
     }
 
     private fun diaryPageResource(): Int = when (ThemeManager.currentTheme(requireContext())) {
