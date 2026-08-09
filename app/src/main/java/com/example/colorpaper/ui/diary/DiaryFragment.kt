@@ -33,6 +33,7 @@ import android.widget.LinearLayout
 import android.text.InputType
 import androidx.lifecycle.lifecycleScope
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import com.example.colorpaper.R
 import com.example.colorpaper.databinding.FragmentDiaryBinding
 import com.example.colorpaper.data.local.AppDatabase
@@ -40,6 +41,7 @@ import com.example.colorpaper.data.model.DiaryEntity
 import com.example.colorpaper.data.model.HighlightEntity
 import com.example.colorpaper.reminder.ReminderSchedulePolicy
 import com.example.colorpaper.reminder.ReminderScheduler
+import com.example.colorpaper.ui.theme.ThemeManager
 import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -80,6 +82,9 @@ class DiaryFragment : Fragment() {
 
     private var emotionColorMap: Map<Button, Int> = emptyMap()
     private var buttonColorMap: Map<Button, Int> = emptyMap()
+
+    private  val palette by lazy {ThemeManager.currentPalette(requireContext())}
+
 
 
     // 💡 버튼 선택(하이라이트 + 2dp 테두리) 및 원상복구 제어 유틸 함수
@@ -150,7 +155,8 @@ class DiaryFragment : Fragment() {
             binding.btnVisibilityPublic to "#DFD5FF".toColorInt(),
             binding.btnVisibilityFriendOnly to "#D7E7FF".toColorInt(),
             binding.btnVisibilityPrivate to "#FFD7D7".toColorInt(),
-            binding.btnHighlightState to "#D5B4B4".toColorInt()
+            binding.btnHighlightState to ContextCompat.getColor(requireContext(), palette.reminder),
+            binding.btnSave to ContextCompat.getColor(requireContext(), palette.accent)
         )
 
         emotionColorMap = mapOf(
@@ -313,6 +319,13 @@ class DiaryFragment : Fragment() {
 
         initSingleChoiceGroups()
         setupSaveObserver()
+        applyToolbarThemeColor()
+    }
+    private fun applyToolbarThemeColor() {
+        val toolbarColor = ContextCompat.getColor(requireContext(), palette.yearsAgo)
+        val toolbarStrokeColor = ContextCompat.getColor(requireContext(), palette.stroke)
+        binding.layoutToolbarDecorate.setCardBackgroundColor(toolbarColor)
+        binding.layoutToolbarDecorate.strokeColor = toolbarStrokeColor
     }
 
     private fun setupSaveObserver() {

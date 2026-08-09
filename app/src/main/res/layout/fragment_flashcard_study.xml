@@ -25,7 +25,7 @@
             android:textSize="20sp"
             android:textStyle="bold" />
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnExitStudy"
             style="?attr/materialButtonOutlinedStyle"
             android:layout_width="wrap_content"
@@ -77,7 +77,7 @@
             android:layout_alignParentBottom="true"
             android:layout_marginBottom="60dp">
 
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/tvFlipHint"
                 style="?attr/materialButtonOutlinedStyle"
                 android:layout_width="wrap_content"
@@ -90,7 +90,7 @@
                 android:textSize="12sp"
                 app:strokeColor="#867070" />
 
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnNextCard"
                 style="?attr/materialButtonOutlinedStyle"
                 android:layout_width="wrap_content"
@@ -113,41 +113,45 @@
             android:visibility="gone"
             tools:visibility="visible">
 
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnAgain"
                 style="?attr/materialButtonOutlinedStyle"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="@string/againEmoji"
-                android:textSize="18sp" />
+                android:textSize="18sp"
+                app:strokeColor="#867070"/>
 
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnHard"
                 style="?attr/materialButtonOutlinedStyle"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="@string/hardEmoji"
-                android:textSize="18sp" />
+                android:textSize="18sp"
+                app:strokeColor="#867070"/>
 
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnGood"
                 style="?attr/materialButtonOutlinedStyle"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="@string/goodEmoji"
-                android:textSize="18sp" />
+                android:textSize="18sp"
+                app:strokeColor="#867070"/>
 
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnEasy"
                 style="?attr/materialButtonOutlinedStyle"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="@string/easyEmoji"
-                android:textSize="18sp" />
+                android:textSize="18sp"
+                app:strokeColor="#867070"/>
         </LinearLayout>
     </RelativeLayout>
     </androidx.cardview.widget.CardView>
