@@ -1,5 +1,7 @@
 package com.example.colorpaper.ui.diary
 
+import android.animation.ObjectAnimator
+import android.animation.PropertyValuesHolder
 import android.annotation.SuppressLint
 import android.app.DatePickerDialog
 import android.content.res.ColorStateList
@@ -84,22 +86,26 @@ class DiaryDetailFragment : Fragment() {
     private var isFollowingUser: Boolean = true
 
     private val palette by lazy { ThemeManager.currentPalette(requireContext())}
+    private var isHighlightMode: Boolean = false
 
     companion object {
         private const val ARG_TARGET_DATE = "TARGET_DATE"
         private const val ARG_TARGET_USER_ID = "TARGET_USER_ID"
         private const val ARG_READ_ONLY = "READ_ONLY"
+        private const val COMMENT_SEPARATOR = "||"
+        private const val DEFAULT_COMMENT_EMOJI = "💬"
 
         fun newInstance(
             targetDate: String? = null,
             targetUserId: String? = null,
-            readOnly: Boolean = false
+            readOnly: Boolean = false,
+            isHighlightMode: Boolean = false
         ): DiaryDetailFragment {
             return DiaryDetailFragment().apply {
                 arguments = Bundle().apply {
                     putString(ARG_TARGET_DATE, targetDate)
                     putString(ARG_TARGET_USER_ID, targetUserId)
-                    putBoolean(ARG_READ_ONLY, readOnly)
+                    putBoolean(ARG_READ_ONLY, readOnly || isHighlightMode)
                 }
             }
         }
@@ -115,6 +121,7 @@ class DiaryDetailFragment : Fragment() {
 
         targetUserId = arguments?.getString(ARG_TARGET_USER_ID)
         isReadOnlyMode = arguments?.getBoolean(ARG_READ_ONLY, false) ?: false
+        isHighlightMode = isReadOnlyMode
 
         val myUid = auth.currentUser?.uid
         isMyDiary = targetUserId.isNullOrEmpty() || targetUserId == myUid
@@ -146,23 +153,25 @@ class DiaryDetailFragment : Fragment() {
             }
         }
 
-        setupSwipeGesture()
-
-        currentBinding.root.setOnTouchListener { _, event ->
-            if (::gestureDetector.isInitialized) {
-                gestureDetector.onTouchEvent(event)
-            }
-            true
-        }
-
         updateTitleDateText()
+        applyEntryModeUi()
 
-        currentBinding.btnDatePickerDetail.setOnClickListener {
-            showDatePicker()
+        if (canNavigateDate()) {
+            setupSwipeGesture()
+            currentBinding.root.setOnTouchListener { _, event ->
+                if (::gestureDetector.isInitialized) {
+                    gestureDetector.onTouchEvent(event)
+                }
+                true
+            }
+            currentBinding.btnDatePickerDetail.setOnClickListener {
+                showDatePicker()
+            }
+        } else {
+            currentBinding.root.setOnTouchListener(null)
+            currentBinding.btnDatePickerDetail.setOnClickListener(null)
         }
 
-        currentBinding.btnSaveDetail.visibility = if (isReadOnlyMode) View.GONE else View.VISIBLE
-        currentBinding.btnHighlightDetail.visibility = if (isReadOnlyMode) View.GONE else View.VISIBLE
         currentBinding.btnToolbarAddDetail.isEnabled = false
         currentBinding.btnToolbarAddDetail.alpha = 0.3f
 
@@ -295,6 +304,35 @@ class DiaryDetailFragment : Fragment() {
         binding.btnHighlightDetail.backgroundTintList = ColorStateList.valueOf(highlightButton)
     }
 
+    private fun isProfileEntry(): Boolean = isMyDiary && !isReadOnlyMode && !targetUserId.isNullOrBlank()
+
+    private fun canNavigateDate(): Boolean = !isReadOnlyMode
+
+    private fun applyEntryModeUi() {
+        val currentBinding = _binding ?: return
+
+        if (isReadOnlyMode) {
+            currentBinding.layoutMetaActionsDetail.visibility = View.GONE
+            currentBinding.layoutToolbarDecorateDetail.visibility = View.GONE
+            currentBinding.btnDatePickerDetail.visibility = View.GONE
+            currentBinding.btnDatePickerDetail.isEnabled = false
+            return
+        }
+
+        currentBinding.layoutMetaActionsDetail.visibility = View.VISIBLE
+        currentBinding.layoutToolbarDecorateDetail.visibility = View.VISIBLE
+        currentBinding.btnDatePickerDetail.visibility = View.VISIBLE
+        currentBinding.btnDatePickerDetail.isEnabled = true
+        currentBinding.btnSaveDetail.visibility = View.VISIBLE
+        currentBinding.btnHighlightDetail.visibility = View.VISIBLE
+
+        val hideUnusedToolbarActions = isProfileEntry()
+        currentBinding.btnToolbarAddDetail.visibility = if (hideUnusedToolbarActions) View.GONE else View.VISIBLE
+        currentBinding.btnToolbarPenDetail.visibility = if (hideUnusedToolbarActions) View.GONE else View.VISIBLE
+        currentBinding.btnToolbarTextDetail.visibility = if (hideUnusedToolbarActions) View.GONE else View.VISIBLE
+        currentBinding.btnToolbarCommentDetail.visibility = View.VISIBLE
+    }
+
     private fun diaryPageResource(): Int = when (ThemeManager.currentTheme(requireContext())) {
         AppTheme.ROSE -> R.drawable.diarypage
         AppTheme.SAGE -> R.drawable.diarypage_sage
@@ -360,6 +398,7 @@ class DiaryDetailFragment : Fragment() {
     }
 
     private fun setupSwipeGesture() {
+        if (!canNavigateDate()) return
         val safeContext = context ?: return
         gestureDetector = GestureDetector(safeContext, object : GestureDetector.SimpleOnGestureListener() {
             private val SWIPE_THRESHOLD = 100
@@ -391,6 +430,7 @@ class DiaryDetailFragment : Fragment() {
     }
 
     private fun changeDateByAmount(amount: Int) {
+        if (!canNavigateDate()) return
         try {
             val parsedDate = dateFormat.parse(targetDate) ?: return
             val cal = Calendar.getInstance().apply {
@@ -410,8 +450,10 @@ class DiaryDetailFragment : Fragment() {
     private fun updateCommentButtonState() {
         val currentBinding = _binding ?: return
         if (isCurrentDateOrFuture() || isReadOnlyMode) {
+            currentBinding.btnToolbarCommentDetail.isEnabled = false
             currentBinding.btnToolbarCommentDetail.alpha = 0.3f
         } else {
+            currentBinding.btnToolbarCommentDetail.isEnabled = true
             currentBinding.btnToolbarCommentDetail.alpha = 1.0f
         }
     }
@@ -436,6 +478,7 @@ class DiaryDetailFragment : Fragment() {
     }
 
     private fun showDatePicker() {
+        if (!canNavigateDate()) return
         val safeContext = context ?: return
         val cal = Calendar.getInstance()
         try {
@@ -581,6 +624,12 @@ class DiaryDetailFragment : Fragment() {
             val selfComments = visibleComments.filter { isMyDiary && it.userId == myUid }
             val latestSelfCommentTime = selfComments.maxOfOrNull { resolveCreatedAt(it) } ?: 0L
             val hasRecentSelfComment = (currentTime - latestSelfCommentTime) < twentyFourHoursInMs
+            val unreadEmojiComments = visibleComments.filter {
+                isMyDiary &&
+                    it.userId != myUid &&
+                    isEmojiCommentContent(it.content) &&
+                    !it.isChecked
+            }
 
             binding.layoutCommentsContainer.removeAllViews()
             for (comment in visibleComments) {
@@ -589,12 +638,45 @@ class DiaryDetailFragment : Fragment() {
                 val isOlderThan24Hours = (currentTime - commentTime) >= twentyFourHoursInMs
 
                 val shouldBlur = isSelfComment && isOlderThan24Hours && !hasRecentSelfComment
+                val shouldAnimateEmoji = unreadEmojiComments.any { it.commentId == comment.commentId }
 
                 renderCommentPostIt(
                     comment = comment,
                     authorLabel = commentAuthorMap[comment.userId] ?: "알 수 없음",
-                    isBlurred = shouldBlur
+                    isBlurred = shouldBlur,
+                    shouldAnimateEmoji = shouldAnimateEmoji
                 )
+            }
+
+            if (unreadEmojiComments.isNotEmpty()) {
+                markCommentsAsChecked(unreadEmojiComments, effectiveUidString)
+            }
+        }
+    }
+
+    private fun markCommentsAsChecked(comments: List<CommentEntity>, ownerUid: String) {
+        if (!isMyDiary || comments.isEmpty()) return
+
+        val safeContext = context?.applicationContext ?: return
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val db = AppDatabase.getDatabase(safeContext)
+                withContext(Dispatchers.IO) {
+                    comments.forEach { comment ->
+                        val checkedComment = comment.copy(isChecked = true)
+                        db.diaryDao().insertComment(checkedComment)
+                        try {
+                            firestore.collection("comments")
+                                .document("${ownerUid}_${comment.date}_${comment.commentId}")
+                                .set(checkedComment, SetOptions.merge())
+                                .await()
+                        } catch (e: Exception) {
+                            Log.e("DiaryDetail", "댓글 확인 상태 동기화 실패", e)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("DiaryDetail", "댓글 확인 상태 저장 실패", e)
             }
         }
     }
@@ -711,7 +793,8 @@ class DiaryDetailFragment : Fragment() {
     private fun renderCommentPostIt(
         comment: CommentEntity,
         authorLabel: String,
-        isBlurred: Boolean = false // ★ 블러 여부 매개변수 추가
+        isBlurred: Boolean = false,
+        shouldAnimateEmoji: Boolean = false
     ) {
         val safeContext = context ?: return
         val currentBinding = _binding ?: return
@@ -724,17 +807,20 @@ class DiaryDetailFragment : Fragment() {
         val tvTime = view.findViewById<TextView>(R.id.tvCommentTime)
         val tvAuthor = view.findViewById<TextView>(R.id.tvCommentAuthor)
         val btnCommentDone = view.findViewById<TextView>(R.id.btnCommentDone)
+        val tvEmoji = view.findViewById<TextView>(R.id.tvCommentEmoji)
 
-        etCommentContent.setText(comment.content)
+        val (emoji, plainText) = decodeCommentContent(comment.content)
+        val isEmojiComment = isEmojiCommentContent(comment.content)
+
+        etCommentContent.setText(plainText)
         tvTime.text = comment.timestamp.ifBlank { comment.date }
         tvAuthor.text = "작성자 : $authorLabel"
 
-        // 🔒 [블러 처리 로직]
+        // [블러 처리 로직]
         if (isBlurred) {
-            // BlurMaskFilter 적용을 위해 소프트웨어 가속 활성화
             etCommentContent.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
             etCommentContent.paint.maskFilter = android.graphics.BlurMaskFilter(
-                16f, // 블러 강도
+                16f,
                 android.graphics.BlurMaskFilter.Blur.NORMAL
             )
         } else {
@@ -750,18 +836,31 @@ class DiaryDetailFragment : Fragment() {
         view.setTag(R.id.btnFollow, comment.userId)
         view.setTag(R.id.btnProfileHome, if (isMyDiary) AuthUtils.getCurrentUserId() else (targetUserId ?: ""))
         view.setTag(R.id.tvCommentEmoji, comment.createdAt)
+        view.setTag(R.id.btnCommentDone, comment.isChecked)
 
         view.translationX = comment.posX.coerceAtLeast(0f)
         view.translationY = comment.posY
 
         btnCommentDone.visibility = View.GONE
-        makeViewDraggable(view)
-        lockCommentEditText(view, etCommentContent)
+
+        if (isEmojiComment) {
+            setupEmojiCommentToggle(view, emoji, startCollapsed = true)
+            if (shouldAnimateEmoji) {
+                startUnreadEmojiBounce(tvEmoji)
+            }
+        } else {
+            tvEmoji.visibility = View.GONE
+        }
+
+        // 💡 하이라이트 모드가 아닐 때만 드래그 가능하게 수정
+        if (!isHighlightMode) {
+            makeViewDraggable(view)
+            lockCommentEditText(view, etCommentContent)
+        }
 
         currentBinding.layoutCommentsContainer.addView(view)
         view.post { clampViewToParent(view) }
     }
-
     private fun insertCommentToDb(view: View, commentText: String, colorName: String, timestamp: String) {
         val safeContext = context?.applicationContext ?: return
         val currentUid = AuthUtils.getCurrentUserId()
@@ -801,6 +900,7 @@ class DiaryDetailFragment : Fragment() {
                 view.setTag(R.id.btnFollow, currentUid)
                 view.setTag(R.id.btnProfileHome, ownerUid)
                 view.setTag(R.id.tvCommentEmoji, newComment.createdAt)
+                view.setTag(R.id.btnCommentDone, newComment.isChecked)
                 Toast.makeText(safeContext, "댓글이 등록되었습니다. 🎉", Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
                 Log.e("DiaryDetail", "댓글 저장 실패", e)
@@ -810,6 +910,8 @@ class DiaryDetailFragment : Fragment() {
 
 
     private fun saveAllCommentsAndDiaryState() {
+        if (isHighlightMode) return
+
         val safeContext = context?.applicationContext ?: return
         val currentBinding = _binding ?: return
         val currentUid = AuthUtils.getCurrentUserId()
@@ -836,6 +938,7 @@ class DiaryDetailFragment : Fragment() {
                     .orEmpty()
                     .ifBlank { if (isMyDiary) currentUid else (targetUserId ?: currentUid) }
                 val createdAt = (commentView.getTag(R.id.tvCommentEmoji) as? Long) ?: System.currentTimeMillis()
+                val isChecked = (commentView.getTag(R.id.btnCommentDone) as? Boolean) ?: false
 
                 val updatedComment = CommentEntity(
                     commentId = existingCommentId,
@@ -846,6 +949,7 @@ class DiaryDetailFragment : Fragment() {
                     color = colorName,
                     timestamp = commentDate,
                     createdAt = createdAt,
+                    isChecked = isChecked,
                     posX = posX,
                     posY = posY
                 )
@@ -992,6 +1096,64 @@ class DiaryDetailFragment : Fragment() {
     private fun clampViewToParent(view: View) {
         val diaryPage = _binding?.ivFixedDiaryPageDetail ?: return
         DiaryPageBounds.clamp(view, diaryPage)
+    }
+
+    private fun isEmojiCommentContent(raw: String): Boolean = raw.contains(COMMENT_SEPARATOR)
+
+    private fun decodeCommentContent(raw: String): Pair<String, String> {
+        val splitIndex = raw.indexOf(COMMENT_SEPARATOR)
+        if (splitIndex <= 0) return Pair(DEFAULT_COMMENT_EMOJI, raw)
+
+        val emoji = raw.substring(0, splitIndex).ifBlank { DEFAULT_COMMENT_EMOJI }
+        val text = raw.substring(splitIndex + COMMENT_SEPARATOR.length)
+        return Pair(emoji, text)
+    }
+
+    private fun setupEmojiCommentToggle(commentView: View, emoji: String, startCollapsed: Boolean) {
+        val ivCommentBg = commentView.findViewById<ImageView>(R.id.ivCommentBg)
+        val etCommentContent = commentView.findViewById<EditText>(R.id.etCommentContent)
+        val tvTime = commentView.findViewById<TextView>(R.id.tvCommentTime)
+        val tvAuthor = commentView.findViewById<TextView>(R.id.tvCommentAuthor)
+        val tvEmoji = commentView.findViewById<TextView>(R.id.tvCommentEmoji)
+        val btnCommentDone = commentView.findViewById<TextView>(R.id.btnCommentDone)
+
+        tvEmoji.text = emoji
+        btnCommentDone.visibility = View.GONE
+
+        fun setCollapsed(collapsed: Boolean) {
+            commentView.setTag(R.id.btnToolbarCommentDetail, !collapsed)
+            ivCommentBg.visibility = if (collapsed) View.GONE else View.VISIBLE
+            etCommentContent.visibility = if (collapsed) View.GONE else View.VISIBLE
+            tvTime.visibility = if (collapsed) View.GONE else View.VISIBLE
+            tvAuthor.visibility = if (collapsed) View.GONE else View.VISIBLE
+            tvEmoji.visibility = if (collapsed) View.VISIBLE else View.GONE
+        }
+
+        val toggleClick = View.OnClickListener {
+            val expanded = (commentView.getTag(R.id.btnToolbarCommentDetail) as? Boolean) ?: false
+            setCollapsed(expanded)
+        }
+
+        commentView.setOnClickListener(toggleClick)
+        tvEmoji.setOnClickListener(toggleClick)
+        ivCommentBg.setOnClickListener(toggleClick)
+        etCommentContent.setOnClickListener(toggleClick)
+        tvTime.setOnClickListener(toggleClick)
+
+        setCollapsed(startCollapsed)
+    }
+
+    private fun startUnreadEmojiBounce(target: View) {
+        ObjectAnimator.ofPropertyValuesHolder(
+            target,
+            PropertyValuesHolder.ofFloat(View.SCALE_X, 1f, 1.12f, 1f),
+            PropertyValuesHolder.ofFloat(View.SCALE_Y, 1f, 1.12f, 1f),
+            PropertyValuesHolder.ofFloat(View.TRANSLATION_Y, 0f, -12f, 0f)
+        ).apply {
+            duration = 900L
+            repeatCount = ObjectAnimator.INFINITE
+            start()
+        }
     }
 
     override fun onDestroyView() {

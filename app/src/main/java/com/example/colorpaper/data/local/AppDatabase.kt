@@ -38,7 +38,7 @@ import com.example.colorpaper.data.model.WordEntity
         DiaryCommentEntity::class,
         WidgetEntity::class
     ],
-    version = 12,
+    version = 13,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -64,7 +64,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "flashcard_database"
                 )
-                    .addMigrations(MIGRATION_5_6, MIGRATION_10_11, MIGRATION_11_12)
+                    .addMigrations(MIGRATION_5_6, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
                     .fallbackToDestructiveMigration()
                     .allowMainThreadQueries()
                     .build()
@@ -127,6 +127,14 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
                     "ALTER TABLE words ADD COLUMN last_reviewed_at INTEGER NOT NULL DEFAULT 0"
+                )
+            }
+        }
+
+        private val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE comments ADD COLUMN is_checked INTEGER NOT NULL DEFAULT 0"
                 )
             }
         }

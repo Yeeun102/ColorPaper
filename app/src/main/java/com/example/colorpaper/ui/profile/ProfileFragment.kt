@@ -248,7 +248,12 @@ class ProfileFragment : Fragment() {
             rvHighlights?.adapter = HighlightAdapter(
                 items = list,
                 onItemClick = { item ->
-                    navigateToDiaryDetail(item.date, item.diaryId, readOnly = true)
+                    // 하이라이트 진입임을 명시하는 isHighlightMode = true 전달
+                    navigateToDiaryDetail(
+                        targetDate = item.date,
+                        diaryId = item.diaryId,
+                        isHighlightMode = true
+                    )
                 }
             )
         }
@@ -485,7 +490,7 @@ class ProfileFragment : Fragment() {
     private fun navigateToDiaryDetail(
         targetDate: String,
         diaryId: Int = 0,
-        readOnly: Boolean = false,
+        isHighlightMode: Boolean = false, // readOnly 대신 isHighlightMode로 명확히 지정
         bookTransition: Boolean = false
     ) {
         val effectiveUid = if (isMyProfile) auth.currentUser?.uid else targetUserId
@@ -495,14 +500,15 @@ class ProfileFragment : Fragment() {
             DiaryDetailFragment.newInstance(
                 targetDate = targetDate,
                 targetUserId = effectiveUid,
-                readOnly = readOnly
+                isHighlightMode = isHighlightMode // 플래그 전달
             )
         } else {
-            // 2. 친구 프로필인 경우 -> 날짜(targetDate) 포함 전달
+            // 2. 친구 프로필인 경우 -> 친구 일기 상세 화면
             FriendDiaryDetailFragment.newInstance(
                 targetUserId = effectiveUid ?: "",
                 diaryId = diaryId,
-                targetDate = targetDate
+                targetDate = targetDate,
+                isHighlightMode = isHighlightMode // 플래그 전달
             )
         }
 

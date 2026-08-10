@@ -71,6 +71,7 @@ class FriendDiaryDetailFragment : Fragment() {
     private var targetUserId: String? = null
     private var diaryId: Int = 0
     private var selectedDate: String = "" // "yyyy-MM-dd" 형식
+    private var isHighlightMode: Boolean = false
 
     private val calendar = Calendar.getInstance()
     private val dateFormatFull = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -86,6 +87,7 @@ class FriendDiaryDetailFragment : Fragment() {
             targetUserId = it.getString("targetUserId")
             diaryId = it.getInt("diaryId", 0)
             selectedDate = it.getString("targetDate") ?: dateFormatFull.format(Date())
+            isHighlightMode = it.getBoolean("isHighlightMode", false)
         }
     }
 
@@ -108,18 +110,26 @@ class FriendDiaryDetailFragment : Fragment() {
             parentFragmentManager.popBackStack()
         }
 
-        // 2. 상단 날짜 및 달력 클릭 시 날짜 변경 (DatePicker)
-        val dateClickListener = View.OnClickListener { showDatePickerDialog() }
-        binding.tvHeaderDate.setOnClickListener(dateClickListener)
-        binding.btnCalendar.setOnClickListener(dateClickListener)
+        applyEntryModeUi()
 
-        // 3. 제스처 설정 (좌우 스와이프 날짜 이동)
-        setupSwipeGesture()
-        binding.root.setOnTouchListener { _, event ->
-            if (::gestureDetector.isInitialized) {
-                gestureDetector.onTouchEvent(event)
+        // 2. 상단 날짜 및 달력 클릭 시 날짜 변경 (DatePicker)
+        if (canNavigateDate()) {
+            val dateClickListener = View.OnClickListener { showDatePickerDialog() }
+            binding.tvHeaderDate.setOnClickListener(dateClickListener)
+            binding.btnCalendar.setOnClickListener(dateClickListener)
+
+            // 3. 제스처 설정 (좌우 스와이프 날짜 이동)
+            setupSwipeGesture()
+            binding.root.setOnTouchListener { _, event ->
+                if (::gestureDetector.isInitialized) {
+                    gestureDetector.onTouchEvent(event)
+                }
+                true
             }
-            true
+        } else {
+            binding.tvHeaderDate.setOnClickListener(null)
+            binding.btnCalendar.setOnClickListener(null)
+            binding.root.setOnTouchListener(null)
         }
 
         // 4. 프로필 홈 및 팔로우 버튼
@@ -158,7 +168,17 @@ class FriendDiaryDetailFragment : Fragment() {
         loadFriendDiaryData()
     }
 
+    private fun canNavigateDate(): Boolean = !isHighlightMode
+
+    private fun applyEntryModeUi() {
+        val binding = _binding ?: return
+        binding.btnCalendar.visibility = if (isHighlightMode) View.GONE else View.VISIBLE
+        binding.btnCalendar.isEnabled = !isHighlightMode
+        binding.tvHeaderDate.isClickable = !isHighlightMode
+    }
+
     private fun setupSwipeGesture() {
+        if (!canNavigateDate()) return
         val safeContext = context ?: return
         gestureDetector = GestureDetector(safeContext, object : GestureDetector.SimpleOnGestureListener() {
             private val SWIPE_THRESHOLD = 100
@@ -190,6 +210,7 @@ class FriendDiaryDetailFragment : Fragment() {
     }
 
     private fun changeDateByAmount(amount: Int) {
+        if (!canNavigateDate()) return
         try {
             val parsedDate = dateFormatFull.parse(selectedDate) ?: return
             val cal = Calendar.getInstance().apply {
@@ -237,6 +258,7 @@ class FriendDiaryDetailFragment : Fragment() {
     }
 
     private fun showDatePickerDialog() {
+        if (!canNavigateDate()) return
         try {
             val parsedDate = dateFormatFull.parse(selectedDate)
             if (parsedDate != null) {
@@ -537,6 +559,7 @@ class FriendDiaryDetailFragment : Fragment() {
         view.setTag(R.id.btnFollow, comment.userId)
         view.setTag(R.id.btnProfileHome, targetUserId ?: "")
         view.setTag(R.id.tvCommentEmoji, comment.createdAt)
+        view.setTag(R.id.btnCommentDone, comment.isChecked)
 
         view.translationX = comment.posX
         view.translationY = comment.posY
@@ -667,6 +690,7 @@ class FriendDiaryDetailFragment : Fragment() {
                     view.setTag(R.id.btnFollow, currentUid)
                     view.setTag(R.id.btnProfileHome, ownerUid)
                     view.setTag(R.id.tvCommentEmoji, newComment.createdAt)
+                    view.setTag(R.id.btnCommentDone, newComment.isChecked)
                     Toast.makeText(safeContext, "댓글이 등록되었습니다.", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -683,6 +707,7 @@ class FriendDiaryDetailFragment : Fragment() {
         val tvEmoji = commentView.findViewById<TextView>(R.id.tvCommentEmoji)
         val tvTime = commentView.findViewById<TextView>(R.id.tvCommentTime)
         val createdAt = (commentView.getTag(R.id.tvCommentEmoji) as? Long) ?: System.currentTimeMillis()
+        val isChecked = (commentView.getTag(R.id.btnCommentDone) as? Boolean) ?: false
 
         val authorUid = (commentView.getTag(R.id.btnFollow) as? String).orEmpty()
         val ownerUid = (commentView.getTag(R.id.btnProfileHome) as? String).orEmpty()
@@ -703,6 +728,7 @@ class FriendDiaryDetailFragment : Fragment() {
             color = color,
             timestamp = tvTime.text?.toString().orEmpty(),
             createdAt = createdAt,
+            isChecked = isChecked,
             posX = commentView.translationX,
             posY = commentView.translationY
         )
@@ -889,12 +915,18 @@ class FriendDiaryDetailFragment : Fragment() {
         private const val MIN_COMMENT_SCALE = 0.7f
         private const val MAX_COMMENT_SCALE = 1.8f
 
-        fun newInstance(targetUserId: String, diaryId: Int = 0, targetDate: String? = null) =
+        fun newInstance(
+            targetUserId: String,
+            diaryId: Int = 0,
+            targetDate: String? = null,
+            isHighlightMode: Boolean = false
+        ) =
             FriendDiaryDetailFragment().apply {
                 arguments = Bundle().apply {
                     putString("targetUserId", targetUserId)
                     putInt("diaryId", diaryId)
                     putString("targetDate", targetDate)
+                    putBoolean("isHighlightMode", isHighlightMode)
                 }
             }
     }
