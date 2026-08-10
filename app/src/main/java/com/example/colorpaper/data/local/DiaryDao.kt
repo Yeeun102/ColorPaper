@@ -1,8 +1,8 @@
 package com.example.colorpaper.data.local
 
 import androidx.room.*
-import com.example.colorpaper.data.model.DiaryEntity
 import com.example.colorpaper.data.model.CommentEntity
+import com.example.colorpaper.data.model.DiaryEntity
 import com.example.colorpaper.data.model.HighlightEntity
 import com.example.colorpaper.data.model.ReminderAnswerEntity
 import com.example.colorpaper.data.model.ReminderAnswerWithDiary
@@ -94,12 +94,25 @@ interface DiaryDao {
     @Query("SELECT * FROM diaries WHERE created_at = :targetDate")
     suspend fun getPostItsByDate(targetDate: String): List<DiaryEntity>
 
+    // --- 💡 댓글 관련 DAO ---
     @Query("SELECT * FROM comments WHERE date = :targetDate ORDER BY comment_id ASC")
     suspend fun getCommentsByDate(targetDate: String): List<CommentEntity>
+
+    @Query("SELECT * FROM comments WHERE date = :targetDate AND user_id = :userId ORDER BY comment_id ASC")
+    suspend fun getCommentsByDateAndUserId(targetDate: String, userId: String): List<CommentEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertComment(comment: CommentEntity): Long
 
+    // 💡 [신규 추가] 댓글 객체 기반 삭제
+    @Delete
+    suspend fun deleteComment(comment: CommentEntity)
+
+    // 💡 [신규 추가] 댓글 ID 기반 삭제
+    @Query("DELETE FROM comments WHERE comment_id = :commentId")
+    suspend fun deleteCommentById(commentId: Int)
+
+    // --- 기타 일기/하이라이트 DAO ---
     @Delete
     suspend fun deleteDiary(diary: DiaryEntity)
 
@@ -114,9 +127,6 @@ interface DiaryDao {
 
     @Query("SELECT * FROM diaries WHERE created_at = :date AND user_id = :userId")
     suspend fun getPostItsByDateAndUserId(date: String, userId: String): List<DiaryEntity>
-
-    @Query("SELECT * FROM comments WHERE date = :targetDate AND user_id = :userId ORDER BY comment_id ASC")
-    suspend fun getCommentsByDateAndUserId(targetDate: String, userId: String): List<CommentEntity>
 
     @Query("SELECT * FROM diaries WHERE visibility = :visibility ORDER BY created_at DESC")
     suspend fun getPublicDiaries(visibility: String = "전체공개"): List<DiaryEntity>

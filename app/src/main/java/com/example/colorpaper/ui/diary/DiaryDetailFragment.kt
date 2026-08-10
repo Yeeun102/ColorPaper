@@ -6,6 +6,7 @@ import android.annotation.SuppressLint
 import android.app.DatePickerDialog
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import com.example.colorpaper.ui.profile.ProfileFragment
 import android.os.Bundle
 import android.os.Handler
@@ -850,7 +851,6 @@ class DiaryDetailFragment : Fragment() {
         val btnCommentDone = view.findViewById<TextView>(R.id.btnCommentDone)
         val tvEmoji = view.findViewById<TextView>(R.id.tvCommentEmoji)
 
-        // 💡 [신규 UI 참조] 작성자 프로필 컨테이너 및 이미지
         val layoutAuthor = view.findViewById<View>(R.id.layoutCommentAuthor)
         val ivProfile = view.findViewById<ImageView>(R.id.ivCommentProfile)
 
@@ -860,14 +860,10 @@ class DiaryDetailFragment : Fragment() {
         val displayContent = if (plainText.isNotBlank()) plainText else emoji
         etCommentContent.setText(displayContent)
 
-        // 👈 [수정 1] 일기 날짜(date)를 우선으로 변환 ("오늘", "어제", "3일 전", "2026.08.08")
         tvTime.visibility = View.VISIBLE
         tvTime.text = formatRelativeDate(comment.date, comment.timestamp)
-
-        // 👈 [수정 2] "작성자 :" 문구 제거 후 이름만 세팅
         tvAuthor.text = authorLabel
 
-        // 👈 [수정 3] 프로필 영역 클릭 시 작성자 프로필 페이지로 이동 이벤트
         layoutAuthor?.setOnClickListener {
             val commentUserId = comment.userId
             if (commentUserId.isNotBlank()) {
@@ -898,7 +894,6 @@ class DiaryDetailFragment : Fragment() {
         val resId = commentResourceMap[comment.color] ?: R.drawable.comment_blue
         ivCommentBg.setImageResource(resId)
 
-        // 기존 태그 유지
         view.setTag(R.id.ivCommentBg, comment.commentId)
         view.tag = comment.color
         view.setTag(R.id.btnFollow, comment.userId)
@@ -927,13 +922,24 @@ class DiaryDetailFragment : Fragment() {
         }
 
         if (!isHighlightMode) {
-            makeViewDraggable(view)
+            // 💡 [수정] 삭제 권한(내 일기장 OR 내가 단 댓글) 체크 후 더블탭 콜백 전달
+            val myUid = auth.currentUser?.uid ?: ""
+            val canDelete = isMyDiary || (comment.userId == myUid)
+
+            makeViewDraggable(view) {
+                if (canDelete) {
+                    showCuteDeleteDialog(view, comment)
+                } else {
+                    Toast.makeText(safeContext, "다른 사람의 댓글은 삭제할 수 없습니다.", Toast.LENGTH_SHORT).show()
+                }
+            }
             lockCommentEditText(view, etCommentContent)
         }
 
         currentBinding.layoutCommentsContainer.addView(view)
         view.post { clampViewToParent(view) }
     }
+
 
     private fun insertCommentToDb(view: View, commentText: String, colorName: String, timestamp: String, zIndex: Int = 0) {
         val safeContext = context?.applicationContext ?: return
@@ -1103,16 +1109,18 @@ class DiaryDetailFragment : Fragment() {
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    private fun makeViewDraggable(view: View) {
+    private fun makeViewDraggable(view: View, onDoubleTap: (() -> Unit)? = null) {
         var lastX = 0f
         var lastY = 0f
         var startX = 0f
         var startY = 0f
         var isLongPressed = false
         var isMoved = false
+        var lastClickTime = 0L
 
         val handler = Handler(Looper.getMainLooper())
         val touchSlop = ViewConfiguration.get(view.context).scaledTouchSlop
+        val doubleTapTimeout = ViewConfiguration.getDoubleTapTimeout().toLong()
 
         val longPressRunnable = Runnable {
             isLongPressed = true
@@ -1158,7 +1166,16 @@ class DiaryDetailFragment : Fragment() {
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     handler.removeCallbacks(longPressRunnable)
                     if (!isLongPressed && !isMoved && event.action == MotionEvent.ACTION_UP) {
-                        v.performClick()
+                        val currentTime = System.currentTimeMillis()
+
+                        // 💡 연속 두 번 클릭 처리
+                        if (currentTime - lastClickTime < doubleTapTimeout) {
+                            onDoubleTap?.invoke()
+                            lastClickTime = 0L
+                        } else {
+                            lastClickTime = currentTime
+                            v.performClick()
+                        }
                     }
                 }
             }
@@ -1166,6 +1183,76 @@ class DiaryDetailFragment : Fragment() {
         }
     }
 
+    private fun showCuteDeleteDialog(commentView: View, comment: CommentEntity) {
+        val safeContext = context ?: return
+        val currentBinding = _binding ?: return
+
+        val dialogView = LayoutInflater.from(safeContext).inflate(R.layout.dialog_delete_comment, null)
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(safeContext)
+            .setView(dialogView)
+            .create()
+
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+
+        val btnCancel = dialogView.findViewById<TextView>(R.id.btnCancel)
+        val btnDelete = dialogView.findViewById<TextView>(R.id.btnDelete)
+
+        // 💡 현재 앱의 Palette 테마 색상 자동 적용
+        val accentColor = ContextCompat.getColor(safeContext, palette.accent)
+        val strokeColor = ContextCompat.getColor(safeContext, palette.stroke)
+
+        btnDelete.backgroundTintList = ColorStateList.valueOf(accentColor)
+        btnCancel.backgroundTintList = ColorStateList.valueOf(strokeColor)
+
+        btnCancel.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        btnDelete.setOnClickListener {
+            // 1. 화면 컨테이너에서 포스트잇 제거
+            currentBinding.layoutCommentsContainer.removeView(commentView)
+
+            // 2. Firestore & Room DB 데이터 삭제
+            deleteCommentFromDb(comment)
+
+            Toast.makeText(safeContext, "댓글이 삭제되었습니다.", Toast.LENGTH_SHORT).show()
+            dialog.dismiss()
+        }
+
+        dialog.show()
+    }
+    private fun deleteCommentFromDb(comment: CommentEntity) {
+        val safeContext = context?.applicationContext ?: return
+        val currentUid = AuthUtils.getCurrentUserId()
+        val ownerUid = if (isMyDiary) currentUid else (targetUserId ?: currentUid)
+
+        // Firestore 문서 키 구조: ${ownerUid}_${date}_${commentId}
+        val docId = "${ownerUid}_${comment.date}_${comment.commentId}"
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            // 1. Firestore DB 삭제
+            try {
+                firestore.collection("comments")
+                    .document(docId)
+                    .delete()
+                    .await()
+                Log.d("DiaryDetail", "Firestore 댓글 삭제 완료: $docId")
+            } catch (e: Exception) {
+                Log.e("DiaryDetail", "Firestore 댓글 삭제 실패", e)
+            }
+
+            // 2. Room 로컬 DB 삭제
+            try {
+                withContext(Dispatchers.IO) {
+                    val db = AppDatabase.getDatabase(safeContext)
+                    db.diaryDao().deleteComment(comment)
+                }
+                Log.d("DiaryDetail", "Room 댓글 삭제 완료: ${comment.commentId}")
+            } catch (e: Exception) {
+                Log.e("DiaryDetail", "로컬 DB 댓글 삭제 실패", e)
+            }
+        }
+    }
     @SuppressLint("ClickableViewAccessibility")
     private fun lockCommentEditText(commentView: View, etCommentContent: EditText) {
         etCommentContent.keyListener = null
@@ -1173,47 +1260,11 @@ class DiaryDetailFragment : Fragment() {
         etCommentContent.clearFocus()
         etCommentContent.isEnabled = true
 
-        var lastX = 0f
-        var lastY = 0f
-        var startX = 0f
-        var startY = 0f
-        var isMoved = false
-
-        val touchSlop = ViewConfiguration.get(commentView.context).scaledTouchSlop
-
-        etCommentContent.setOnTouchListener { _, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    startX = event.rawX
-                    startY = event.rawY
-                    lastX = event.rawX
-                    lastY = event.rawY
-                    isMoved = false
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    val dx = event.rawX - lastX
-                    val dy = event.rawY - lastY
-
-                    val totalDistance = hypot((event.rawX - startX).toDouble(), (event.rawY - startY).toDouble())
-                    if (totalDistance > touchSlop) {
-                        isMoved = true
-                    }
-
-                    moveViewWithinParent(commentView, dx, dy)
-
-                    lastX = event.rawX
-                    lastY = event.rawY
-                }
-                MotionEvent.ACTION_UP -> {
-                    // 👈 [수정] 이동(드래그)하지 않고 단순 터치했을 때만 클릭 이벤트 트리거
-                    if (!isMoved) {
-                        commentView.performClick()
-                    }
-                }
-                else -> return@setOnTouchListener false
-            }
-            true
-        }
+        // 💡 EditText가 터치 이벤트를 소비하지 않고 부모(commentView)로 통과시키도록 설정
+        etCommentContent.isClickable = false
+        etCommentContent.isFocusable = false
+        etCommentContent.isFocusableInTouchMode = false
+        etCommentContent.setOnTouchListener(null)
     }
 
     private fun moveViewWithinParent(view: View, dx: Float, dy: Float) {
