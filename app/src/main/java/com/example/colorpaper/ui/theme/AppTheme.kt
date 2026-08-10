@@ -1,6 +1,7 @@
 package com.example.colorpaper.ui.theme
 
 import androidx.annotation.ColorRes
+import androidx.annotation.DrawableRes
 
 enum class AppTheme {
     ROSE,
@@ -9,6 +10,7 @@ enum class AppTheme {
 }
 
 data class ThemePalette(
+    @DrawableRes val toolbarLogo: Int,
     @ColorRes val screenBackground: Int,
     @ColorRes val accent: Int,
     @ColorRes val stroke: Int,

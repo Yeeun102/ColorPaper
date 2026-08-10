@@ -34,7 +34,6 @@ import com.example.colorpaper.MainActivity
 import com.example.colorpaper.R
 import com.example.colorpaper.data.local.AppDatabase
 import com.example.colorpaper.data.model.CommentEntity
-import com.example.colorpaper.data.model.DiaryCommentEntity
 import com.example.colorpaper.data.model.DiaryEntity
 import com.example.colorpaper.databinding.FragmentDiaryDetailBinding
 import com.example.colorpaper.util.AuthUtils
@@ -161,11 +160,13 @@ class DiaryDetailFragment : Fragment() {
 
         if (canNavigateDate()) {
             setupSwipeGesture()
+            // 👈 [수정] 무조건 true를 리턴하지 않고 제스처 결과만 반환하도록 변경
             currentBinding.root.setOnTouchListener { _, event ->
                 if (::gestureDetector.isInitialized) {
                     gestureDetector.onTouchEvent(event)
+                } else {
+                    false
                 }
-                true
             }
             currentBinding.btnDatePickerDetail.setOnClickListener {
                 showDatePicker()
@@ -259,7 +260,8 @@ class DiaryDetailFragment : Fragment() {
             val tvAuthor = commentView.findViewById<TextView>(R.id.tvCommentAuthor)
 
             val todayDateStr = SimpleDateFormat("yyyy.MM.dd HH:mm", Locale.getDefault()).format(Date())
-            tvTime.text = todayDateStr
+            tvTime.visibility = View.VISIBLE
+            tvTime.text = "오늘"
             tvAuthor.text = "작성자 : 나"
 
             commentView.tag = randomColor
@@ -278,7 +280,7 @@ class DiaryDetailFragment : Fragment() {
                     btnCommentDone.visibility = View.GONE
 
                     makeViewDraggable(commentView)
-                    lockCommentEditText(commentView, etCommentContent) // 👈 수정: commentView 인자 추가
+                    lockCommentEditText(commentView, etCommentContent)
 
                     val currentZIndex = activeBinding.layoutCommentsContainer.indexOfChild(commentView).coerceAtLeast(0)
                     insertCommentToDb(commentView, text, randomColor, todayDateStr, currentZIndex)
@@ -295,6 +297,8 @@ class DiaryDetailFragment : Fragment() {
         }
         applyToolbarThemeColor()
     }
+
+
     private fun applyToolbarThemeColor() {
         val toolbarColor = ContextCompat.getColor(requireContext(), palette.yearsAgo)
         val toolbarStrokeColor = ContextCompat.getColor(requireContext(), palette.stroke)
@@ -645,11 +649,8 @@ class DiaryDetailFragment : Fragment() {
                     shouldAnimateEmoji = shouldAnimateEmoji
                 )
             }
+      }
 
-            if (unreadEmojiComments.isNotEmpty()) {
-                markCommentsAsChecked(unreadEmojiComments, effectiveUidString)
-            }
-        }
     }
 
     private fun markCommentsAsChecked(comments: List<CommentEntity>, ownerUid: String) {
@@ -788,6 +789,47 @@ class DiaryDetailFragment : Fragment() {
         etContent.setText(spannable)
     }
 
+    private fun formatRelativeDate(timestampStr: String, dateStr: String): String {
+        val rawString = timestampStr.ifBlank { dateStr }
+        if (rawString.isBlank()) return ""
+
+        // 1. 단순 날짜만 온 경우 ("2026-08-11" 또는 "2026.08.11")
+        val dateOnly = rawString.split(" ")[0].replace("-", ".")
+
+        return try {
+            val sdf = SimpleDateFormat("yyyy.MM.dd", Locale.getDefault())
+            val commentDate = sdf.parse(dateOnly) ?: return dateOnly
+
+            // 시간 제거한 오늘 날짜 계산
+            val calToday = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+
+            val calComment = Calendar.getInstance().apply {
+                time = commentDate
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+
+            // 날짜 차이(일 단위) 계산
+            val diffDays = ((calToday.timeInMillis - calComment.timeInMillis) / (1000 * 60 * 60 * 24)).toInt()
+
+            when (diffDays) {
+                0 -> "오늘"
+                1 -> "어제"
+                in 2..7 -> "${diffDays}일 전"
+                else -> dateOnly // 7일 지나면 2026.08.11 형태로 표시
+            }
+        } catch (_: Exception) {
+            dateOnly
+        }
+    }
+
     private fun renderCommentPostIt(
         comment: CommentEntity,
         authorLabel: String,
@@ -810,8 +852,12 @@ class DiaryDetailFragment : Fragment() {
         val (emoji, plainText) = decodeCommentContent(comment.content)
         val isEmojiComment = isEmojiCommentContent(comment.content)
 
-        etCommentContent.setText(plainText)
-        tvTime.text = comment.timestamp.ifBlank { comment.date }
+        val displayContent = if (plainText.isNotBlank()) plainText else emoji
+        etCommentContent.setText(displayContent)
+
+        // 👈 [수정] 상대 날짜(오늘, 어제, N일 전, 2026.08.11)로 변환해 세팅
+        tvTime.visibility = View.VISIBLE
+        tvTime.text = formatRelativeDate(comment.timestamp, comment.date)
         tvAuthor.text = "작성자 : $authorLabel"
 
         if (isBlurred) {
@@ -841,7 +887,13 @@ class DiaryDetailFragment : Fragment() {
         btnCommentDone.visibility = View.GONE
 
         if (isEmojiComment) {
-            setupEmojiCommentToggle(view, emoji, startCollapsed = true)
+            setupEmojiCommentToggle(
+                commentView = view,
+                comment = comment,
+                emoji = emoji,
+                startCollapsed = true
+            )
+
             if (shouldAnimateEmoji) {
                 startUnreadEmojiBounce(tvEmoji)
             }
@@ -851,7 +903,7 @@ class DiaryDetailFragment : Fragment() {
 
         if (!isHighlightMode) {
             makeViewDraggable(view)
-            lockCommentEditText(view, etCommentContent) // 👈 수정: view 인자 추가
+            lockCommentEditText(view, etCommentContent)
         }
 
         currentBinding.layoutCommentsContainer.addView(view)
@@ -1032,6 +1084,7 @@ class DiaryDetailFragment : Fragment() {
         var startX = 0f
         var startY = 0f
         var isLongPressed = false
+        var isMoved = false
 
         val handler = Handler(Looper.getMainLooper())
         val touchSlop = ViewConfiguration.get(view.context).scaledTouchSlop
@@ -1055,6 +1108,7 @@ class DiaryDetailFragment : Fragment() {
                     lastX = event.rawX
                     lastY = event.rawY
                     isLongPressed = false
+                    isMoved = false
 
                     handler.postDelayed(
                         longPressRunnable,
@@ -1065,20 +1119,20 @@ class DiaryDetailFragment : Fragment() {
                     val dx = event.rawX - lastX
                     val dy = event.rawY - lastY
 
-                    moveViewWithinParent(v, dx, dy)
-
-                    val totalDistance =
-                        hypot((event.rawX - startX).toDouble(), (event.rawY - startY).toDouble())
+                    val totalDistance = hypot((event.rawX - startX).toDouble(), (event.rawY - startY).toDouble())
                     if (totalDistance > touchSlop) {
+                        isMoved = true
                         handler.removeCallbacks(longPressRunnable)
                     }
+
+                    moveViewWithinParent(v, dx, dy)
 
                     lastX = event.rawX
                     lastY = event.rawY
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     handler.removeCallbacks(longPressRunnable)
-                    if (!isLongPressed && event.action == MotionEvent.ACTION_UP) {
+                    if (!isLongPressed && !isMoved && event.action == MotionEvent.ACTION_UP) {
                         v.performClick()
                     }
                 }
@@ -1096,30 +1150,47 @@ class DiaryDetailFragment : Fragment() {
 
         var lastX = 0f
         var lastY = 0f
+        var startX = 0f
+        var startY = 0f
+        var isMoved = false
+
+        val touchSlop = ViewConfiguration.get(commentView.context).scaledTouchSlop
 
         etCommentContent.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
+                    startX = event.rawX
+                    startY = event.rawY
                     lastX = event.rawX
                     lastY = event.rawY
+                    isMoved = false
                 }
                 MotionEvent.ACTION_MOVE -> {
                     val dx = event.rawX - lastX
                     val dy = event.rawY - lastY
+
+                    val totalDistance = hypot((event.rawX - startX).toDouble(), (event.rawY - startY).toDouble())
+                    if (totalDistance > touchSlop) {
+                        isMoved = true
+                    }
 
                     moveViewWithinParent(commentView, dx, dy)
 
                     lastX = event.rawX
                     lastY = event.rawY
                 }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    commentView.performClick()
+                MotionEvent.ACTION_UP -> {
+                    // 👈 [수정] 이동(드래그)하지 않고 단순 터치했을 때만 클릭 이벤트 트리거
+                    if (!isMoved) {
+                        commentView.performClick()
+                    }
                 }
                 else -> return@setOnTouchListener false
             }
             true
         }
     }
+
     private fun moveViewWithinParent(view: View, dx: Float, dy: Float) {
         val diaryPage = _binding?.ivFixedDiaryPageDetail ?: return
         DiaryPageBounds.move(view, diaryPage, dx, dy)
@@ -1141,7 +1212,13 @@ class DiaryDetailFragment : Fragment() {
         return Pair(emoji, text)
     }
 
-    private fun setupEmojiCommentToggle(commentView: View, emoji: String, startCollapsed: Boolean) {
+
+    private fun setupEmojiCommentToggle(
+        commentView: View,
+        comment: CommentEntity,
+        emoji: String,
+        startCollapsed: Boolean
+    ) {
         val ivCommentBg = commentView.findViewById<ImageView>(R.id.ivCommentBg)
         val etCommentContent = commentView.findViewById<EditText>(R.id.etCommentContent)
         val tvTime = commentView.findViewById<TextView>(R.id.tvCommentTime)
@@ -1162,6 +1239,21 @@ class DiaryDetailFragment : Fragment() {
         }
 
         val toggleClick = View.OnClickListener {
+            // 1. 애니메이션 정지 및 원래 크기 복원
+            stopEmojiBounce(tvEmoji)
+
+            // 2. 안 읽은 댓글인 경우 읽음 처리 (DB 및 메모리 태그)
+            val isChecked = (commentView.getTag(R.id.btnCommentDone) as? Boolean) ?: comment.isChecked
+            if (!isChecked) {
+                commentView.setTag(R.id.btnCommentDone, true)
+                // ❌ comment.isChecked = true   <- 이 줄을 제거했습니다!
+
+                val myUid = AuthUtils.getCurrentUserId()
+                val effectiveUid = if (isMyDiary) myUid else (targetUserId ?: myUid)
+                markCommentsAsChecked(listOf(comment), effectiveUid)
+            }
+
+            // 3. 접힘/펼침 상태 토글
             val expanded = (commentView.getTag(R.id.btnToolbarCommentDetail) as? Boolean) ?: false
             setCollapsed(expanded)
         }
@@ -1176,6 +1268,7 @@ class DiaryDetailFragment : Fragment() {
     }
 
     private fun startUnreadEmojiBounce(target: View) {
+        stopEmojiBounce(target) // 이전 애니메이션 제거
         ObjectAnimator.ofPropertyValuesHolder(
             target,
             PropertyValuesHolder.ofFloat(View.SCALE_X, 1f, 1.12f, 1f),
@@ -1186,6 +1279,14 @@ class DiaryDetailFragment : Fragment() {
             repeatCount = ObjectAnimator.INFINITE
             start()
         }
+    }
+
+    private fun stopEmojiBounce(tvEmoji: View) {
+        tvEmoji.animate().cancel()
+        tvEmoji.clearAnimation()
+        tvEmoji.scaleX = 1f
+        tvEmoji.scaleY = 1f
+        tvEmoji.translationY = 0f
     }
 
     override fun onDestroyView() {
