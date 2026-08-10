@@ -5,15 +5,19 @@ import android.app.DatePickerDialog
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.text.SpannableString
 import android.text.Spanned
 import android.text.style.BackgroundColorSpan
 import android.text.method.PasswordTransformationMethod
 import android.util.Log
 import android.view.GestureDetector
+import android.view.HapticFeedbackConstants
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
@@ -45,6 +49,7 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.abs
+import kotlin.math.hypot
 
 class DiaryDetailFragment : Fragment() {
     // binding getter(!! 사용)를 제거하여 NullPointerException 근본 원인 차단
@@ -871,12 +876,39 @@ class DiaryDetailFragment : Fragment() {
     private fun makeViewDraggable(view: View) {
         var lastX = 0f
         var lastY = 0f
+        var startX = 0f
+        var startY = 0f
+        var isLongPressed = false
+
+        val handler = Handler(Looper.getMainLooper())
+        val touchSlop = ViewConfiguration.get(view.context).scaledTouchSlop
+
+        val longPressRunnable = Runnable {
+            isLongPressed = true
+
+            // 1. 해당 뷰를 최상단으로 올리기
+            view.bringToFront()
+            view.parent?.requestLayout()
+            view.invalidate()
+
+            // 2. 롱클릭 체감을 위한 손끝 진동(햅틱) 피드백
+            view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+            Toast.makeText(view.context, "맨 앞으로 가져왔습니다.", Toast.LENGTH_SHORT).show()
+        }
 
         view.setOnTouchListener { v, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
+                    startX = event.rawX
+                    startY = event.rawY
                     lastX = event.rawX
                     lastY = event.rawY
+                    isLongPressed = false
+
+                    handler.postDelayed(
+                        longPressRunnable,
+                        ViewConfiguration.getLongPressTimeout().toLong() // 안드로이드 표준 롱클릭 시간 (약 500ms)
+                    )
                 }
                 MotionEvent.ACTION_MOVE -> {
                     val dx = event.rawX - lastX
@@ -884,11 +916,20 @@ class DiaryDetailFragment : Fragment() {
 
                     moveViewWithinParent(v, dx, dy)
 
+                    val totalDistance =
+                        hypot((event.rawX - startX).toDouble(), (event.rawY - startY).toDouble())
+                    if (totalDistance > touchSlop) {
+                        handler.removeCallbacks(longPressRunnable)
+                    }
+
                     lastX = event.rawX
                     lastY = event.rawY
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    v.performClick()
+                    handler.removeCallbacks(longPressRunnable)
+                    if (!isLongPressed && event.action == MotionEvent.ACTION_UP) {
+                        v.performClick()
+                    }
                 }
             }
             true
@@ -897,37 +938,14 @@ class DiaryDetailFragment : Fragment() {
 
     @SuppressLint("ClickableViewAccessibility")
     private fun lockCommentEditText(commentView: View, etCommentContent: EditText) {
-        etCommentContent.keyListener = null
         etCommentContent.isFocusable = false
         etCommentContent.isFocusableInTouchMode = false
-        etCommentContent.isCursorVisible = false
-        etCommentContent.clearFocus()
-        etCommentContent.isEnabled = true
+        etCommentContent.isEnabled = false
+        etCommentContent.isClickable = false
+        etCommentContent.isLongClickable = false
 
-        var lastX = 0f
-        var lastY = 0f
-
-        etCommentContent.setOnTouchListener { _, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    lastX = event.rawX
-                    lastY = event.rawY
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    val dx = event.rawX - lastX
-                    val dy = event.rawY - lastY
-
-                    moveViewWithinParent(commentView, dx, dy)
-
-                    lastX = event.rawX
-                    lastY = event.rawY
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    commentView.performClick()
-                }
-                else -> return@setOnTouchListener false
-            }
-            true
+        etCommentContent.setOnTouchListener { _, _ ->
+            false
         }
     }
 

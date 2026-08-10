@@ -16,6 +16,8 @@ import android.app.DatePickerDialog
 import android.content.res.ColorStateList
 import android.os.Bundle
 import android.graphics.Color
+import android.os.Handler
+import android.os.Looper
 import androidx.fragment.app.Fragment
 import android.text.Spanned
 import android.text.Spannable
@@ -31,6 +33,8 @@ import android.widget.TextView
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.text.InputType
+import android.view.HapticFeedbackConstants
+import android.view.ViewConfiguration
 import androidx.lifecycle.lifecycleScope
 import android.widget.Toast
 import androidx.core.content.ContextCompat
@@ -51,6 +55,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 import androidx.core.graphics.toColorInt
 import com.example.colorpaper.util.AuthUtils
+import kotlin.math.hypot
 
 class DiaryFragment : Fragment() {
     private var _binding: FragmentDiaryBinding? = null
@@ -608,6 +613,26 @@ class DiaryFragment : Fragment() {
     private fun makeViewDraggable(view: View) {
         var lastX = 0f
         var lastY = 0f
+        var startX = 0f
+        var startY = 0f
+        var isLongPressed = false
+
+        val handler = Handler(Looper.getMainLooper())
+        val touchSlop = ViewConfiguration.get(view.context).scaledTouchSlop
+
+        val longPressRunnable = Runnable {
+            isLongPressed = true
+
+            // 1. 해당 뷰를 최상단으로 올리기
+            view.bringToFront()
+            view.parent?.requestLayout()
+            view.invalidate()
+
+            // 2. 롱클릭 체감을 위한 손끝 진동(햅틱) 피드백
+            view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+            Toast.makeText(view.context, "맨 앞으로 가져왔습니다.", Toast.LENGTH_SHORT).show()
+        }
+
 
         val dragTouchListener = View.OnTouchListener { _, event ->
             when (event.action) {
@@ -616,13 +641,27 @@ class DiaryFragment : Fragment() {
                         currentActivePostIt = view
                     }
                     // 터치 시작 시점의 절대 좌표 기억
+                    startX = event.rawX
+                    startY = event.rawY
                     lastX = event.rawX
                     lastY = event.rawY
+                    isLongPressed = false
+
+                    handler.postDelayed(
+                        longPressRunnable,
+                        ViewConfiguration.getLongPressTimeout().toLong() // 안드로이드 표준 롱클릭 시간 (약 500ms)
+                    )
                 }
                 MotionEvent.ACTION_MOVE -> {
                     // 손가락 이동 거리 계산
                     val dx = event.rawX - lastX
                     val dy = event.rawY - lastY
+
+                    val totalDistance =
+                        hypot((event.rawX - startX).toDouble(), (event.rawY - startY).toDouble())
+                    if (totalDistance > touchSlop) {
+                        handler.removeCallbacks(longPressRunnable)
+                    }
 
                     // 부모 포스트잇 뷰(view)의 위치 이동
                     moveViewWithinParent(view, dx, dy)
@@ -632,7 +671,10 @@ class DiaryFragment : Fragment() {
                     lastY = event.rawY
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    view.performClick()
+                    handler.removeCallbacks(longPressRunnable)
+                    if (!isLongPressed && event.action == MotionEvent.ACTION_UP) {
+                        view.performClick()
+                    }
                 }
                 else -> return@OnTouchListener false
             }
@@ -1217,35 +1259,12 @@ class DiaryFragment : Fragment() {
         etContent.isFocusable = false
         etContent.isFocusableInTouchMode = false
         etContent.isCursorVisible = false
-        etContent.clearFocus()
-        etContent.isEnabled = true // 터치 이벤트(OnTouchListener) 수신을 위해 true 유지
+        etContent.isEnabled = false
+        etContent.isLongClickable = false
+        etContent.isClickable = false
 
-        var lastX = 0f
-        var lastY = 0f
-
-        etContent.setOnTouchListener { _, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    currentActivePostIt = postItView
-                    lastX = event.rawX
-                    lastY = event.rawY
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    val dx = event.rawX - lastX
-                    val dy = event.rawY - lastY
-
-                    // etContent 터치 시 부모 포스트잇(postItView)의 위치 이동
-                    moveViewWithinParent(postItView, dx, dy)
-
-                    lastX = event.rawX
-                    lastY = event.rawY
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    postItView.performClick()
-                }
-                else -> return@setOnTouchListener false
-            }
-            true
+        etContent.setOnTouchListener { _, _ ->
+            false
         }
     }
 
