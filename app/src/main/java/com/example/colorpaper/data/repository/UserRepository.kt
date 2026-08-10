@@ -110,17 +110,32 @@ class UserRepository(
         userCode: String,
         profileImageUriString: String?
     ): Boolean {
-        val uid = currentUid ?: return false
+        val uid = currentUid ?: run {
+            android.util.Log.e("UserRepository", "현재 로그인된 UID가 없어 저장을 취소합니다.")
+            return false
+        }
         var downloadUrl: String? = null
 
         try {
-            if (!profileImageUriString.isNullOrEmpty() && profileImageUriString.startsWith("content://")) {
+            if (!profileImageUriString.isNullOrEmpty()) {
                 val uri = Uri.parse(profileImageUriString)
-                val storageRef = storage.reference.child("profile_images/$uid.jpg")
-                storageRef.putFile(uri).await()
-                downloadUrl = storageRef.downloadUrl.await().toString()
-            } else {
-                downloadUrl = profileImageUriString
+
+                // http나 https로 시작하는 이미 존재하는 웹 URL이 아닌 경우 (로컬 선택/촬영 이미지)
+                if (!profileImageUriString.startsWith("http://") && !profileImageUriString.startsWith("https://")) {
+                    android.util.Log.d("UserRepository", "Firebase Storage 이미지 업로드 시도: $uri")
+
+                    val storageRef = storage.reference.child("profile_images/$uid.jpg")
+
+                    // Storage에 파일 업로드
+                    storageRef.putFile(uri).await()
+
+                    // 다운로드 가능 URL 획득
+                    downloadUrl = storageRef.downloadUrl.await().toString()
+                    android.util.Log.d("UserRepository", "Storage 업로드 완료 URL: $downloadUrl")
+                } else {
+                    // 이미 업로드된 http(s) URL인 경우 그대로 사용
+                    downloadUrl = profileImageUriString
+                }
             }
 
             val userMap = hashMapOf<String, Any>(
@@ -132,10 +147,12 @@ class UserRepository(
                 userMap["profileImageUrl"] = downloadUrl
             }
 
+            // Firestore 사용자 정보 업데이트 (merge 옵션)
             firestore.collection("users").document(uid)
                 .set(userMap, SetOptions.merge())
                 .await()
 
+            // Room DB 로컬 데이터도 최신화
             val existingUser = db.userDao().getUserById(1)
             val updatedUser = UserEntity(
                 userId = 1,
@@ -152,6 +169,8 @@ class UserRepository(
             return true
 
         } catch (e: Exception) {
+            // ★ 로그를 남겨 정확히 무슨 에러로 실패했는지 확인 가능하게 변경
+            android.util.Log.e("UserRepository", "updateUserProfile 실패 원인: ${e.message}", e)
             return false
         }
     }

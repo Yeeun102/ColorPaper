@@ -548,9 +548,19 @@ class DiaryDetailFragment : Fragment() {
                 Log.e("DiaryDetail", "로컬 DB 조회 실패", e)
             }
 
+            // 🔒 [핵심 추가] 댓글 공개 범위 필터링
+            // 내 일기면 전부 표시, 남의 일기면 '일기 주인이 쓴 댓글(셀프 댓글)'은 걸러냄
+            val visibleComments = comments.filter { comment ->
+                if (isMyDiary) {
+                    true // 내가 내 일기를 볼 때는 내가 쓴 댓글 + 타인이 달아준 댓글 모두 표시
+                } else {
+                    comment.userId != effectiveUidString // 남의 일기를 볼 때는 일기 주인이 쓴 댓글 비공개
+                }
+            }
+
             val commentAuthorMap = withContext(Dispatchers.IO) {
                 val labels = mutableMapOf<String, String>()
-                val userIds = comments.map { it.userId }.toSet()
+                val userIds = visibleComments.map { it.userId }.toSet()
                 for (uid in userIds) {
                     labels[uid] = when {
                         uid == myUid -> "나"
@@ -581,12 +591,12 @@ class DiaryDetailFragment : Fragment() {
             }
 
             binding.layoutCommentsContainer.removeAllViews()
-            for (comment in comments) {
+            // 기존 comments 대신 걸러진 visibleComments 사용
+            for (comment in visibleComments) {
                 renderCommentPostIt(comment, commentAuthorMap[comment.userId] ?: "알 수 없음")
             }
         }
     }
-
     private suspend fun resolveUserNickname(userId: String): String {
         if (userId.isBlank()) return "알 수 없음"
         return try {
