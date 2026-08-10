@@ -827,8 +827,6 @@ class DiaryFragment : Fragment() {
         decorateTextView.bringToFront()
         decorateTextView.setTag(R.id.ivPostItBg,diaryId)
     }
-
-
     private fun inflateSavedPostIt(diary: DiaryEntity) {
         val inflater = LayoutInflater.from(requireContext())
         val postItView = inflater.inflate(R.layout.item_diary_postit, binding.layoutDiaryContainer, false)
@@ -841,13 +839,13 @@ class DiaryFragment : Fragment() {
         etContent.setText(diary.content)
 
         applyHighlightRangesToEditText(etContent, diary.highlightRanges)
-        // 락 걸기 및 드래그 리스너 사전 부여 (기존 저장되어 로드된 항목이므로)
-        setupPostItEditTextTouch(etContent, postItView)
 
-        lockPostItEditText(etContent)
+        // 락 걸기 및 터치 이동 드래그 리스너 부여 (postItView 인자 추가)
+        lockPostItEditText(postItView, etContent)
 
         postItView.setTag(R.id.ivPostItBg, diary.diaryId)
         postItView.tag = diary.color
+
         // 색상 저장
         val colorKey = diary.color.lowercase(Locale.getDefault()).trim()
         val resId = postItResourceMap[colorKey] ?: R.drawable.post_yellow
@@ -857,11 +855,9 @@ class DiaryFragment : Fragment() {
         postItView.translationY = diary.positionY
         makeViewDraggable(postItView)
 
-
         binding.layoutDiaryContainer.addView(postItView)
         postItView.post { clampViewToParent(postItView) }
     }
-
     private fun addNewPostItField(colorName: String = "yellow") {
         val inflater = LayoutInflater.from(requireContext())
         val postItView = inflater.inflate(R.layout.item_diary_postit, binding.layoutDiaryContainer, false)
@@ -1271,17 +1267,40 @@ class DiaryFragment : Fragment() {
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    private fun lockPostItEditText(etContent: EditText) {
+    private fun lockPostItEditText(postItView: View, etContent: EditText) {
         etContent.keyListener = null // 텍스트 수정 및 키보드 노출 완전 차단
         etContent.isFocusable = false
         etContent.isFocusableInTouchMode = false
         etContent.isCursorVisible = false
-        etContent.isEnabled = false
-        etContent.isLongClickable = false
-        etContent.isClickable = false
+        etContent.clearFocus()
+        etContent.isEnabled = true // 터치 이벤트(OnTouchListener) 수신을 위해 true 유지
 
-        etContent.setOnTouchListener { _, _ ->
-            false
+        var lastX = 0f
+        var lastY = 0f
+
+        etContent.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    currentActivePostIt = postItView
+                    lastX = event.rawX
+                    lastY = event.rawY
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = event.rawX - lastX
+                    val dy = event.rawY - lastY
+
+                    // etContent 터치 시 부모 포스트잇(postItView)의 위치 이동
+                    moveViewWithinParent(postItView, dx, dy)
+
+                    lastX = event.rawX
+                    lastY = event.rawY
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    postItView.performClick()
+                }
+                else -> return@setOnTouchListener false
+            }
+            true
         }
     }
 
