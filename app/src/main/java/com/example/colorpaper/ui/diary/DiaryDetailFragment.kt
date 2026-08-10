@@ -6,6 +6,7 @@ import android.annotation.SuppressLint
 import android.app.DatePickerDialog
 import android.content.res.ColorStateList
 import android.graphics.Color
+import com.example.colorpaper.ui.profile.ProfileFragment
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -849,16 +850,39 @@ class DiaryDetailFragment : Fragment() {
         val btnCommentDone = view.findViewById<TextView>(R.id.btnCommentDone)
         val tvEmoji = view.findViewById<TextView>(R.id.tvCommentEmoji)
 
+        // 💡 [신규 UI 참조] 작성자 프로필 컨테이너 및 이미지
+        val layoutAuthor = view.findViewById<View>(R.id.layoutCommentAuthor)
+        val ivProfile = view.findViewById<ImageView>(R.id.ivCommentProfile)
+
         val (emoji, plainText) = decodeCommentContent(comment.content)
         val isEmojiComment = isEmojiCommentContent(comment.content)
 
         val displayContent = if (plainText.isNotBlank()) plainText else emoji
         etCommentContent.setText(displayContent)
 
-        // 👈 [수정] 상대 날짜(오늘, 어제, N일 전, 2026.08.11)로 변환해 세팅
+        // 👈 [수정 1] 일기 날짜(date)를 우선으로 변환 ("오늘", "어제", "3일 전", "2026.08.08")
         tvTime.visibility = View.VISIBLE
-        tvTime.text = formatRelativeDate(comment.timestamp, comment.date)
-        tvAuthor.text = "작성자 : $authorLabel"
+        tvTime.text = formatRelativeDate(comment.date, comment.timestamp)
+
+        // 👈 [수정 2] "작성자 :" 문구 제거 후 이름만 세팅
+        tvAuthor.text = authorLabel
+
+        // 👈 [수정 3] 프로필 영역 클릭 시 작성자 프로필 페이지로 이동 이벤트
+        layoutAuthor?.setOnClickListener {
+            val commentUserId = comment.userId
+            if (commentUserId.isNotBlank()) {
+                parentFragmentManager.beginTransaction()
+                    .setCustomAnimations(
+                        R.animator.screen_morph_enter,
+                        R.animator.screen_morph_exit,
+                        R.animator.screen_morph_enter,
+                        R.animator.screen_morph_exit
+                    )
+                    .replace(R.id.fragment_container, ProfileFragment.newInstance(commentUserId))
+                    .addToBackStack(null)
+                    .commit()
+            }
+        }
 
         if (isBlurred) {
             etCommentContent.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
@@ -874,6 +898,7 @@ class DiaryDetailFragment : Fragment() {
         val resId = commentResourceMap[comment.color] ?: R.drawable.comment_blue
         ivCommentBg.setImageResource(resId)
 
+        // 기존 태그 유지
         view.setTag(R.id.ivCommentBg, comment.commentId)
         view.tag = comment.color
         view.setTag(R.id.btnFollow, comment.userId)
