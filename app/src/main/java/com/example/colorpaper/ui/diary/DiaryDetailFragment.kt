@@ -278,7 +278,7 @@ class DiaryDetailFragment : Fragment() {
                     btnCommentDone.visibility = View.GONE
 
                     makeViewDraggable(commentView)
-                    lockCommentEditText(etCommentContent)
+                    lockCommentEditText(commentView, etCommentContent) // 👈 수정: commentView 인자 추가
 
                     val currentZIndex = activeBinding.layoutCommentsContainer.indexOfChild(commentView).coerceAtLeast(0)
                     insertCommentToDb(commentView, text, randomColor, todayDateStr, currentZIndex)
@@ -295,7 +295,6 @@ class DiaryDetailFragment : Fragment() {
         }
         applyToolbarThemeColor()
     }
-
     private fun applyToolbarThemeColor() {
         val toolbarColor = ContextCompat.getColor(requireContext(), palette.yearsAgo)
         val toolbarStrokeColor = ContextCompat.getColor(requireContext(), palette.stroke)
@@ -852,7 +851,7 @@ class DiaryDetailFragment : Fragment() {
 
         if (!isHighlightMode) {
             makeViewDraggable(view)
-            lockCommentEditText(etCommentContent)
+            lockCommentEditText(view, etCommentContent) // 👈 수정: view 인자 추가
         }
 
         currentBinding.layoutCommentsContainer.addView(view)
@@ -1089,18 +1088,38 @@ class DiaryDetailFragment : Fragment() {
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    private fun lockCommentEditText(etCommentContent: EditText) {
-        etCommentContent.isFocusable = false
-        etCommentContent.isFocusableInTouchMode = false
-        etCommentContent.isEnabled = false
-        etCommentContent.isClickable = false
-        etCommentContent.isLongClickable = false
+    private fun lockCommentEditText(commentView: View, etCommentContent: EditText) {
+        etCommentContent.keyListener = null
+        etCommentContent.isCursorVisible = false
+        etCommentContent.clearFocus()
+        etCommentContent.isEnabled = true
 
-        etCommentContent.setOnTouchListener { _, _ ->
-            false
+        var lastX = 0f
+        var lastY = 0f
+
+        etCommentContent.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    lastX = event.rawX
+                    lastY = event.rawY
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = event.rawX - lastX
+                    val dy = event.rawY - lastY
+
+                    moveViewWithinParent(commentView, dx, dy)
+
+                    lastX = event.rawX
+                    lastY = event.rawY
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    commentView.performClick()
+                }
+                else -> return@setOnTouchListener false
+            }
+            true
         }
     }
-
     private fun moveViewWithinParent(view: View, dx: Float, dy: Float) {
         val diaryPage = _binding?.ivFixedDiaryPageDetail ?: return
         DiaryPageBounds.move(view, diaryPage, dx, dy)

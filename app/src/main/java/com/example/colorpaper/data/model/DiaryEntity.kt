@@ -65,5 +65,4 @@ data class DiaryEntity(
     var highlightRanges: String = ""
 ) {
     // Firestore 파싱용 빈 생성자
-    constructor() : this(0, "", "", "orange", "", null, false, "PRIVATE", 0, 0, 0, 0, 0, 0, "", 0f, 0f, 0)
-}
+    constructor() : this(0, "", "", "orange", "", null, false, "PRIVATE", 0, 0, 0, 0, 0, 0, "", 0f, 0f, 0, "")}
