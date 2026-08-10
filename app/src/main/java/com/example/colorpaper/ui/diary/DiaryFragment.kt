@@ -786,14 +786,14 @@ class DiaryFragment : Fragment() {
                 isHighlightedState = hasHighlighted
                 applyCustomButtonState(binding.btnHighlightState, isSelected = isHighlightedState)
 
-                for (postIt in postIts) {
+                val sortedPostIts = postIts.sortedBy { it.zIndex }
+
+                for (postIt in sortedPostIts) {
                     val isDecoText = postIt.content.startsWith("[DECO]:")
-                    // 꾸미기 텍스트 복원
                     if (isDecoText) {
                         val pureText = postIt.content.replace("[DECO]:", "")
                         restoreDecorateTextView(pureText, postIt.positionX, postIt.positionY, postIt.diaryId)
                     } else {
-                        // 포스트잇 복원
                         inflateSavedPostIt(postIt)
                         restoreTags(postIt)
                     }
@@ -825,6 +825,7 @@ class DiaryFragment : Fragment() {
         binding.layoutDiaryContainer.addView(decorateTextView)
         decorateTextView.post { clampViewToParent(decorateTextView) }
         decorateTextView.bringToFront()
+        decorateTextView.setTag(R.id.ivPostItBg,diaryId)
     }
 
 
@@ -843,14 +844,11 @@ class DiaryFragment : Fragment() {
         // 락 걸기 및 드래그 리스너 사전 부여 (기존 저장되어 로드된 항목이므로)
         setupPostItEditTextTouch(etContent, postItView)
 
-        //etContent.isEnabled = false
-        //etContent.isFocusable = false
+        lockPostItEditText(etContent)
 
-        lockPostItEditText(postItView, etContent)
-        makeViewDraggable(postItView)
-
-        postItView.setTag(R.id.ivPostItBg, diary.diaryId) // diaryId 저장
-        postItView.tag = diary.color                     // 색상 저장
+        postItView.setTag(R.id.ivPostItBg, diary.diaryId)
+        postItView.tag = diary.color
+        // 색상 저장
         val colorKey = diary.color.lowercase(Locale.getDefault()).trim()
         val resId = postItResourceMap[colorKey] ?: R.drawable.post_yellow
         ivBg.setImageResource(resId)
@@ -917,7 +915,7 @@ class DiaryFragment : Fragment() {
             return
         }
 
-        val diariesToSave = mutableListOf<DiaryEntity>()
+        val itemsToSave = mutableListOf<Pair<View, DiaryEntity>>()
 
         for (i in 0 until childCount) {
             val childView = container.getChildAt(i) ?: continue
@@ -938,10 +936,11 @@ class DiaryFragment : Fragment() {
                         visibility = currentVisibility,
                         positionX = childView.translationX,
                         positionY = childView.translationY,
+                        zIndex = i,
                         userId = currentUid,
                         highlightRanges = ""
                     )
-                    diariesToSave.add(decDiaryEntity)
+                    itemsToSave.add(Pair(childView,decDiaryEntity))
                 }
             } else {
                 // 포스트잇 메모지 저장
@@ -965,18 +964,36 @@ class DiaryFragment : Fragment() {
                         reviewCycleDays = selectedReminderCycleDays,
                         positionX = childView.translationX,
                         positionY = childView.translationY,
+                        zIndex = i,
                         userId = currentUid,
                         highlightRanges = highlightRanges
                     )
-                    diariesToSave.add(newDiary)
+                    itemsToSave.add(Pair(childView,newDiary))
                 }
             }
         }
 
-        if (diariesToSave.isEmpty()) return
+        if (itemsToSave.isEmpty()) return
 
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.saveDiaries(diariesToSave)
+            val db = AppDatabase.getDatabase(safeContext)
+
+            // 💡 1. DB에 저장 후 새로 생성된 Primary Key(Long) 리스트 반환
+            val savedResults = withContext(Dispatchers.IO) {
+                itemsToSave.map { (view, entity) ->
+                    val savedId = db.diaryDao().insertPostIt(entity)
+                    Pair(view, savedId)
+                }
+            }
+
+            if (_binding == null || !isAdded) return@launch
+
+            // 💡 2. [핵심] 새로 생성된 DB PK(savedId)를 View의 Tag에 세팅하여 이후 중복 생성을 방지
+            for ((view, savedId) in savedResults) {
+                view.setTag(R.id.ivPostItBg, savedId.toInt())
+            }
+
+            Toast.makeText(safeContext, "성공적으로 저장되었습니다!", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -1254,7 +1271,7 @@ class DiaryFragment : Fragment() {
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    private fun lockPostItEditText(postItView: View, etContent: EditText) {
+    private fun lockPostItEditText(etContent: EditText) {
         etContent.keyListener = null // 텍스트 수정 및 키보드 노출 완전 차단
         etContent.isFocusable = false
         etContent.isFocusableInTouchMode = false

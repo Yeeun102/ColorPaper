@@ -270,8 +270,10 @@ class DiaryDetailFragment : Fragment() {
                     btnCommentDone.visibility = View.GONE
 
                     makeViewDraggable(commentView)
-                    lockCommentEditText(commentView, etCommentContent)
-                    insertCommentToDb(commentView, text, randomColor, todayDateStr)
+                    lockCommentEditText(etCommentContent)
+
+                    val currentZIndex = activeBinding.layoutCommentsContainer.indexOfChild(commentView).coerceAtLeast(0)
+                    insertCommentToDb(commentView, text, randomColor, todayDateStr,currentZIndex)
 
                     val targetUid = targetUserId ?: auth.currentUser?.uid ?: ""
                     saveComment(101L, targetUid, "❤️", text)
@@ -317,7 +319,6 @@ class DiaryDetailFragment : Fragment() {
     private fun applyCustomButtonState(button: Button, isSelected: Boolean, originalColor: Int = 0) {
         if (!isAdded) return
         if (button is MaterialButton) {
-            val density = resources.displayMetrics.density
             val defaultColor = if (originalColor != 0) originalColor else (buttonColorMap[button] ?: "#EDEDED".toColorInt())
 
             if (isSelected) {
@@ -575,7 +576,9 @@ class DiaryDetailFragment : Fragment() {
 
             currentPostIts = postIts
             binding.layoutDetailDiaryContainer.removeAllViews()
-            for (postIt in postIts) {
+
+            val sortedPostIts = postIts.sortedBy { it.zIndex }
+            for (postIt in sortedPostIts) {
                 val isDecoText = postIt.content.startsWith("[DECO]:")
                 if (isDecoText) {
                     val pureText = postIt.content.replace("[DECO]:", "")
@@ -584,9 +587,10 @@ class DiaryDetailFragment : Fragment() {
                     renderReadOnlyPostIt(postIt, isFollowingUser)
                 }
             }
+            val sortedComments = comments.sortedBy { it.zIndex }
 
             binding.layoutCommentsContainer.removeAllViews()
-            for (comment in comments) {
+            for (comment in sortedComments) {
                 renderCommentPostIt(comment, commentAuthorMap[comment.userId] ?: "알 수 없음")
             }
         }
@@ -732,13 +736,13 @@ class DiaryDetailFragment : Fragment() {
 
         btnCommentDone.visibility = View.GONE
         makeViewDraggable(view)
-        lockCommentEditText(view, etCommentContent)
+        lockCommentEditText(etCommentContent)
 
         currentBinding.layoutCommentsContainer.addView(view)
         view.post { clampViewToParent(view) }
     }
 
-    private fun insertCommentToDb(view: View, commentText: String, colorName: String, timestamp: String) {
+    private fun insertCommentToDb(view: View, commentText: String, colorName: String, timestamp: String, zIndex: Int = 0) {
         val safeContext = context?.applicationContext ?: return
         val currentUid = AuthUtils.getCurrentUserId()
         val ownerUid = if (isMyDiary) currentUid else (targetUserId ?: currentUid)
@@ -754,7 +758,8 @@ class DiaryDetailFragment : Fragment() {
             color = colorName,
             timestamp = timestamp,
             posX = posX,
-            posY = posY
+            posY = posY,
+            zIndex = zIndex
         )
 
         viewLifecycleOwner.lifecycleScope.launch {
@@ -808,7 +813,8 @@ class DiaryDetailFragment : Fragment() {
                     color = colorName,
                     timestamp = commentDate,
                     posX = posX,
-                    posY = posY
+                    posY = posY,
+                    zIndex = i
                 )
 
                 commentsToSave.add(Pair(commentView, updatedComment))
@@ -843,6 +849,11 @@ class DiaryDetailFragment : Fragment() {
                     commentsToSave.map { (view, comment) ->
                         val savedId = db.diaryDao().insertComment(comment)
                         Pair(view, savedId)
+                    }
+                }
+                if (isAdded && _binding != null) {
+                    for ((view, savedId) in savedResults) {
+                        view.setTag(R.id.ivCommentBg, savedId.toInt())
                     }
                 }
 
@@ -937,7 +948,7 @@ class DiaryDetailFragment : Fragment() {
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    private fun lockCommentEditText(commentView: View, etCommentContent: EditText) {
+    private fun lockCommentEditText(etCommentContent: EditText) {
         etCommentContent.isFocusable = false
         etCommentContent.isFocusableInTouchMode = false
         etCommentContent.isEnabled = false
