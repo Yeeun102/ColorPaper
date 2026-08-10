@@ -1,6 +1,5 @@
 package com.example.colorpaper.ui.profile
 
-import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -9,29 +8,14 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.Toast
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
-import coil.load
-import coil.transform.CircleCropTransformation
 import com.example.colorpaper.R
 
 class ProfileEditFragment : Fragment() {
 
     private val viewModel: ProfileViewModel by viewModels()
-    private var selectedImageUri: Uri? = null
     private var isInitialLoaded = false
-
-    private val pickMedia = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) {
-            selectedImageUri = uri
-            view?.findViewById<ImageView>(R.id.ivEditProfileImage)?.load(uri) {
-                crossfade(true)
-                transformations(CircleCropTransformation())
-            }
-        }
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -59,14 +43,7 @@ class ProfileEditFragment : Fragment() {
                     isInitialLoaded = true
                 }
 
-                if (selectedImageUri == null) {
-                    ivEditProfileImage.load(user.profileImageUrl) {
-                        crossfade(true)
-                        placeholder(R.drawable.ic_default_profile)
-                        error(R.drawable.ic_default_profile)
-                        transformations(CircleCropTransformation())
-                    }
-                }
+                ivEditProfileImage.setImageResource(R.drawable.ic_default_profile)
             }
         }
         viewModel.fetchUserProfile()
@@ -96,7 +73,7 @@ class ProfileEditFragment : Fragment() {
 
         // 4. 프로필 이미지 선택
         ivEditProfileImage.setOnClickListener {
-            pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            Toast.makeText(requireContext(), "프로필 이미지 기능은 현재 사용하지 않습니다.", Toast.LENGTH_SHORT).show()
         }
 
         // 5. 저장 버튼
@@ -112,8 +89,7 @@ class ProfileEditFragment : Fragment() {
 
             btnSave.isEnabled = false
 
-            val imageUriString = selectedImageUri?.toString()
-            viewModel.saveUserProfile(inputNickname, inputUserCode, imageUriString)
+            viewModel.saveUserProfile(inputNickname, inputUserCode, null)
         }
     }
 }

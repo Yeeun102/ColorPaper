@@ -1,6 +1,5 @@
 package com.example.colorpaper.data.repository
 
-import android.net.Uri
 import com.example.colorpaper.data.local.AppDatabase
 import com.example.colorpaper.data.model.DiaryEntity
 import com.example.colorpaper.data.model.FolderEntity
@@ -9,7 +8,6 @@ import com.example.colorpaper.data.model.UserEntity
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
-import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
@@ -17,8 +15,7 @@ import kotlinx.coroutines.withContext
 class UserRepository(
     private val db: AppDatabase,
     private val auth: FirebaseAuth = FirebaseAuth.getInstance(),
-    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
-    private val storage: FirebaseStorage = FirebaseStorage.getInstance()
+    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
 ) {
     val currentUid: String? get() = auth.currentUser?.uid
     val currentEmail: String get() = auth.currentUser?.email ?: "default@email.com"
@@ -114,28 +111,14 @@ class UserRepository(
             android.util.Log.e("UserRepository", "현재 로그인된 UID가 없어 저장을 취소합니다.")
             return false
         }
-        var downloadUrl: String? = null
+        val existingUser = db.userDao().getUserById(1)
+        val downloadUrl: String? = profileImageUriString
+            ?.takeIf { it.startsWith("http://") || it.startsWith("https://") }
+            ?: existingUser?.profileImageUrl
 
         try {
-            if (!profileImageUriString.isNullOrEmpty()) {
-                val uri = Uri.parse(profileImageUriString)
-
-                // http나 https로 시작하는 이미 존재하는 웹 URL이 아닌 경우 (로컬 선택/촬영 이미지)
-                if (!profileImageUriString.startsWith("http://") && !profileImageUriString.startsWith("https://")) {
-                    android.util.Log.d("UserRepository", "Firebase Storage 이미지 업로드 시도: $uri")
-
-                    val storageRef = storage.reference.child("profile_images/$uid.jpg")
-
-                    // Storage에 파일 업로드
-                    storageRef.putFile(uri).await()
-
-                    // 다운로드 가능 URL 획득
-                    downloadUrl = storageRef.downloadUrl.await().toString()
-                    android.util.Log.d("UserRepository", "Storage 업로드 완료 URL: $downloadUrl")
-                } else {
-                    // 이미 업로드된 http(s) URL인 경우 그대로 사용
-                    downloadUrl = profileImageUriString
-                }
+            if (!profileImageUriString.isNullOrEmpty() && downloadUrl == existingUser?.profileImageUrl) {
+                android.util.Log.w("UserRepository", "프로필 이미지 업로드 기능은 비활성화되어 기본/기존 이미지로 유지합니다.")
             }
 
             val userMap = hashMapOf<String, Any>(
@@ -153,7 +136,6 @@ class UserRepository(
                 .await()
 
             // Room DB 로컬 데이터도 최신화
-            val existingUser = db.userDao().getUserById(1)
             val updatedUser = UserEntity(
                 userId = 1,
                 userCode = userCode,
@@ -278,19 +260,34 @@ class UserRepository(
 
     // 8. 특정 유저의 하이라이트 목록 조회
     // 하이라이트 전용 컬렉션 대신, 실제 다이어리의 isHighlighted 상태를 단일 소스로 사용한다.
+    // ⚠️ Kotlin Boolean property `var isHighlighted`는 Java getter `isHighlighted()`로 컴파일되며,
+    //    Firestore SDK는 `is` prefix를 제거하여 실제 저장 필드명을 `highlighted`로 사용한다.
     suspend fun getHighlightsByUserId(targetUserId: String): List<HighlightEntity> {
         val resolvedUid = resolveUidOrNull(targetUserId) ?: targetUserId
+        val myUid = currentUid ?: ""
+        val isOwn = resolvedUid == myUid
+
+        // 친구 프로필 조회 시 허용 visibility 범위 결정
+        val allowedVisibilities: List<String>? = if (isOwn) {
+            null // 내 프로필이면 visibility 제한 없음
+        } else {
+            val isFollowing = if (myUid.isNotEmpty()) checkIsFollowing(myUid, resolvedUid) else false
+            if (isFollowing) listOf("전체공개", "팔로워공개") else listOf("전체공개")
+        }
 
         return try {
-            val snapshot = firestore.collection("diaries")
+            // ✅ Firestore 저장 필드명: `highlighted` (Java getter `isHighlighted()` → `is` prefix 제거)
+            val query = firestore.collection("diaries")
                 .whereEqualTo("userId", resolvedUid)
-                .whereEqualTo("isHighlighted", true)
-                .get()
-                .await()
+                .whereEqualTo("highlighted", true)
+
+            val snapshot = query.get().await()
 
             val remoteItems = snapshot.documents.mapNotNull { doc ->
                 val diary = doc.toObject(DiaryEntity::class.java) ?: return@mapNotNull null
                 if (diary.content.startsWith("[DECO]:")) return@mapNotNull null
+                // 친구 프로필이면 허용된 visibility만 포함
+                if (allowedVisibilities != null && diary.visibility !in allowedVisibilities) return@mapNotNull null
 
                 HighlightEntity(
                     highlightId = if (diary.diaryId != 0) diary.diaryId else doc.id.hashCode(),
@@ -303,9 +300,14 @@ class UserRepository(
             if (remoteItems.isNotEmpty()) {
                 remoteItems
             } else {
+                // Firestore 결과 없을 시 로컬 Room DB fallback
                 db.diaryDao().getDiariesByUserId(resolvedUid)
                     .asSequence()
-                    .filter { it.isHighlighted && !it.content.startsWith("[DECO]:") }
+                    .filter { diary ->
+                        diary.isHighlighted &&
+                        !diary.content.startsWith("[DECO]:") &&
+                        (allowedVisibilities == null || diary.visibility in allowedVisibilities)
+                    }
                     .sortedByDescending { it.createdAt }
                     .map { diary ->
                         HighlightEntity(
@@ -321,7 +323,11 @@ class UserRepository(
             // 네트워크 에러 시 로컬 DB에서 동일 조건으로 조회
             db.diaryDao().getDiariesByUserId(resolvedUid)
                 .asSequence()
-                .filter { it.isHighlighted && !it.content.startsWith("[DECO]:") }
+                .filter { diary ->
+                    diary.isHighlighted &&
+                    !diary.content.startsWith("[DECO]:") &&
+                    (allowedVisibilities == null || diary.visibility in allowedVisibilities)
+                }
                 .sortedByDescending { it.createdAt }
                 .map { diary ->
                     HighlightEntity(

@@ -24,8 +24,6 @@ import android.widget.Toast
 import androidx.core.graphics.toColorInt
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
-import coil.load
-import coil.transform.CircleCropTransformation
 import com.example.colorpaper.MainActivity
 import com.example.colorpaper.R
 import com.example.colorpaper.data.local.AppDatabase
@@ -37,6 +35,7 @@ import com.example.colorpaper.ui.theme.ThemeManager
 import com.example.colorpaper.util.AuthUtils
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -283,6 +282,7 @@ class FriendDiaryDetailFragment : Fragment() {
 
                 // 2) 선택된 날짜의 포스트잇 가져오기 (Firestore)
                 var postIts = emptyList<DiaryEntity>()
+                var comments = emptyList<CommentEntity>()
                 try {
                     val querySnap = firestore.collection("diaries")
                         .whereEqualTo("userId", uid)
@@ -292,6 +292,16 @@ class FriendDiaryDetailFragment : Fragment() {
 
                     postIts = querySnap.documents.mapNotNull { doc ->
                         try { doc.toObject(DiaryEntity::class.java) } catch (e: Exception) { null }
+                    }
+
+                    val commentQuerySnap = firestore.collection("comments")
+                        .whereEqualTo("diaryId", uid.hashCode())
+                        .whereEqualTo("date", selectedDate)
+                        .get()
+                        .await()
+
+                    comments = commentQuerySnap.documents.mapNotNull { doc ->
+                        try { doc.toObject(CommentEntity::class.java) } catch (e: Exception) { null }
                     }
                 } catch (e: Exception) {
                     Log.e("FriendDiaryDetail", "Firestore 조회 실패: ${e.message}")
@@ -305,13 +315,19 @@ class FriendDiaryDetailFragment : Fragment() {
 
                 // 3) 댓글 정보 가져오기 (소유자 기준: diaryId=ownerUid.hashCode)
                 val ownerKey = uid.hashCode()
-                val comments = db.diaryDao().getCommentsByDate(selectedDate)
-                    .filter { comment ->
-                        comment.diaryId == ownerKey || (comment.diaryId == 0 && comment.userId == uid)
-                    }
+                if (comments.isEmpty()) {
+                    comments = db.diaryDao().getCommentsByDate(selectedDate)
+                        .filter { comment ->
+                            comment.diaryId == ownerKey || (comment.diaryId == 0 && comment.userId == uid)
+                        }
+                }
+
+                val visibleComments = comments.filter { comment ->
+                    comment.userId != uid
+                }
 
                 val commentAuthorMap = mutableMapOf<String, String>()
-                val commentUserIds = comments.map { it.userId }.toSet()
+                val commentUserIds = visibleComments.map { it.userId }.toSet()
                 for (commentUserId in commentUserIds) {
                     commentAuthorMap[commentUserId] = when {
                         commentUserId == myUid -> "나"
@@ -328,12 +344,7 @@ class FriendDiaryDetailFragment : Fragment() {
                     updateCommentButtonState()
 
                     binding.tvFriendNickname.text = nickname
-                    binding.ivFriendProfile.load(profileImg) {
-                        crossfade(true)
-                        placeholder(R.drawable.ic_default_profile)
-                        error(R.drawable.ic_default_profile)
-                        transformations(CircleCropTransformation())
-                    }
+                    binding.ivFriendProfile.setImageResource(R.drawable.ic_default_profile)
 
                     // 4) 캔버스 초기화 후 그려주기
                     binding.layoutDetailDiaryContainer.removeAllViews()
@@ -353,7 +364,7 @@ class FriendDiaryDetailFragment : Fragment() {
                     }
 
                     // 5) 댓글 그려주기
-                    for (comment in comments) {
+                    for (comment in visibleComments) {
                         renderCommentPostIt(comment, commentAuthorMap[comment.userId] ?: "알 수 없음")
                     }
                 }
@@ -525,6 +536,7 @@ class FriendDiaryDetailFragment : Fragment() {
         view.tag = comment.color
         view.setTag(R.id.btnFollow, comment.userId)
         view.setTag(R.id.btnProfileHome, targetUserId ?: "")
+        view.setTag(R.id.tvCommentEmoji, comment.createdAt)
 
         view.translationX = comment.posX
         view.translationY = comment.posY
@@ -638,12 +650,23 @@ class FriendDiaryDetailFragment : Fragment() {
         lifecycleScope.launch(Dispatchers.IO) {
             val db = AppDatabase.getDatabase(safeContext)
             val savedId = db.diaryDao().insertComment(newComment)
+            val commentWithId = newComment.copy(commentId = savedId.toInt())
+
+            try {
+                firestore.collection("comments")
+                    .document("${ownerUid}_${selectedDate}_${savedId}")
+                    .set(commentWithId, SetOptions.merge())
+                    .await()
+            } catch (e: Exception) {
+                Log.e("FriendDiaryDetail", "Firestore 댓글 저장 실패", e)
+            }
 
             withContext(Dispatchers.Main) {
                 if (_binding != null) {
                     view.setTag(R.id.ivCommentBg, savedId.toInt())
                     view.setTag(R.id.btnFollow, currentUid)
                     view.setTag(R.id.btnProfileHome, ownerUid)
+                    view.setTag(R.id.tvCommentEmoji, newComment.createdAt)
                     Toast.makeText(safeContext, "댓글이 등록되었습니다.", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -659,6 +682,7 @@ class FriendDiaryDetailFragment : Fragment() {
         val etContent = commentView.findViewById<EditText>(R.id.etCommentContent)
         val tvEmoji = commentView.findViewById<TextView>(R.id.tvCommentEmoji)
         val tvTime = commentView.findViewById<TextView>(R.id.tvCommentTime)
+        val createdAt = (commentView.getTag(R.id.tvCommentEmoji) as? Long) ?: System.currentTimeMillis()
 
         val authorUid = (commentView.getTag(R.id.btnFollow) as? String).orEmpty()
         val ownerUid = (commentView.getTag(R.id.btnProfileHome) as? String).orEmpty()
@@ -678,12 +702,21 @@ class FriendDiaryDetailFragment : Fragment() {
             content = payload,
             color = color,
             timestamp = tvTime.text?.toString().orEmpty(),
+            createdAt = createdAt,
             posX = commentView.translationX,
             posY = commentView.translationY
         )
 
         lifecycleScope.launch(Dispatchers.IO) {
             AppDatabase.getDatabase(safeContext).diaryDao().insertComment(updated)
+            try {
+                firestore.collection("comments")
+                    .document("${effectiveOwnerUid}_${selectedDate}_${commentId}")
+                    .set(updated, SetOptions.merge())
+                    .await()
+            } catch (e: Exception) {
+                Log.e("FriendDiaryDetail", "Firestore 댓글 위치 저장 실패", e)
+            }
         }
     }
 
@@ -864,5 +897,25 @@ class FriendDiaryDetailFragment : Fragment() {
                     putString("targetDate", targetDate)
                 }
             }
+    }
+
+    private fun parseCommentTime(timeStr: String): Long {
+        if (timeStr.isBlank()) return System.currentTimeMillis()
+        timeStr.toLongOrNull()?.let { return it }
+
+        val formats = listOf(
+            "yyyy.MM.dd HH:mm",
+            "yyyy.MM.dd HH:mm:ss",
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy.MM.dd"
+        )
+        for (format in formats) {
+            try {
+                val sdf = SimpleDateFormat(format, Locale.getDefault())
+                val parsed = sdf.parse(timeStr)
+                if (parsed != null) return parsed.time
+            } catch (_: Exception) {}
+        }
+        return System.currentTimeMillis()
     }
 }

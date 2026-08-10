@@ -25,8 +25,6 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import coil.load
-import coil.transform.CircleCropTransformation
 import com.example.colorpaper.R
 import com.example.colorpaper.ui.diary.DiaryDetailFragment
 import com.example.colorpaper.ui.flashcard.FlashcardStudyFragment
@@ -209,12 +207,7 @@ class ProfileFragment : Fragment() {
                 tvNickname?.text = user.nickname
                 tvUserCodeTop?.text = "#${user.userCode}"
 
-                ivProfileImage?.load(user.profileImageUrl) {
-                    crossfade(true)
-                    placeholder(R.drawable.ic_default_profile)
-                    error(R.drawable.ic_default_profile)
-                    transformations(CircleCropTransformation())
-                }
+                ivProfileImage?.setImageResource(R.drawable.ic_default_profile)
             }
 
             btnLogout?.setOnClickListener {
@@ -648,12 +641,7 @@ class PopupFriendAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = list[position]
         holder.tvNickname.text = item.nickname
-        holder.ivProfile.load(item.profileImageUrl) {
-            crossfade(true)
-            placeholder(R.drawable.ic_default_profile)
-            error(R.drawable.ic_default_profile)
-            transformations(CircleCropTransformation())
-        }
+        holder.ivProfile.setImageResource(R.drawable.ic_default_profile)
 
         holder.itemView.setOnClickListener { onItemClick(item) }
         ProfileThemeStyler.applyItem(holder.itemView)

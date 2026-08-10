@@ -127,6 +127,7 @@ class DiaryDetailFragment : Fragment() {
         return _binding!!.root
     }
 
+
     @SuppressLint("ClickableViewAccessibility")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -135,8 +136,8 @@ class DiaryDetailFragment : Fragment() {
         currentBinding.ivFixedDiaryPageDetail.setImageResource(diaryPageResource())
 
         buttonColorMap = mapOf(
-            binding.btnHighlightDetail to ContextCompat.getColor(requireContext(), palette.reminder),
-            binding.btnSaveDetail to ContextCompat.getColor(requireContext(), palette.accent)
+            currentBinding.btnHighlightDetail to ContextCompat.getColor(requireContext(), palette.reminder),
+            currentBinding.btnSaveDetail to ContextCompat.getColor(requireContext(), palette.accent)
         )
 
         currentBinding.btnToolbarBackDetail.setOnClickListener {
@@ -245,7 +246,7 @@ class DiaryDetailFragment : Fragment() {
             val tvTime = commentView.findViewById<TextView>(R.id.tvCommentTime)
             val tvAuthor = commentView.findViewById<TextView>(R.id.tvCommentAuthor)
 
-            val todayDateStr = dateFormat.format(Date())
+            val todayDateStr = SimpleDateFormat("yyyy.MM.dd HH:mm", Locale.getDefault()).format(Date())
             tvTime.text = todayDateStr
             tvAuthor.text = "작성자 : 나"
 
@@ -266,10 +267,9 @@ class DiaryDetailFragment : Fragment() {
 
                     makeViewDraggable(commentView)
                     lockCommentEditText(commentView, etCommentContent)
-                    insertCommentToDb(commentView, text, randomColor, todayDateStr)
 
-                    val targetUid = targetUserId ?: auth.currentUser?.uid ?: ""
-                    saveComment(101L, targetUid, "❤️", text)
+                    // 🔥 기존 double 저장 로직 제거 후 insertCommentToDb로 통일
+                    insertCommentToDb(commentView, text, randomColor, todayDateStr)
                 } else {
                     Toast.makeText(safeCtx, "댓글 내용을 입력해 주세요.", Toast.LENGTH_SHORT).show()
                 }
@@ -283,6 +283,8 @@ class DiaryDetailFragment : Fragment() {
         }
         applyToolbarThemeColor()
     }
+
+
     private fun applyToolbarThemeColor() {
         val toolbarColor = ContextCompat.getColor(requireContext(), palette.yearsAgo)
         val toolbarStrokeColor = ContextCompat.getColor(requireContext(), palette.stroke)
@@ -353,41 +355,6 @@ class DiaryDetailFragment : Fragment() {
                         loadDiaryAndComments()
                     }
                 }
-            }
-        }
-    }
-
-    fun saveComment(diaryId: Long, targetUserId: String, emoji: String, content: String) {
-        val safeContext = context?.applicationContext ?: return
-        val myUid = auth.currentUser?.uid ?: return
-        val currentDate = SimpleDateFormat("yyyy.MM.dd HH:mm", Locale.getDefault()).format(Date())
-
-        val commentEntity = DiaryCommentEntity(
-            diaryId = diaryId,
-            writerId = myUid.hashCode(),
-            writerName = "나으닝",
-            ownerId = targetUserId.hashCode(),
-            emoji = emoji,
-            content = content,
-            createdAt = currentDate
-        )
-
-        viewLifecycleOwner.lifecycleScope.launch {
-            try {
-                withContext(Dispatchers.IO) {
-                    val db = AppDatabase.getDatabase(safeContext)
-                    db.diaryCommentDao().insertComment(commentEntity)
-                }
-
-                firestore.collection("diary_comments")
-                    .add(commentEntity)
-                    .await()
-
-                if (isAdded && _binding != null) {
-                    Toast.makeText(safeContext, "댓글 반응 등록 완료! 🎉", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                Log.e("DiaryDetail", "댓글 저장 중 에러 발생 (DB/Firestore)", e)
             }
         }
     }
@@ -501,34 +468,43 @@ class DiaryDetailFragment : Fragment() {
         ).show()
     }
 
+
     private fun loadDiaryAndComments() {
         viewLifecycleOwner.lifecycleScope.launch {
             val safeContext = context?.applicationContext ?: return@launch
             val myUid = auth.currentUser?.uid ?: ""
             val effectiveUidString = if (isMyDiary) myUid else (targetUserId ?: myUid)
+            val ownerKey = effectiveUidString.hashCode()
 
             var postIts = emptyList<DiaryEntity>()
             var comments = emptyList<CommentEntity>()
 
+            // 1. Firestore에서 다이어리 및 댓글 함께 조회 시도
             try {
-                val querySnap = firestore.collection("diaries")
+                val diaryQuerySnap = firestore.collection("diaries")
                     .whereEqualTo("userId", effectiveUidString)
                     .whereEqualTo("createdAt", targetDate)
                     .get()
                     .await()
 
-                postIts = querySnap.documents.mapNotNull { doc ->
-                    try {
-                        doc.toObject(DiaryEntity::class.java)
-                    } catch (e: Exception) {
-                        Log.e("DiaryDetail", "Firestore 객체 변환 실패: ${doc.id}", e)
-                        null
-                    }
+                postIts = diaryQuerySnap.documents.mapNotNull { doc ->
+                    try { doc.toObject(DiaryEntity::class.java) } catch (e: Exception) { null }
+                }
+
+                val commentQuerySnap = firestore.collection("comments")
+                    .whereEqualTo("diaryId", ownerKey)
+                    .whereEqualTo("date", targetDate)
+                    .get()
+                    .await()
+
+                comments = commentQuerySnap.documents.mapNotNull { doc ->
+                    try { doc.toObject(CommentEntity::class.java) } catch (e: Exception) { null }
                 }
             } catch (e: Exception) {
-                Log.e("DiaryDetail", "Firestore 조회 실패", e)
+                Log.e("DiaryDetail", "Firestore 조회 실패, 로컬 DB로 대체합니다.", e)
             }
 
+            // 2. Firestore 조회 실패 시 로컬 DB(Room) 백업 조회
             try {
                 val db = AppDatabase.getDatabase(safeContext)
                 if (postIts.isEmpty()) {
@@ -536,26 +512,21 @@ class DiaryDetailFragment : Fragment() {
                         db.diaryDao().getPostItsByDateAndUserId(targetDate, effectiveUidString)
                     }
                 }
-
-                comments = withContext(Dispatchers.IO) {
-                    val ownerKey = effectiveUidString.hashCode()
-                    db.diaryDao().getCommentsByDate(targetDate)
-                        .filter { comment ->
-                            comment.diaryId == ownerKey || (comment.diaryId == 0 && comment.userId == effectiveUidString)
-                        }
+                if (comments.isEmpty()) {
+                    comments = withContext(Dispatchers.IO) {
+                        db.diaryDao().getCommentsByDate(targetDate)
+                            .filter { comment ->
+                                comment.diaryId == ownerKey || (comment.diaryId == 0 && comment.userId == effectiveUidString)
+                            }
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("DiaryDetail", "로컬 DB 조회 실패", e)
             }
 
-            // 🔒 [핵심 추가] 댓글 공개 범위 필터링
-            // 내 일기면 전부 표시, 남의 일기면 '일기 주인이 쓴 댓글(셀프 댓글)'은 걸러냄
+            // 🔒 [댓글 공개 범위 필터링]
             val visibleComments = comments.filter { comment ->
-                if (isMyDiary) {
-                    true // 내가 내 일기를 볼 때는 내가 쓴 댓글 + 타인이 달아준 댓글 모두 표시
-                } else {
-                    comment.userId != effectiveUidString // 남의 일기를 볼 때는 일기 주인이 쓴 댓글 비공개
-                }
+                if (isMyDiary) true else comment.userId != effectiveUidString
             }
 
             val commentAuthorMap = withContext(Dispatchers.IO) {
@@ -571,7 +542,6 @@ class DiaryDetailFragment : Fragment() {
                 labels
             }
 
-            // 비동기 작업 종료 직후 _binding 및 Lifecycle을 안전하게 확인
             val binding = _binding ?: return@launch
             if (!isAdded) return@launch
 
@@ -590,13 +560,45 @@ class DiaryDetailFragment : Fragment() {
                 }
             }
 
+            // 🔒 [24시간 셀프 댓글 블러 여부 계산]
+            val currentTime = System.currentTimeMillis()
+            val twentyFourHoursInMs = 24 * 60 * 60 * 1000L
+
+            // timestamp(String) -> Long(ms) 안전 변환 헬퍼 함수
+            fun parseCommentTime(timeStr: String): Long {
+                return try {
+                    val sdf = SimpleDateFormat("yyyy.MM.dd HH:mm", Locale.getDefault())
+                    sdf.parse(timeStr)?.time ?: 0L
+                } catch (_: Exception) {
+                    0L
+                }
+            }
+
+            fun resolveCreatedAt(comment: CommentEntity): Long {
+                return if (comment.createdAt > 0L) comment.createdAt else parseCommentTime(comment.timestamp)
+            }
+
+            val selfComments = visibleComments.filter { isMyDiary && it.userId == myUid }
+            val latestSelfCommentTime = selfComments.maxOfOrNull { resolveCreatedAt(it) } ?: 0L
+            val hasRecentSelfComment = (currentTime - latestSelfCommentTime) < twentyFourHoursInMs
+
             binding.layoutCommentsContainer.removeAllViews()
-            // 기존 comments 대신 걸러진 visibleComments 사용
             for (comment in visibleComments) {
-                renderCommentPostIt(comment, commentAuthorMap[comment.userId] ?: "알 수 없음")
+                val isSelfComment = isMyDiary && (comment.userId == myUid)
+                val commentTime = resolveCreatedAt(comment)
+                val isOlderThan24Hours = (currentTime - commentTime) >= twentyFourHoursInMs
+
+                val shouldBlur = isSelfComment && isOlderThan24Hours && !hasRecentSelfComment
+
+                renderCommentPostIt(
+                    comment = comment,
+                    authorLabel = commentAuthorMap[comment.userId] ?: "알 수 없음",
+                    isBlurred = shouldBlur
+                )
             }
         }
     }
+
     private suspend fun resolveUserNickname(userId: String): String {
         if (userId.isBlank()) return "알 수 없음"
         return try {
@@ -706,8 +708,11 @@ class DiaryDetailFragment : Fragment() {
         }
         etContent.setText(spannable)
     }
-
-    private fun renderCommentPostIt(comment: CommentEntity, authorLabel: String) {
+    private fun renderCommentPostIt(
+        comment: CommentEntity,
+        authorLabel: String,
+        isBlurred: Boolean = false // ★ 블러 여부 매개변수 추가
+    ) {
         val safeContext = context ?: return
         val currentBinding = _binding ?: return
 
@@ -724,6 +729,19 @@ class DiaryDetailFragment : Fragment() {
         tvTime.text = comment.timestamp.ifBlank { comment.date }
         tvAuthor.text = "작성자 : $authorLabel"
 
+        // 🔒 [블러 처리 로직]
+        if (isBlurred) {
+            // BlurMaskFilter 적용을 위해 소프트웨어 가속 활성화
+            etCommentContent.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+            etCommentContent.paint.maskFilter = android.graphics.BlurMaskFilter(
+                16f, // 블러 강도
+                android.graphics.BlurMaskFilter.Blur.NORMAL
+            )
+        } else {
+            etCommentContent.setLayerType(View.LAYER_TYPE_NONE, null)
+            etCommentContent.paint.maskFilter = null
+        }
+
         val resId = commentResourceMap[comment.color] ?: R.drawable.comment_blue
         ivCommentBg.setImageResource(resId)
 
@@ -731,6 +749,7 @@ class DiaryDetailFragment : Fragment() {
         view.tag = comment.color
         view.setTag(R.id.btnFollow, comment.userId)
         view.setTag(R.id.btnProfileHome, if (isMyDiary) AuthUtils.getCurrentUserId() else (targetUserId ?: ""))
+        view.setTag(R.id.tvCommentEmoji, comment.createdAt)
 
         view.translationX = comment.posX.coerceAtLeast(0f)
         view.translationY = comment.posY
@@ -763,19 +782,32 @@ class DiaryDetailFragment : Fragment() {
         )
 
         viewLifecycleOwner.lifecycleScope.launch {
-            val savedId = withContext(Dispatchers.IO) {
-                val db = AppDatabase.getDatabase(safeContext)
-                db.diaryDao().insertComment(newComment)
+            try {
+                val savedId = withContext(Dispatchers.IO) {
+                    val db = AppDatabase.getDatabase(safeContext)
+                    db.diaryDao().insertComment(newComment)
+                }
+
+                // Firestore에도 동일 데이터 구조로 업로드
+                val commentWithId = newComment.copy(commentId = savedId.toInt())
+                firestore.collection("comments")
+                    .document("${ownerUid}_${targetDate}_${savedId}")
+                    .set(commentWithId)
+                    .await()
+
+                if (_binding == null || !isAdded) return@launch
+
+                view.setTag(R.id.ivCommentBg, savedId.toInt())
+                view.setTag(R.id.btnFollow, currentUid)
+                view.setTag(R.id.btnProfileHome, ownerUid)
+                view.setTag(R.id.tvCommentEmoji, newComment.createdAt)
+                Toast.makeText(safeContext, "댓글이 등록되었습니다. 🎉", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Log.e("DiaryDetail", "댓글 저장 실패", e)
             }
-
-            if (_binding == null || !isAdded) return@launch
-
-            view.setTag(R.id.ivCommentBg, savedId.toInt())
-            view.setTag(R.id.btnFollow, currentUid)
-            view.setTag(R.id.btnProfileHome, ownerUid)
-            Toast.makeText(safeContext, "셀프 댓글이 등록되었습니다.", Toast.LENGTH_SHORT).show()
         }
     }
+
 
     private fun saveAllCommentsAndDiaryState() {
         val safeContext = context?.applicationContext ?: return
@@ -803,6 +835,7 @@ class DiaryDetailFragment : Fragment() {
                 val ownerUid = (commentView.getTag(R.id.btnProfileHome) as? String)
                     .orEmpty()
                     .ifBlank { if (isMyDiary) currentUid else (targetUserId ?: currentUid) }
+                val createdAt = (commentView.getTag(R.id.tvCommentEmoji) as? Long) ?: System.currentTimeMillis()
 
                 val updatedComment = CommentEntity(
                     commentId = existingCommentId,
@@ -812,6 +845,7 @@ class DiaryDetailFragment : Fragment() {
                     content = text,
                     color = colorName,
                     timestamp = commentDate,
+                    createdAt = createdAt,
                     posX = posX,
                     posY = posY
                 )
@@ -847,16 +881,21 @@ class DiaryDetailFragment : Fragment() {
                 val savedResults = withContext(Dispatchers.IO) {
                     commentsToSave.map { (view, comment) ->
                         val savedId = db.diaryDao().insertComment(comment)
-                        Pair(view, savedId)
+                        Pair(view, savedId.toInt())
                     }
                 }
 
                 withContext(Dispatchers.IO) {
-                    for ((_, comment) in commentsToSave) {
+                    for ((view, savedId) in savedResults) {
+                        val comment = commentsToSave.firstOrNull { it.first == view }?.second ?: continue
+                        val commentWithId = comment.copy(commentId = savedId)
+                        val ownerUid = if (isMyDiary) currentUid else (targetUserId ?: currentUid)
+
                         try {
+                            // 🔥 System.currentTimeMillis() 대신 fixed 문서키를 써서 중복 생성을 막음
                             firestore.collection("comments")
-                                .document("${currentUid}_${targetDate}_${System.currentTimeMillis()}")
-                                .set(comment)
+                                .document("${ownerUid}_${targetDate}_${savedId}")
+                                .set(commentWithId, SetOptions.merge())
                                 .await()
                         } catch (e: Exception) {
                             Log.e("DiaryDetail", "Firestore 댓글 동기화 실패", e)
@@ -866,7 +905,11 @@ class DiaryDetailFragment : Fragment() {
 
                 if (isAdded && _binding != null) {
                     for ((view, savedId) in savedResults) {
-                        view.setTag(R.id.ivCommentBg, savedId.toInt())
+                        view.setTag(R.id.ivCommentBg, savedId)
+                        val comment = commentsToSave.firstOrNull { it.first == view }?.second
+                        if (comment != null) {
+                            view.setTag(R.id.tvCommentEmoji, comment.createdAt)
+                        }
                     }
                 }
             }
