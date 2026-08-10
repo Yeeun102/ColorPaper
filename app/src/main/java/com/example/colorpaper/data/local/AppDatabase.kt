@@ -38,7 +38,7 @@ import com.example.colorpaper.data.model.WordEntity
         DiaryCommentEntity::class,
         WidgetEntity::class
     ],
-    version = 12,
+    version = 13,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

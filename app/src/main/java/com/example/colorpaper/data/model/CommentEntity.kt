@@ -13,5 +13,6 @@ data class CommentEntity(
     @ColumnInfo(name = "timestamp") val timestamp: String = "",
     @ColumnInfo(name = "created_at") val createdAt: Long = System.currentTimeMillis(),
     @ColumnInfo(name = "position_x") val posX: Float = 0f,
-    @ColumnInfo(name = "position_y") val posY: Float = 0F
+    @ColumnInfo(name = "position_y") val posY: Float = 0F,
+    @ColumnInfo(name = "z_index") val zIndex: Int = 0
 )

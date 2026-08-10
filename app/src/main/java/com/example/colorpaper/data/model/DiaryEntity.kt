@@ -58,9 +58,12 @@ data class DiaryEntity(
     @ColumnInfo(name = "position_y")
     var positionY: Float = 0f,
 
+    @ColumnInfo(name = "z_index")
+    var zIndex: Int = 0,
+
     @ColumnInfo(name = "highlight_ranges")
     var highlightRanges: String = ""
 ) {
     // Firestore 파싱용 빈 생성자
-    constructor() : this(0, "", "", "orange", "", null, false, "PRIVATE", 0, 0, 0, 0, 0, 0, "", 0f, 0f, "")
+    constructor() : this(0, "", "", "orange", "", null, false, "PRIVATE", 0, 0, 0, 0, 0, 0, "", 0f, 0f, 0)
 }
