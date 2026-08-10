@@ -16,6 +16,8 @@ import android.app.DatePickerDialog
 import android.content.res.ColorStateList
 import android.os.Bundle
 import android.graphics.Color
+import android.os.Handler
+import android.os.Looper
 import androidx.fragment.app.Fragment
 import android.text.Spanned
 import android.text.Spannable
@@ -31,6 +33,8 @@ import android.widget.TextView
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.text.InputType
+import android.view.HapticFeedbackConstants
+import android.view.ViewConfiguration
 import androidx.lifecycle.lifecycleScope
 import android.widget.Toast
 import androidx.core.content.ContextCompat
@@ -51,6 +55,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 import androidx.core.graphics.toColorInt
 import com.example.colorpaper.util.AuthUtils
+import kotlin.math.hypot
 
 class DiaryFragment : Fragment() {
     private var _binding: FragmentDiaryBinding? = null
@@ -608,6 +613,26 @@ class DiaryFragment : Fragment() {
     private fun makeViewDraggable(view: View) {
         var lastX = 0f
         var lastY = 0f
+        var startX = 0f
+        var startY = 0f
+        var isLongPressed = false
+
+        val handler = Handler(Looper.getMainLooper())
+        val touchSlop = ViewConfiguration.get(view.context).scaledTouchSlop
+
+        val longPressRunnable = Runnable {
+            isLongPressed = true
+
+            // 1. 해당 뷰를 최상단으로 올리기
+            view.bringToFront()
+            view.parent?.requestLayout()
+            view.invalidate()
+
+            // 2. 롱클릭 체감을 위한 손끝 진동(햅틱) 피드백
+            view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+            Toast.makeText(view.context, "맨 앞으로 가져왔습니다.", Toast.LENGTH_SHORT).show()
+        }
+
 
         val dragTouchListener = View.OnTouchListener { _, event ->
             when (event.action) {
@@ -616,13 +641,27 @@ class DiaryFragment : Fragment() {
                         currentActivePostIt = view
                     }
                     // 터치 시작 시점의 절대 좌표 기억
+                    startX = event.rawX
+                    startY = event.rawY
                     lastX = event.rawX
                     lastY = event.rawY
+                    isLongPressed = false
+
+                    handler.postDelayed(
+                        longPressRunnable,
+                        ViewConfiguration.getLongPressTimeout().toLong() // 안드로이드 표준 롱클릭 시간 (약 500ms)
+                    )
                 }
                 MotionEvent.ACTION_MOVE -> {
                     // 손가락 이동 거리 계산
                     val dx = event.rawX - lastX
                     val dy = event.rawY - lastY
+
+                    val totalDistance =
+                        hypot((event.rawX - startX).toDouble(), (event.rawY - startY).toDouble())
+                    if (totalDistance > touchSlop) {
+                        handler.removeCallbacks(longPressRunnable)
+                    }
 
                     // 부모 포스트잇 뷰(view)의 위치 이동
                     moveViewWithinParent(view, dx, dy)
@@ -632,7 +671,10 @@ class DiaryFragment : Fragment() {
                     lastY = event.rawY
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    view.performClick()
+                    handler.removeCallbacks(longPressRunnable)
+                    if (!isLongPressed && event.action == MotionEvent.ACTION_UP) {
+                        view.performClick()
+                    }
                 }
                 else -> return@OnTouchListener false
             }
@@ -744,14 +786,14 @@ class DiaryFragment : Fragment() {
                 isHighlightedState = hasHighlighted
                 applyCustomButtonState(binding.btnHighlightState, isSelected = isHighlightedState)
 
-                for (postIt in postIts) {
+                val sortedPostIts = postIts.sortedBy { it.zIndex }
+
+                for (postIt in sortedPostIts) {
                     val isDecoText = postIt.content.startsWith("[DECO]:")
-                    // 꾸미기 텍스트 복원
                     if (isDecoText) {
                         val pureText = postIt.content.replace("[DECO]:", "")
                         restoreDecorateTextView(pureText, postIt.positionX, postIt.positionY, postIt.diaryId)
                     } else {
-                        // 포스트잇 복원
                         inflateSavedPostIt(postIt)
                         restoreTags(postIt)
                     }
@@ -783,6 +825,7 @@ class DiaryFragment : Fragment() {
         binding.layoutDiaryContainer.addView(decorateTextView)
         decorateTextView.post { clampViewToParent(decorateTextView) }
         decorateTextView.bringToFront()
+        decorateTextView.setTag(R.id.ivPostItBg,diaryId)
     }
 
 
@@ -801,14 +844,11 @@ class DiaryFragment : Fragment() {
         // 락 걸기 및 드래그 리스너 사전 부여 (기존 저장되어 로드된 항목이므로)
         setupPostItEditTextTouch(etContent, postItView)
 
-        //etContent.isEnabled = false
-        //etContent.isFocusable = false
+        lockPostItEditText(etContent)
 
-        lockPostItEditText(postItView, etContent)
-        makeViewDraggable(postItView)
-
-        postItView.setTag(R.id.ivPostItBg, diary.diaryId) // diaryId 저장
-        postItView.tag = diary.color                     // 색상 저장
+        postItView.setTag(R.id.ivPostItBg, diary.diaryId)
+        postItView.tag = diary.color
+        // 색상 저장
         val colorKey = diary.color.lowercase(Locale.getDefault()).trim()
         val resId = postItResourceMap[colorKey] ?: R.drawable.post_yellow
         ivBg.setImageResource(resId)
@@ -875,7 +915,7 @@ class DiaryFragment : Fragment() {
             return
         }
 
-        val diariesToSave = mutableListOf<DiaryEntity>()
+        val itemsToSave = mutableListOf<Pair<View, DiaryEntity>>()
 
         for (i in 0 until childCount) {
             val childView = container.getChildAt(i) ?: continue
@@ -896,10 +936,11 @@ class DiaryFragment : Fragment() {
                         visibility = currentVisibility,
                         positionX = childView.translationX,
                         positionY = childView.translationY,
+                        zIndex = i,
                         userId = currentUid,
                         highlightRanges = ""
                     )
-                    diariesToSave.add(decDiaryEntity)
+                    itemsToSave.add(Pair(childView,decDiaryEntity))
                 }
             } else {
                 // 포스트잇 메모지 저장
@@ -923,18 +964,36 @@ class DiaryFragment : Fragment() {
                         reviewCycleDays = selectedReminderCycleDays,
                         positionX = childView.translationX,
                         positionY = childView.translationY,
+                        zIndex = i,
                         userId = currentUid,
                         highlightRanges = highlightRanges
                     )
-                    diariesToSave.add(newDiary)
+                    itemsToSave.add(Pair(childView,newDiary))
                 }
             }
         }
 
-        if (diariesToSave.isEmpty()) return
+        if (itemsToSave.isEmpty()) return
 
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.saveDiaries(diariesToSave)
+            val db = AppDatabase.getDatabase(safeContext)
+
+            // 💡 1. DB에 저장 후 새로 생성된 Primary Key(Long) 리스트 반환
+            val savedResults = withContext(Dispatchers.IO) {
+                itemsToSave.map { (view, entity) ->
+                    val savedId = db.diaryDao().insertPostIt(entity)
+                    Pair(view, savedId)
+                }
+            }
+
+            if (_binding == null || !isAdded) return@launch
+
+            // 💡 2. [핵심] 새로 생성된 DB PK(savedId)를 View의 Tag에 세팅하여 이후 중복 생성을 방지
+            for ((view, savedId) in savedResults) {
+                view.setTag(R.id.ivPostItBg, savedId.toInt())
+            }
+
+            Toast.makeText(safeContext, "성공적으로 저장되었습니다!", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -1212,40 +1271,17 @@ class DiaryFragment : Fragment() {
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    private fun lockPostItEditText(postItView: View, etContent: EditText) {
+    private fun lockPostItEditText(etContent: EditText) {
         etContent.keyListener = null // 텍스트 수정 및 키보드 노출 완전 차단
         etContent.isFocusable = false
         etContent.isFocusableInTouchMode = false
         etContent.isCursorVisible = false
-        etContent.clearFocus()
-        etContent.isEnabled = true // 터치 이벤트(OnTouchListener) 수신을 위해 true 유지
+        etContent.isEnabled = false
+        etContent.isLongClickable = false
+        etContent.isClickable = false
 
-        var lastX = 0f
-        var lastY = 0f
-
-        etContent.setOnTouchListener { _, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    currentActivePostIt = postItView
-                    lastX = event.rawX
-                    lastY = event.rawY
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    val dx = event.rawX - lastX
-                    val dy = event.rawY - lastY
-
-                    // etContent 터치 시 부모 포스트잇(postItView)의 위치 이동
-                    moveViewWithinParent(postItView, dx, dy)
-
-                    lastX = event.rawX
-                    lastY = event.rawY
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    postItView.performClick()
-                }
-                else -> return@setOnTouchListener false
-            }
-            true
+        etContent.setOnTouchListener { _, _ ->
+            false
         }
     }
 

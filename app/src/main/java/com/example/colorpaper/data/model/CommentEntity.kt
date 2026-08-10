@@ -14,5 +14,6 @@ data class CommentEntity(
     @ColumnInfo(name = "created_at") val createdAt: Long = System.currentTimeMillis(),
     @ColumnInfo(name = "is_checked") val isChecked: Boolean = false,
     @ColumnInfo(name = "position_x") val posX: Float = 0f,
-    @ColumnInfo(name = "position_y") val posY: Float = 0F
+    @ColumnInfo(name = "position_y") val posY: Float = 0F,
+    @ColumnInfo(name = "z_index") val zIndex: Int = 0
 )
