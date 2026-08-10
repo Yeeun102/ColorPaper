@@ -13,5 +13,5 @@ data class DiaryCommentEntity(
     val ownerId: Int = 0,             // 다이어리 소유자 ID (기본값 0)
     val emoji: String = "😂",          // 이모지 스탬프 (기본값 "😂")
     val content: String = "",         // 댓글 내용 (기본값 "")
-    val createdAt: String = ""        // 작성 시간 (기본값 "")
+    val createdAt: Long = 0L        // 작성 시간 (기본값 0L)
 )

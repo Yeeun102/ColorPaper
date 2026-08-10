@@ -3,8 +3,6 @@ package com.example.colorpaper.ui.friend
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import coil.load
-import coil.transform.CircleCropTransformation
 import com.example.colorpaper.R
 import com.example.colorpaper.databinding.ItemFriendSearchBinding
 import com.example.colorpaper.ui.theme.ProfileThemeStyler
@@ -43,12 +41,7 @@ class FriendSearchAdapter(
             tvFollowerCount.text = "팔로워 ${user.followerCount}"
             tvFollowingCount.text = "팔로잉 ${user.followingCount}"
 
-            ivProfile.load(user.profileImageUrl) {
-                crossfade(true)
-                placeholder(R.drawable.ic_default_profile)
-                error(R.drawable.ic_default_profile)
-                transformations(CircleCropTransformation())
-            }
+            ivProfile.setImageResource(R.drawable.ic_default_profile)
 
             // 💡 팔로우 상태에 따라 아이콘 변경 (+ <-> X)
             if (user.isFollowing) {

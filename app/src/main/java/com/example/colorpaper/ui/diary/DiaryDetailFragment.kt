@@ -1,5 +1,7 @@
 package com.example.colorpaper.ui.diary
 
+import android.animation.ObjectAnimator
+import android.animation.PropertyValuesHolder
 import android.annotation.SuppressLint
 import android.app.DatePickerDialog
 import android.content.res.ColorStateList
@@ -52,7 +54,6 @@ import kotlin.math.abs
 import kotlin.math.hypot
 
 class DiaryDetailFragment : Fragment() {
-    // binding getter(!! 사용)를 제거하여 NullPointerException 근본 원인 차단
     private var _binding: FragmentDiaryDetailBinding? = null
     private val binding get() = _binding!!
 
@@ -89,22 +90,26 @@ class DiaryDetailFragment : Fragment() {
     private var isFollowingUser: Boolean = true
 
     private val palette by lazy { ThemeManager.currentPalette(requireContext())}
+    private var isHighlightMode: Boolean = false
 
     companion object {
         private const val ARG_TARGET_DATE = "TARGET_DATE"
         private const val ARG_TARGET_USER_ID = "TARGET_USER_ID"
         private const val ARG_READ_ONLY = "READ_ONLY"
+        private const val COMMENT_SEPARATOR = "||"
+        private const val DEFAULT_COMMENT_EMOJI = "💬"
 
         fun newInstance(
             targetDate: String? = null,
             targetUserId: String? = null,
-            readOnly: Boolean = false
+            readOnly: Boolean = false,
+            isHighlightMode: Boolean = false
         ): DiaryDetailFragment {
             return DiaryDetailFragment().apply {
                 arguments = Bundle().apply {
                     putString(ARG_TARGET_DATE, targetDate)
                     putString(ARG_TARGET_USER_ID, targetUserId)
-                    putBoolean(ARG_READ_ONLY, readOnly)
+                    putBoolean(ARG_READ_ONLY, readOnly || isHighlightMode)
                 }
             }
         }
@@ -120,6 +125,7 @@ class DiaryDetailFragment : Fragment() {
 
         targetUserId = arguments?.getString(ARG_TARGET_USER_ID)
         isReadOnlyMode = arguments?.getBoolean(ARG_READ_ONLY, false) ?: false
+        isHighlightMode = isReadOnlyMode
 
         val myUid = auth.currentUser?.uid
         isMyDiary = targetUserId.isNullOrEmpty() || targetUserId == myUid
@@ -140,8 +146,8 @@ class DiaryDetailFragment : Fragment() {
         currentBinding.ivFixedDiaryPageDetail.setImageResource(diaryPageResource())
 
         buttonColorMap = mapOf(
-            binding.btnHighlightDetail to ContextCompat.getColor(requireContext(), palette.reminder),
-            binding.btnSaveDetail to ContextCompat.getColor(requireContext(), palette.accent)
+            currentBinding.btnHighlightDetail to ContextCompat.getColor(requireContext(), palette.reminder),
+            currentBinding.btnSaveDetail to ContextCompat.getColor(requireContext(), palette.accent)
         )
 
         currentBinding.btnToolbarBackDetail.setOnClickListener {
@@ -150,23 +156,25 @@ class DiaryDetailFragment : Fragment() {
             }
         }
 
-        setupSwipeGesture()
-
-        currentBinding.root.setOnTouchListener { _, event ->
-            if (::gestureDetector.isInitialized) {
-                gestureDetector.onTouchEvent(event)
-            }
-            true
-        }
-
         updateTitleDateText()
+        applyEntryModeUi()
 
-        currentBinding.btnDatePickerDetail.setOnClickListener {
-            showDatePicker()
+        if (canNavigateDate()) {
+            setupSwipeGesture()
+            currentBinding.root.setOnTouchListener { _, event ->
+                if (::gestureDetector.isInitialized) {
+                    gestureDetector.onTouchEvent(event)
+                }
+                true
+            }
+            currentBinding.btnDatePickerDetail.setOnClickListener {
+                showDatePicker()
+            }
+        } else {
+            currentBinding.root.setOnTouchListener(null)
+            currentBinding.btnDatePickerDetail.setOnClickListener(null)
         }
 
-        currentBinding.btnSaveDetail.visibility = if (isReadOnlyMode) View.GONE else View.VISIBLE
-        currentBinding.btnHighlightDetail.visibility = if (isReadOnlyMode) View.GONE else View.VISIBLE
         currentBinding.btnToolbarAddDetail.isEnabled = false
         currentBinding.btnToolbarAddDetail.alpha = 0.3f
 
@@ -250,7 +258,7 @@ class DiaryDetailFragment : Fragment() {
             val tvTime = commentView.findViewById<TextView>(R.id.tvCommentTime)
             val tvAuthor = commentView.findViewById<TextView>(R.id.tvCommentAuthor)
 
-            val todayDateStr = dateFormat.format(Date())
+            val todayDateStr = SimpleDateFormat("yyyy.MM.dd HH:mm", Locale.getDefault()).format(Date())
             tvTime.text = todayDateStr
             tvAuthor.text = "작성자 : 나"
 
@@ -273,10 +281,7 @@ class DiaryDetailFragment : Fragment() {
                     lockCommentEditText(etCommentContent)
 
                     val currentZIndex = activeBinding.layoutCommentsContainer.indexOfChild(commentView).coerceAtLeast(0)
-                    insertCommentToDb(commentView, text, randomColor, todayDateStr,currentZIndex)
-
-                    val targetUid = targetUserId ?: auth.currentUser?.uid ?: ""
-                    saveComment(101L, targetUid, "❤️", text)
+                    insertCommentToDb(commentView, text, randomColor, todayDateStr, currentZIndex)
                 } else {
                     Toast.makeText(safeCtx, "댓글 내용을 입력해 주세요.", Toast.LENGTH_SHORT).show()
                 }
@@ -290,6 +295,7 @@ class DiaryDetailFragment : Fragment() {
         }
         applyToolbarThemeColor()
     }
+
     private fun applyToolbarThemeColor() {
         val toolbarColor = ContextCompat.getColor(requireContext(), palette.yearsAgo)
         val toolbarStrokeColor = ContextCompat.getColor(requireContext(), palette.stroke)
@@ -298,6 +304,35 @@ class DiaryDetailFragment : Fragment() {
         binding.layoutToolbarDecorateDetail.strokeColor = toolbarStrokeColor
         binding.btnSaveDetail.backgroundTintList = ColorStateList.valueOf(toolbarStrokeColor)
         binding.btnHighlightDetail.backgroundTintList = ColorStateList.valueOf(highlightButton)
+    }
+
+    private fun isProfileEntry(): Boolean = isMyDiary && !isReadOnlyMode && !targetUserId.isNullOrBlank()
+
+    private fun canNavigateDate(): Boolean = !isReadOnlyMode
+
+    private fun applyEntryModeUi() {
+        val currentBinding = _binding ?: return
+
+        if (isReadOnlyMode) {
+            currentBinding.layoutMetaActionsDetail.visibility = View.GONE
+            currentBinding.layoutToolbarDecorateDetail.visibility = View.GONE
+            currentBinding.btnDatePickerDetail.visibility = View.GONE
+            currentBinding.btnDatePickerDetail.isEnabled = false
+            return
+        }
+
+        currentBinding.layoutMetaActionsDetail.visibility = View.VISIBLE
+        currentBinding.layoutToolbarDecorateDetail.visibility = View.VISIBLE
+        currentBinding.btnDatePickerDetail.visibility = View.VISIBLE
+        currentBinding.btnDatePickerDetail.isEnabled = true
+        currentBinding.btnSaveDetail.visibility = View.VISIBLE
+        currentBinding.btnHighlightDetail.visibility = View.VISIBLE
+
+        val hideUnusedToolbarActions = isProfileEntry()
+        currentBinding.btnToolbarAddDetail.visibility = if (hideUnusedToolbarActions) View.GONE else View.VISIBLE
+        currentBinding.btnToolbarPenDetail.visibility = if (hideUnusedToolbarActions) View.GONE else View.VISIBLE
+        currentBinding.btnToolbarTextDetail.visibility = if (hideUnusedToolbarActions) View.GONE else View.VISIBLE
+        currentBinding.btnToolbarCommentDetail.visibility = View.VISIBLE
     }
 
     private fun diaryPageResource(): Int = when (ThemeManager.currentTheme(requireContext())) {
@@ -363,42 +398,8 @@ class DiaryDetailFragment : Fragment() {
         }
     }
 
-    fun saveComment(diaryId: Long, targetUserId: String, emoji: String, content: String) {
-        val safeContext = context?.applicationContext ?: return
-        val myUid = auth.currentUser?.uid ?: return
-        val currentDate = SimpleDateFormat("yyyy.MM.dd HH:mm", Locale.getDefault()).format(Date())
-
-        val commentEntity = DiaryCommentEntity(
-            diaryId = diaryId,
-            writerId = myUid.hashCode(),
-            writerName = "나으닝",
-            ownerId = targetUserId.hashCode(),
-            emoji = emoji,
-            content = content,
-            createdAt = currentDate
-        )
-
-        viewLifecycleOwner.lifecycleScope.launch {
-            try {
-                withContext(Dispatchers.IO) {
-                    val db = AppDatabase.getDatabase(safeContext)
-                    db.diaryCommentDao().insertComment(commentEntity)
-                }
-
-                firestore.collection("diary_comments")
-                    .add(commentEntity)
-                    .await()
-
-                if (isAdded && _binding != null) {
-                    Toast.makeText(safeContext, "댓글 반응 등록 완료! 🎉", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                Log.e("DiaryDetail", "댓글 저장 중 에러 발생 (DB/Firestore)", e)
-            }
-        }
-    }
-
     private fun setupSwipeGesture() {
+        if (!canNavigateDate()) return
         val safeContext = context ?: return
         gestureDetector = GestureDetector(safeContext, object : GestureDetector.SimpleOnGestureListener() {
             private val SWIPE_THRESHOLD = 100
@@ -430,6 +431,7 @@ class DiaryDetailFragment : Fragment() {
     }
 
     private fun changeDateByAmount(amount: Int) {
+        if (!canNavigateDate()) return
         try {
             val parsedDate = dateFormat.parse(targetDate) ?: return
             val cal = Calendar.getInstance().apply {
@@ -449,8 +451,10 @@ class DiaryDetailFragment : Fragment() {
     private fun updateCommentButtonState() {
         val currentBinding = _binding ?: return
         if (isCurrentDateOrFuture() || isReadOnlyMode) {
+            currentBinding.btnToolbarCommentDetail.isEnabled = false
             currentBinding.btnToolbarCommentDetail.alpha = 0.3f
         } else {
+            currentBinding.btnToolbarCommentDetail.isEnabled = true
             currentBinding.btnToolbarCommentDetail.alpha = 1.0f
         }
     }
@@ -475,6 +479,7 @@ class DiaryDetailFragment : Fragment() {
     }
 
     private fun showDatePicker() {
+        if (!canNavigateDate()) return
         val safeContext = context ?: return
         val cal = Calendar.getInstance()
         try {
@@ -512,27 +517,33 @@ class DiaryDetailFragment : Fragment() {
             val safeContext = context?.applicationContext ?: return@launch
             val myUid = auth.currentUser?.uid ?: ""
             val effectiveUidString = if (isMyDiary) myUid else (targetUserId ?: myUid)
+            val ownerKey = effectiveUidString.hashCode()
 
             var postIts = emptyList<DiaryEntity>()
             var comments = emptyList<CommentEntity>()
 
             try {
-                val querySnap = firestore.collection("diaries")
+                val diaryQuerySnap = firestore.collection("diaries")
                     .whereEqualTo("userId", effectiveUidString)
                     .whereEqualTo("createdAt", targetDate)
                     .get()
                     .await()
 
-                postIts = querySnap.documents.mapNotNull { doc ->
-                    try {
-                        doc.toObject(DiaryEntity::class.java)
-                    } catch (e: Exception) {
-                        Log.e("DiaryDetail", "Firestore 객체 변환 실패: ${doc.id}", e)
-                        null
-                    }
+                postIts = diaryQuerySnap.documents.mapNotNull { doc ->
+                    try { doc.toObject(DiaryEntity::class.java) } catch (e: Exception) { null }
+                }
+
+                val commentQuerySnap = firestore.collection("comments")
+                    .whereEqualTo("diaryId", ownerKey)
+                    .whereEqualTo("date", targetDate)
+                    .get()
+                    .await()
+
+                comments = commentQuerySnap.documents.mapNotNull { doc ->
+                    try { doc.toObject(CommentEntity::class.java) } catch (e: Exception) { null }
                 }
             } catch (e: Exception) {
-                Log.e("DiaryDetail", "Firestore 조회 실패", e)
+                Log.e("DiaryDetail", "Firestore 조회 실패, 로컬 DB로 대체합니다.", e)
             }
 
             try {
@@ -542,21 +553,25 @@ class DiaryDetailFragment : Fragment() {
                         db.diaryDao().getPostItsByDateAndUserId(targetDate, effectiveUidString)
                     }
                 }
-
-                comments = withContext(Dispatchers.IO) {
-                    val ownerKey = effectiveUidString.hashCode()
-                    db.diaryDao().getCommentsByDate(targetDate)
-                        .filter { comment ->
-                            comment.diaryId == ownerKey || (comment.diaryId == 0 && comment.userId == effectiveUidString)
-                        }
+                if (comments.isEmpty()) {
+                    comments = withContext(Dispatchers.IO) {
+                        db.diaryDao().getCommentsByDate(targetDate)
+                            .filter { comment ->
+                                comment.diaryId == ownerKey || (comment.diaryId == 0 && comment.userId == effectiveUidString)
+                            }
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("DiaryDetail", "로컬 DB 조회 실패", e)
             }
 
+            val visibleComments = comments.filter { comment ->
+                if (isMyDiary) true else comment.userId != effectiveUidString
+            }
+
             val commentAuthorMap = withContext(Dispatchers.IO) {
                 val labels = mutableMapOf<String, String>()
-                val userIds = comments.map { it.userId }.toSet()
+                val userIds = visibleComments.map { it.userId }.toSet()
                 for (uid in userIds) {
                     labels[uid] = when {
                         uid == myUid -> "나"
@@ -567,7 +582,6 @@ class DiaryDetailFragment : Fragment() {
                 labels
             }
 
-            // 비동기 작업 종료 직후 _binding 및 Lifecycle을 안전하게 확인
             val binding = _binding ?: return@launch
             if (!isAdded) return@launch
 
@@ -587,11 +601,81 @@ class DiaryDetailFragment : Fragment() {
                     renderReadOnlyPostIt(postIt, isFollowingUser)
                 }
             }
-            val sortedComments = comments.sortedBy { it.zIndex }
+
+            val sortedComments = visibleComments.sortedBy { it.zIndex }
+
+            val currentTime = System.currentTimeMillis()
+            val twentyFourHoursInMs = 24 * 60 * 60 * 1000L
+
+            fun parseCommentTime(timeStr: String): Long {
+                return try {
+                    val sdf = SimpleDateFormat("yyyy.MM.dd HH:mm", Locale.getDefault())
+                    sdf.parse(timeStr)?.time ?: 0L
+                } catch (_: Exception) {
+                    0L
+                }
+            }
+
+            fun resolveCreatedAt(comment: CommentEntity): Long {
+                return if (comment.createdAt > 0L) comment.createdAt else parseCommentTime(comment.timestamp)
+            }
+
+            val selfComments = visibleComments.filter { isMyDiary && it.userId == myUid }
+            val latestSelfCommentTime = selfComments.maxOfOrNull { resolveCreatedAt(it) } ?: 0L
+            val hasRecentSelfComment = (currentTime - latestSelfCommentTime) < twentyFourHoursInMs
+            val unreadEmojiComments = visibleComments.filter {
+                isMyDiary &&
+                        it.userId != myUid &&
+                        isEmojiCommentContent(it.content) &&
+                        !it.isChecked
+            }
 
             binding.layoutCommentsContainer.removeAllViews()
             for (comment in sortedComments) {
-                renderCommentPostIt(comment, commentAuthorMap[comment.userId] ?: "알 수 없음")
+                val isSelfComment = isMyDiary && (comment.userId == myUid)
+                val commentTime = resolveCreatedAt(comment)
+                val isOlderThan24Hours = (currentTime - commentTime) >= twentyFourHoursInMs
+
+                val shouldBlur = isSelfComment && isOlderThan24Hours && !hasRecentSelfComment
+                val shouldAnimateEmoji = unreadEmojiComments.any { it.commentId == comment.commentId }
+
+                renderCommentPostIt(
+                    comment = comment,
+                    authorLabel = commentAuthorMap[comment.userId] ?: "알 수 없음",
+                    isBlurred = shouldBlur,
+                    shouldAnimateEmoji = shouldAnimateEmoji
+                )
+            }
+
+            if (unreadEmojiComments.isNotEmpty()) {
+                markCommentsAsChecked(unreadEmojiComments, effectiveUidString)
+            }
+        }
+    }
+
+    private fun markCommentsAsChecked(comments: List<CommentEntity>, ownerUid: String) {
+        if (!isMyDiary || comments.isEmpty()) return
+
+        val safeContext = context?.applicationContext ?: return
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val db = AppDatabase.getDatabase(safeContext)
+                withContext(Dispatchers.IO) {
+                    comments.forEach { comment ->
+                        val checkedComment = comment.copy(isChecked = true)
+                        db.diaryDao().insertComment(checkedComment)
+                        try {
+                            firestore.collection("comments")
+                                .document("${ownerUid}_${comment.date}_${comment.commentId}")
+                                .set(checkedComment, SetOptions.merge())
+                                .await()
+                        } catch (e: Exception) {
+                            Log.e("DiaryDetail", "댓글 확인 상태 동기화 실패", e)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("DiaryDetail", "댓글 확인 상태 저장 실패", e)
             }
         }
     }
@@ -680,7 +764,6 @@ class DiaryDetailFragment : Fragment() {
 
     private fun applyHighlightRangesToEditText(etContent: EditText, rangesStr: String, shouldBlur: Boolean = false) {
         if (rangesStr.isBlank()) return
-
         if (shouldBlur) return
 
         val text = etContent.text.toString()
@@ -706,7 +789,12 @@ class DiaryDetailFragment : Fragment() {
         etContent.setText(spannable)
     }
 
-    private fun renderCommentPostIt(comment: CommentEntity, authorLabel: String) {
+    private fun renderCommentPostIt(
+        comment: CommentEntity,
+        authorLabel: String,
+        isBlurred: Boolean = false,
+        shouldAnimateEmoji: Boolean = false
+    ) {
         val safeContext = context ?: return
         val currentBinding = _binding ?: return
 
@@ -718,10 +806,25 @@ class DiaryDetailFragment : Fragment() {
         val tvTime = view.findViewById<TextView>(R.id.tvCommentTime)
         val tvAuthor = view.findViewById<TextView>(R.id.tvCommentAuthor)
         val btnCommentDone = view.findViewById<TextView>(R.id.btnCommentDone)
+        val tvEmoji = view.findViewById<TextView>(R.id.tvCommentEmoji)
 
-        etCommentContent.setText(comment.content)
+        val (emoji, plainText) = decodeCommentContent(comment.content)
+        val isEmojiComment = isEmojiCommentContent(comment.content)
+
+        etCommentContent.setText(plainText)
         tvTime.text = comment.timestamp.ifBlank { comment.date }
         tvAuthor.text = "작성자 : $authorLabel"
+
+        if (isBlurred) {
+            etCommentContent.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+            etCommentContent.paint.maskFilter = android.graphics.BlurMaskFilter(
+                16f,
+                android.graphics.BlurMaskFilter.Blur.NORMAL
+            )
+        } else {
+            etCommentContent.setLayerType(View.LAYER_TYPE_NONE, null)
+            etCommentContent.paint.maskFilter = null
+        }
 
         val resId = commentResourceMap[comment.color] ?: R.drawable.comment_blue
         ivCommentBg.setImageResource(resId)
@@ -730,13 +833,27 @@ class DiaryDetailFragment : Fragment() {
         view.tag = comment.color
         view.setTag(R.id.btnFollow, comment.userId)
         view.setTag(R.id.btnProfileHome, if (isMyDiary) AuthUtils.getCurrentUserId() else (targetUserId ?: ""))
+        view.setTag(R.id.tvCommentEmoji, comment.createdAt)
+        view.setTag(R.id.btnCommentDone, comment.isChecked)
 
         view.translationX = comment.posX.coerceAtLeast(0f)
         view.translationY = comment.posY
 
         btnCommentDone.visibility = View.GONE
-        makeViewDraggable(view)
-        lockCommentEditText(etCommentContent)
+
+        if (isEmojiComment) {
+            setupEmojiCommentToggle(view, emoji, startCollapsed = true)
+            if (shouldAnimateEmoji) {
+                startUnreadEmojiBounce(tvEmoji)
+            }
+        } else {
+            tvEmoji.visibility = View.GONE
+        }
+
+        if (!isHighlightMode) {
+            makeViewDraggable(view)
+            lockCommentEditText(etCommentContent)
+        }
 
         currentBinding.layoutCommentsContainer.addView(view)
         view.post { clampViewToParent(view) }
@@ -763,21 +880,35 @@ class DiaryDetailFragment : Fragment() {
         )
 
         viewLifecycleOwner.lifecycleScope.launch {
-            val savedId = withContext(Dispatchers.IO) {
-                val db = AppDatabase.getDatabase(safeContext)
-                db.diaryDao().insertComment(newComment)
+            try {
+                val savedId = withContext(Dispatchers.IO) {
+                    val db = AppDatabase.getDatabase(safeContext)
+                    db.diaryDao().insertComment(newComment)
+                }
+
+                val commentWithId = newComment.copy(commentId = savedId.toInt())
+                firestore.collection("comments")
+                    .document("${ownerUid}_${targetDate}_${savedId}")
+                    .set(commentWithId)
+                    .await()
+
+                if (_binding == null || !isAdded) return@launch
+
+                view.setTag(R.id.ivCommentBg, savedId.toInt())
+                view.setTag(R.id.btnFollow, currentUid)
+                view.setTag(R.id.btnProfileHome, ownerUid)
+                view.setTag(R.id.tvCommentEmoji, newComment.createdAt)
+                view.setTag(R.id.btnCommentDone, newComment.isChecked)
+                Toast.makeText(safeContext, "댓글이 등록되었습니다. 🎉", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Log.e("DiaryDetail", "댓글 저장 실패", e)
             }
-
-            if (_binding == null || !isAdded) return@launch
-
-            view.setTag(R.id.ivCommentBg, savedId.toInt())
-            view.setTag(R.id.btnFollow, currentUid)
-            view.setTag(R.id.btnProfileHome, ownerUid)
-            Toast.makeText(safeContext, "셀프 댓글이 등록되었습니다.", Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun saveAllCommentsAndDiaryState() {
+        if (isHighlightMode) return
+
         val safeContext = context?.applicationContext ?: return
         val currentBinding = _binding ?: return
         val currentUid = AuthUtils.getCurrentUserId()
@@ -803,6 +934,8 @@ class DiaryDetailFragment : Fragment() {
                 val ownerUid = (commentView.getTag(R.id.btnProfileHome) as? String)
                     .orEmpty()
                     .ifBlank { if (isMyDiary) currentUid else (targetUserId ?: currentUid) }
+                val createdAt = (commentView.getTag(R.id.tvCommentEmoji) as? Long) ?: System.currentTimeMillis()
+                val isChecked = (commentView.getTag(R.id.btnCommentDone) as? Boolean) ?: false
 
                 val updatedComment = CommentEntity(
                     commentId = existingCommentId,
@@ -812,6 +945,8 @@ class DiaryDetailFragment : Fragment() {
                     content = text,
                     color = colorName,
                     timestamp = commentDate,
+                    createdAt = createdAt,
+                    isChecked = isChecked,
                     posX = posX,
                     posY = posY,
                     zIndex = i
@@ -848,7 +983,7 @@ class DiaryDetailFragment : Fragment() {
                 val savedResults = withContext(Dispatchers.IO) {
                     commentsToSave.map { (view, comment) ->
                         val savedId = db.diaryDao().insertComment(comment)
-                        Pair(view, savedId)
+                        Pair(view, savedId.toInt())
                     }
                 }
                 if (isAdded && _binding != null) {
@@ -858,11 +993,15 @@ class DiaryDetailFragment : Fragment() {
                 }
 
                 withContext(Dispatchers.IO) {
-                    for ((_, comment) in commentsToSave) {
+                    for ((view, savedId) in savedResults) {
+                        val comment = commentsToSave.firstOrNull { it.first == view }?.second ?: continue
+                        val commentWithId = comment.copy(commentId = savedId)
+                        val ownerUid = if (isMyDiary) currentUid else (targetUserId ?: currentUid)
+
                         try {
                             firestore.collection("comments")
-                                .document("${currentUid}_${targetDate}_${System.currentTimeMillis()}")
-                                .set(comment)
+                                .document("${ownerUid}_${targetDate}_${savedId}")
+                                .set(commentWithId, SetOptions.merge())
                                 .await()
                         } catch (e: Exception) {
                             Log.e("DiaryDetail", "Firestore 댓글 동기화 실패", e)
@@ -872,7 +1011,11 @@ class DiaryDetailFragment : Fragment() {
 
                 if (isAdded && _binding != null) {
                     for ((view, savedId) in savedResults) {
-                        view.setTag(R.id.ivCommentBg, savedId.toInt())
+                        view.setTag(R.id.ivCommentBg, savedId)
+                        val comment = commentsToSave.firstOrNull { it.first == view }?.second
+                        if (comment != null) {
+                            view.setTag(R.id.tvCommentEmoji, comment.createdAt)
+                        }
                     }
                 }
             }
@@ -897,12 +1040,10 @@ class DiaryDetailFragment : Fragment() {
         val longPressRunnable = Runnable {
             isLongPressed = true
 
-            // 1. 해당 뷰를 최상단으로 올리기
             view.bringToFront()
             view.parent?.requestLayout()
             view.invalidate()
 
-            // 2. 롱클릭 체감을 위한 손끝 진동(햅틱) 피드백
             view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
             Toast.makeText(view.context, "맨 앞으로 가져왔습니다.", Toast.LENGTH_SHORT).show()
         }
@@ -918,7 +1059,7 @@ class DiaryDetailFragment : Fragment() {
 
                     handler.postDelayed(
                         longPressRunnable,
-                        ViewConfiguration.getLongPressTimeout().toLong() // 안드로이드 표준 롱클릭 시간 (약 500ms)
+                        ViewConfiguration.getLongPressTimeout().toLong()
                     )
                 }
                 MotionEvent.ACTION_MOVE -> {
@@ -968,6 +1109,64 @@ class DiaryDetailFragment : Fragment() {
     private fun clampViewToParent(view: View) {
         val diaryPage = _binding?.ivFixedDiaryPageDetail ?: return
         DiaryPageBounds.clamp(view, diaryPage)
+    }
+
+    private fun isEmojiCommentContent(raw: String): Boolean = raw.contains(COMMENT_SEPARATOR)
+
+    private fun decodeCommentContent(raw: String): Pair<String, String> {
+        val splitIndex = raw.indexOf(COMMENT_SEPARATOR)
+        if (splitIndex <= 0) return Pair(DEFAULT_COMMENT_EMOJI, raw)
+
+        val emoji = raw.substring(0, splitIndex).ifBlank { DEFAULT_COMMENT_EMOJI }
+        val text = raw.substring(splitIndex + COMMENT_SEPARATOR.length)
+        return Pair(emoji, text)
+    }
+
+    private fun setupEmojiCommentToggle(commentView: View, emoji: String, startCollapsed: Boolean) {
+        val ivCommentBg = commentView.findViewById<ImageView>(R.id.ivCommentBg)
+        val etCommentContent = commentView.findViewById<EditText>(R.id.etCommentContent)
+        val tvTime = commentView.findViewById<TextView>(R.id.tvCommentTime)
+        val tvAuthor = commentView.findViewById<TextView>(R.id.tvCommentAuthor)
+        val tvEmoji = commentView.findViewById<TextView>(R.id.tvCommentEmoji)
+        val btnCommentDone = commentView.findViewById<TextView>(R.id.btnCommentDone)
+
+        tvEmoji.text = emoji
+        btnCommentDone.visibility = View.GONE
+
+        fun setCollapsed(collapsed: Boolean) {
+            commentView.setTag(R.id.btnToolbarCommentDetail, !collapsed)
+            ivCommentBg.visibility = if (collapsed) View.GONE else View.VISIBLE
+            etCommentContent.visibility = if (collapsed) View.GONE else View.VISIBLE
+            tvTime.visibility = if (collapsed) View.GONE else View.VISIBLE
+            tvAuthor.visibility = if (collapsed) View.GONE else View.VISIBLE
+            tvEmoji.visibility = if (collapsed) View.VISIBLE else View.GONE
+        }
+
+        val toggleClick = View.OnClickListener {
+            val expanded = (commentView.getTag(R.id.btnToolbarCommentDetail) as? Boolean) ?: false
+            setCollapsed(expanded)
+        }
+
+        commentView.setOnClickListener(toggleClick)
+        tvEmoji.setOnClickListener(toggleClick)
+        ivCommentBg.setOnClickListener(toggleClick)
+        etCommentContent.setOnClickListener(toggleClick)
+        tvTime.setOnClickListener(toggleClick)
+
+        setCollapsed(startCollapsed)
+    }
+
+    private fun startUnreadEmojiBounce(target: View) {
+        ObjectAnimator.ofPropertyValuesHolder(
+            target,
+            PropertyValuesHolder.ofFloat(View.SCALE_X, 1f, 1.12f, 1f),
+            PropertyValuesHolder.ofFloat(View.SCALE_Y, 1f, 1.12f, 1f),
+            PropertyValuesHolder.ofFloat(View.TRANSLATION_Y, 0f, -12f, 0f)
+        ).apply {
+            duration = 900L
+            repeatCount = ObjectAnimator.INFINITE
+            start()
+        }
     }
 
     override fun onDestroyView() {

@@ -49,7 +49,6 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")
-    implementation ("com.google.firebase:firebase-storage")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

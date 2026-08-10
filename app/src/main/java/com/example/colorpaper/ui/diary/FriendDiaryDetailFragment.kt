@@ -24,8 +24,6 @@ import android.widget.Toast
 import androidx.core.graphics.toColorInt
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
-import coil.load
-import coil.transform.CircleCropTransformation
 import com.example.colorpaper.MainActivity
 import com.example.colorpaper.R
 import com.example.colorpaper.data.local.AppDatabase
@@ -37,6 +35,7 @@ import com.example.colorpaper.ui.theme.ThemeManager
 import com.example.colorpaper.util.AuthUtils
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -72,6 +71,7 @@ class FriendDiaryDetailFragment : Fragment() {
     private var targetUserId: String? = null
     private var diaryId: Int = 0
     private var selectedDate: String = "" // "yyyy-MM-dd" 형식
+    private var isHighlightMode: Boolean = false
 
     private val calendar = Calendar.getInstance()
     private val dateFormatFull = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -87,6 +87,7 @@ class FriendDiaryDetailFragment : Fragment() {
             targetUserId = it.getString("targetUserId")
             diaryId = it.getInt("diaryId", 0)
             selectedDate = it.getString("targetDate") ?: dateFormatFull.format(Date())
+            isHighlightMode = it.getBoolean("isHighlightMode", false)
         }
     }
 
@@ -109,18 +110,26 @@ class FriendDiaryDetailFragment : Fragment() {
             parentFragmentManager.popBackStack()
         }
 
-        // 2. 상단 날짜 및 달력 클릭 시 날짜 변경 (DatePicker)
-        val dateClickListener = View.OnClickListener { showDatePickerDialog() }
-        binding.tvHeaderDate.setOnClickListener(dateClickListener)
-        binding.btnCalendar.setOnClickListener(dateClickListener)
+        applyEntryModeUi()
 
-        // 3. 제스처 설정 (좌우 스와이프 날짜 이동)
-        setupSwipeGesture()
-        binding.root.setOnTouchListener { _, event ->
-            if (::gestureDetector.isInitialized) {
-                gestureDetector.onTouchEvent(event)
+        // 2. 상단 날짜 및 달력 클릭 시 날짜 변경 (DatePicker)
+        if (canNavigateDate()) {
+            val dateClickListener = View.OnClickListener { showDatePickerDialog() }
+            binding.tvHeaderDate.setOnClickListener(dateClickListener)
+            binding.btnCalendar.setOnClickListener(dateClickListener)
+
+            // 3. 제스처 설정 (좌우 스와이프 날짜 이동)
+            setupSwipeGesture()
+            binding.root.setOnTouchListener { _, event ->
+                if (::gestureDetector.isInitialized) {
+                    gestureDetector.onTouchEvent(event)
+                }
+                true
             }
-            true
+        } else {
+            binding.tvHeaderDate.setOnClickListener(null)
+            binding.btnCalendar.setOnClickListener(null)
+            binding.root.setOnTouchListener(null)
         }
 
         // 4. 프로필 홈 및 팔로우 버튼
@@ -159,7 +168,17 @@ class FriendDiaryDetailFragment : Fragment() {
         loadFriendDiaryData()
     }
 
+    private fun canNavigateDate(): Boolean = !isHighlightMode
+
+    private fun applyEntryModeUi() {
+        val binding = _binding ?: return
+        binding.btnCalendar.visibility = if (isHighlightMode) View.GONE else View.VISIBLE
+        binding.btnCalendar.isEnabled = !isHighlightMode
+        binding.tvHeaderDate.isClickable = !isHighlightMode
+    }
+
     private fun setupSwipeGesture() {
+        if (!canNavigateDate()) return
         val safeContext = context ?: return
         gestureDetector = GestureDetector(safeContext, object : GestureDetector.SimpleOnGestureListener() {
             private val SWIPE_THRESHOLD = 100
@@ -191,6 +210,7 @@ class FriendDiaryDetailFragment : Fragment() {
     }
 
     private fun changeDateByAmount(amount: Int) {
+        if (!canNavigateDate()) return
         try {
             val parsedDate = dateFormatFull.parse(selectedDate) ?: return
             val cal = Calendar.getInstance().apply {
@@ -238,6 +258,7 @@ class FriendDiaryDetailFragment : Fragment() {
     }
 
     private fun showDatePickerDialog() {
+        if (!canNavigateDate()) return
         try {
             val parsedDate = dateFormatFull.parse(selectedDate)
             if (parsedDate != null) {
@@ -283,6 +304,7 @@ class FriendDiaryDetailFragment : Fragment() {
 
                 // 2) 선택된 날짜의 포스트잇 가져오기 (Firestore)
                 var postIts = emptyList<DiaryEntity>()
+                var comments = emptyList<CommentEntity>()
                 try {
                     val querySnap = firestore.collection("diaries")
                         .whereEqualTo("userId", uid)
@@ -292,6 +314,16 @@ class FriendDiaryDetailFragment : Fragment() {
 
                     postIts = querySnap.documents.mapNotNull { doc ->
                         try { doc.toObject(DiaryEntity::class.java) } catch (e: Exception) { null }
+                    }
+
+                    val commentQuerySnap = firestore.collection("comments")
+                        .whereEqualTo("diaryId", uid.hashCode())
+                        .whereEqualTo("date", selectedDate)
+                        .get()
+                        .await()
+
+                    comments = commentQuerySnap.documents.mapNotNull { doc ->
+                        try { doc.toObject(CommentEntity::class.java) } catch (e: Exception) { null }
                     }
                 } catch (e: Exception) {
                     Log.e("FriendDiaryDetail", "Firestore 조회 실패: ${e.message}")
@@ -305,13 +337,19 @@ class FriendDiaryDetailFragment : Fragment() {
 
                 // 3) 댓글 정보 가져오기 (소유자 기준: diaryId=ownerUid.hashCode)
                 val ownerKey = uid.hashCode()
-                val comments = db.diaryDao().getCommentsByDate(selectedDate)
-                    .filter { comment ->
-                        comment.diaryId == ownerKey || (comment.diaryId == 0 && comment.userId == uid)
-                    }
+                if (comments.isEmpty()) {
+                    comments = db.diaryDao().getCommentsByDate(selectedDate)
+                        .filter { comment ->
+                            comment.diaryId == ownerKey || (comment.diaryId == 0 && comment.userId == uid)
+                        }
+                }
+
+                val visibleComments = comments.filter { comment ->
+                    comment.userId != uid
+                }
 
                 val commentAuthorMap = mutableMapOf<String, String>()
-                val commentUserIds = comments.map { it.userId }.toSet()
+                val commentUserIds = visibleComments.map { it.userId }.toSet()
                 for (commentUserId in commentUserIds) {
                     commentAuthorMap[commentUserId] = when {
                         commentUserId == myUid -> "나"
@@ -328,12 +366,7 @@ class FriendDiaryDetailFragment : Fragment() {
                     updateCommentButtonState()
 
                     binding.tvFriendNickname.text = nickname
-                    binding.ivFriendProfile.load(profileImg) {
-                        crossfade(true)
-                        placeholder(R.drawable.ic_default_profile)
-                        error(R.drawable.ic_default_profile)
-                        transformations(CircleCropTransformation())
-                    }
+                    binding.ivFriendProfile.setImageResource(R.drawable.ic_default_profile)
 
                     // 4) 캔버스 초기화 후 그려주기
                     binding.layoutDetailDiaryContainer.removeAllViews()
@@ -353,7 +386,7 @@ class FriendDiaryDetailFragment : Fragment() {
                     }
 
                     // 5) 댓글 그려주기
-                    for (comment in comments) {
+                    for (comment in visibleComments) {
                         renderCommentPostIt(comment, commentAuthorMap[comment.userId] ?: "알 수 없음")
                     }
                 }
@@ -525,6 +558,8 @@ class FriendDiaryDetailFragment : Fragment() {
         view.tag = comment.color
         view.setTag(R.id.btnFollow, comment.userId)
         view.setTag(R.id.btnProfileHome, targetUserId ?: "")
+        view.setTag(R.id.tvCommentEmoji, comment.createdAt)
+        view.setTag(R.id.btnCommentDone, comment.isChecked)
 
         view.translationX = comment.posX
         view.translationY = comment.posY
@@ -638,12 +673,24 @@ class FriendDiaryDetailFragment : Fragment() {
         lifecycleScope.launch(Dispatchers.IO) {
             val db = AppDatabase.getDatabase(safeContext)
             val savedId = db.diaryDao().insertComment(newComment)
+            val commentWithId = newComment.copy(commentId = savedId.toInt())
+
+            try {
+                firestore.collection("comments")
+                    .document("${ownerUid}_${selectedDate}_${savedId}")
+                    .set(commentWithId, SetOptions.merge())
+                    .await()
+            } catch (e: Exception) {
+                Log.e("FriendDiaryDetail", "Firestore 댓글 저장 실패", e)
+            }
 
             withContext(Dispatchers.Main) {
                 if (_binding != null) {
                     view.setTag(R.id.ivCommentBg, savedId.toInt())
                     view.setTag(R.id.btnFollow, currentUid)
                     view.setTag(R.id.btnProfileHome, ownerUid)
+                    view.setTag(R.id.tvCommentEmoji, newComment.createdAt)
+                    view.setTag(R.id.btnCommentDone, newComment.isChecked)
                     Toast.makeText(safeContext, "댓글이 등록되었습니다.", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -659,6 +706,8 @@ class FriendDiaryDetailFragment : Fragment() {
         val etContent = commentView.findViewById<EditText>(R.id.etCommentContent)
         val tvEmoji = commentView.findViewById<TextView>(R.id.tvCommentEmoji)
         val tvTime = commentView.findViewById<TextView>(R.id.tvCommentTime)
+        val createdAt = (commentView.getTag(R.id.tvCommentEmoji) as? Long) ?: System.currentTimeMillis()
+        val isChecked = (commentView.getTag(R.id.btnCommentDone) as? Boolean) ?: false
 
         val authorUid = (commentView.getTag(R.id.btnFollow) as? String).orEmpty()
         val ownerUid = (commentView.getTag(R.id.btnProfileHome) as? String).orEmpty()
@@ -678,12 +727,22 @@ class FriendDiaryDetailFragment : Fragment() {
             content = payload,
             color = color,
             timestamp = tvTime.text?.toString().orEmpty(),
+            createdAt = createdAt,
+            isChecked = isChecked,
             posX = commentView.translationX,
             posY = commentView.translationY
         )
 
         lifecycleScope.launch(Dispatchers.IO) {
             AppDatabase.getDatabase(safeContext).diaryDao().insertComment(updated)
+            try {
+                firestore.collection("comments")
+                    .document("${effectiveOwnerUid}_${selectedDate}_${commentId}")
+                    .set(updated, SetOptions.merge())
+                    .await()
+            } catch (e: Exception) {
+                Log.e("FriendDiaryDetail", "Firestore 댓글 위치 저장 실패", e)
+            }
         }
     }
 
@@ -856,13 +915,39 @@ class FriendDiaryDetailFragment : Fragment() {
         private const val MIN_COMMENT_SCALE = 0.7f
         private const val MAX_COMMENT_SCALE = 1.8f
 
-        fun newInstance(targetUserId: String, diaryId: Int = 0, targetDate: String? = null) =
+        fun newInstance(
+            targetUserId: String,
+            diaryId: Int = 0,
+            targetDate: String? = null,
+            isHighlightMode: Boolean = false
+        ) =
             FriendDiaryDetailFragment().apply {
                 arguments = Bundle().apply {
                     putString("targetUserId", targetUserId)
                     putInt("diaryId", diaryId)
                     putString("targetDate", targetDate)
+                    putBoolean("isHighlightMode", isHighlightMode)
                 }
             }
+    }
+
+    private fun parseCommentTime(timeStr: String): Long {
+        if (timeStr.isBlank()) return System.currentTimeMillis()
+        timeStr.toLongOrNull()?.let { return it }
+
+        val formats = listOf(
+            "yyyy.MM.dd HH:mm",
+            "yyyy.MM.dd HH:mm:ss",
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy.MM.dd"
+        )
+        for (format in formats) {
+            try {
+                val sdf = SimpleDateFormat(format, Locale.getDefault())
+                val parsed = sdf.parse(timeStr)
+                if (parsed != null) return parsed.time
+            } catch (_: Exception) {}
+        }
+        return System.currentTimeMillis()
     }
 }

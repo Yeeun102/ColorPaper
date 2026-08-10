@@ -25,8 +25,6 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import coil.load
-import coil.transform.CircleCropTransformation
 import com.example.colorpaper.R
 import com.example.colorpaper.ui.diary.DiaryDetailFragment
 import com.example.colorpaper.ui.flashcard.FlashcardStudyFragment
@@ -209,12 +207,7 @@ class ProfileFragment : Fragment() {
                 tvNickname?.text = user.nickname
                 tvUserCodeTop?.text = "#${user.userCode}"
 
-                ivProfileImage?.load(user.profileImageUrl) {
-                    crossfade(true)
-                    placeholder(R.drawable.ic_default_profile)
-                    error(R.drawable.ic_default_profile)
-                    transformations(CircleCropTransformation())
-                }
+                ivProfileImage?.setImageResource(R.drawable.ic_default_profile)
             }
 
             btnLogout?.setOnClickListener {
@@ -255,7 +248,12 @@ class ProfileFragment : Fragment() {
             rvHighlights?.adapter = HighlightAdapter(
                 items = list,
                 onItemClick = { item ->
-                    navigateToDiaryDetail(item.date, item.diaryId, readOnly = true)
+                    // 하이라이트 진입임을 명시하는 isHighlightMode = true 전달
+                    navigateToDiaryDetail(
+                        targetDate = item.date,
+                        diaryId = item.diaryId,
+                        isHighlightMode = true
+                    )
                 }
             )
         }
@@ -492,7 +490,7 @@ class ProfileFragment : Fragment() {
     private fun navigateToDiaryDetail(
         targetDate: String,
         diaryId: Int = 0,
-        readOnly: Boolean = false,
+        isHighlightMode: Boolean = false, // readOnly 대신 isHighlightMode로 명확히 지정
         bookTransition: Boolean = false
     ) {
         val effectiveUid = if (isMyProfile) auth.currentUser?.uid else targetUserId
@@ -502,14 +500,15 @@ class ProfileFragment : Fragment() {
             DiaryDetailFragment.newInstance(
                 targetDate = targetDate,
                 targetUserId = effectiveUid,
-                readOnly = readOnly
+                isHighlightMode = isHighlightMode // 플래그 전달
             )
         } else {
-            // 2. 친구 프로필인 경우 -> 날짜(targetDate) 포함 전달
+            // 2. 친구 프로필인 경우 -> 친구 일기 상세 화면
             FriendDiaryDetailFragment.newInstance(
                 targetUserId = effectiveUid ?: "",
                 diaryId = diaryId,
-                targetDate = targetDate
+                targetDate = targetDate,
+                isHighlightMode = isHighlightMode // 플래그 전달
             )
         }
 
@@ -648,12 +647,7 @@ class PopupFriendAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = list[position]
         holder.tvNickname.text = item.nickname
-        holder.ivProfile.load(item.profileImageUrl) {
-            crossfade(true)
-            placeholder(R.drawable.ic_default_profile)
-            error(R.drawable.ic_default_profile)
-            transformations(CircleCropTransformation())
-        }
+        holder.ivProfile.setImageResource(R.drawable.ic_default_profile)
 
         holder.itemView.setOnClickListener { onItemClick(item) }
         ProfileThemeStyler.applyItem(holder.itemView)

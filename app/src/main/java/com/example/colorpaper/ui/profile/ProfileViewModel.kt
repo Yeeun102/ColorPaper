@@ -12,16 +12,13 @@ import com.example.colorpaper.data.model.FolderEntity
 import com.example.colorpaper.data.model.UserEntity
 import com.example.colorpaper.data.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 
 class ProfileViewModel(application: Application) : AndroidViewModel(application) {
 
     private val db = AppDatabase.getDatabase(application)
     private val userRepository = UserRepository(db)
-    private val firestore = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
 
     private val _userData = MutableLiveData<UserEntity?>()
@@ -40,7 +37,6 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     fun fetchUserProfile(targetUserId: String? = null) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                // targetUserId가 없으면 현재 로그인한 Firebase UID 사용
                 val uid = if (targetUserId.isNullOrEmpty()) {
                     auth.currentUser?.uid ?: ""
                 } else {
@@ -53,31 +49,15 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                     return@launch
                 }
 
-                // 1순위: Firestore 'users' 컬렉션에서 사용자 정보 가져오기
-                val doc = firestore.collection("users").document(uid).get().await()
-                if (doc.exists()) {
-                    val nickname = doc.getString("nickname") ?: "알 수 없음"
-                    val userCode = doc.getString("userCode") ?: ""
-                    val profileImageUrl = doc.getString("profileImageUrl")
-                    val email = doc.getString("email") ?: (auth.currentUser?.email ?: "")
-
-                    val fetchedUser = UserEntity(
-                        userCode = userCode,
-                        email = email,
-                        passwordHash = "",
-                        nickname = nickname,
-                        profileImageUrl = profileImageUrl
-                    )
-                    _userData.postValue(fetchedUser)
+                // repository를 통해 Firestore → Room DB 순으로 조회
+                val user = if (targetUserId.isNullOrEmpty()) {
+                    userRepository.getUserProfile()
                 } else {
-                    // Firestore에 데이터가 없으면 Room DB 백업 조회
-                    Log.w("ProfileViewModel", "Firestore 문서 없음. 로컬 DB 조회를 시도합니다.")
-                    val localUser = userRepository.getUserProfile()
-                    _userData.postValue(localUser)
+                    userRepository.getUserById(uid)
                 }
+                _userData.postValue(user)
             } catch (e: Exception) {
                 Log.e("ProfileViewModel", "프로필 로드 중 오류 발생: ${e.message}", e)
-                // 네트워크 에러 등으로 실패 시 로컬 DB 시도
                 try {
                     val localUser = userRepository.getUserProfile()
                     _userData.postValue(localUser)
@@ -156,19 +136,11 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                     return@launch
                 }
 
-                // 1. Room DB 1차 조회 (Firebase Auth UID 기준)
-                var entities = userRepository.getHighlightsByUserId(targetId)
+                // getHighlightsByUserId 내부에서 resolveUidOrNull로 UID → userCode fallback 처리하므로
+                // 한 번만 호출하면 충분함
+                val entities = userRepository.getHighlightsByUserId(targetId)
 
-                // 2. 만약 UID로 안 잡힐 경우, 현재 유저의 userCode로 2차 조회 시도
-                if (entities.isNullOrEmpty()) {
-                    val userDoc = firestore.collection("users").document(targetId).get().await()
-                    val userCode = userDoc.getString("userCode")
-                    if (!userCode.isNullOrEmpty()) {
-                        entities = userRepository.getHighlightsByUserId(userCode)
-                    }
-                }
-
-                val dedupedByDate = (entities ?: emptyList())
+                val dedupedByDate = entities
                     .sortedByDescending { it.date }
                     .distinctBy { it.date }
 

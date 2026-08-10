@@ -106,7 +106,12 @@ class MainActivity : AppCompatActivity() {
         requestNotificationPermissionIfNeeded()
 
         if (savedInstanceState == null) {
-            val currentUser = FirebaseAuth.getInstance().currentUser
+            val currentUser = try {
+                FirebaseAuth.getInstance().currentUser
+            } catch (e: SecurityException) {
+                Log.e("MainActivity", "FirebaseAuth currentUser 접근 실패", e)
+                null
+            }
 
             if (currentUser == null) {
                 showScreen(LoginFragment(), R.id.nav_home)
