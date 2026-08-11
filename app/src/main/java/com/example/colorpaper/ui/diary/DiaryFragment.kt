@@ -1650,40 +1650,19 @@ class DiaryFragment : Fragment() {
 
     @SuppressLint("ClickableViewAccessibility")
     private fun lockPostItEditText(postItView: View, etContent: EditText) {
-        etContent.keyListener = null // 텍스트 수정 및 키보드 노출 완전 차단
-        etContent.isFocusable = false
-        etContent.isFocusableInTouchMode = false
+        etContent.keyListener = null
+        etContent.movementMethod = null      // 💡 [필수 1] 텍스트 선택/커서 터치 이벤트 제거
         etContent.isCursorVisible = false
         etContent.clearFocus()
-        etContent.isEnabled = true // 터치 이벤트(OnTouchListener) 수신을 위해 true 유지
 
-        var lastX = 0f
-        var lastY = 0f
+        etContent.isEnabled = true
+        etContent.isClickable = false
+        etContent.isLongClickable = false  // 💡 [필수 2] 롱클릭 이벤트 소비 방지
+        etContent.isFocusable = false
+        etContent.isFocusableInTouchMode = false
 
-        etContent.setOnTouchListener { _, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    currentActivePostIt = postItView
-                    lastX = event.rawX
-                    lastY = event.rawY
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    val dx = event.rawX - lastX
-                    val dy = event.rawY - lastY
-
-                    // etContent 터치 시 부모 포스트잇(postItView)의 위치 이동
-                    moveViewWithinParent(postItView, dx, dy)
-
-                    lastX = event.rawX
-                    lastY = event.rawY
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    postItView.performClick()
-                }
-                else -> return@setOnTouchListener false
-            }
-            true
-        }
+        // 💡 [핵심] false를 반환하여 텍스트박스를 터치해도 부모(commentView)가 터치, 드래그, 롱클릭을 모두 처리하도록 통과시킴
+        etContent.setOnTouchListener { _, _ -> false }
     }
 
     private fun limitEditTextToPostItBounds(editText: EditText, maxLines: Int = 6) {
