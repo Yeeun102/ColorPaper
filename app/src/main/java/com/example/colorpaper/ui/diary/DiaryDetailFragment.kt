@@ -183,6 +183,10 @@ class DiaryDetailFragment : Fragment() {
 
         currentBinding.btnToolbarAddDetail.isEnabled = false
         currentBinding.btnToolbarAddDetail.alpha = 0.3f
+        currentBinding.btnToolbarPenDetail.isEnabled = false
+        currentBinding.btnToolbarPenDetail.alpha = 0.3f
+        currentBinding.btnToolbarTextDetail.isEnabled = false
+        currentBinding.btnToolbarTextDetail.alpha = 0.3f
 
         checkFollowStateAndLoad()
 
@@ -1272,15 +1276,18 @@ class DiaryDetailFragment : Fragment() {
     @SuppressLint("ClickableViewAccessibility")
     private fun lockCommentEditText(commentView: View, etCommentContent: EditText) {
         etCommentContent.keyListener = null
+        etCommentContent.movementMethod = null      // 💡 [필수 1] 텍스트 선택/커서 터치 이벤트 제거
         etCommentContent.isCursorVisible = false
         etCommentContent.clearFocus()
-        etCommentContent.isEnabled = true
 
-        // 💡 EditText가 터치 이벤트를 소비하지 않고 부모(commentView)로 통과시키도록 설정
+        etCommentContent.isEnabled = true
         etCommentContent.isClickable = false
+        etCommentContent.isLongClickable = false  // 💡 [필수 2] 롱클릭 이벤트 소비 방지
         etCommentContent.isFocusable = false
         etCommentContent.isFocusableInTouchMode = false
-        etCommentContent.setOnTouchListener(null)
+
+        // 💡 [핵심] false를 반환하여 텍스트박스를 터치해도 부모(commentView)가 터치, 드래그, 롱클릭을 모두 처리하도록 통과시킴
+        etCommentContent.setOnTouchListener { _, _ -> false }
     }
 
     private fun limitEditTextToPostItBounds(editText: EditText, maxLines: Int = 3) {

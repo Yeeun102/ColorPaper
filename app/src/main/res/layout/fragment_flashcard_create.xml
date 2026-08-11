@@ -110,7 +110,7 @@
             android:layout_gravity="center_horizontal"
             android:layout_marginTop="16dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@android:drawable/ic_input_add"
+            android:src="@drawable/ic_text_tool"
             android:contentDescription="@string/add_card" />
 
         <!-- 파일 불러오기 영역 -->

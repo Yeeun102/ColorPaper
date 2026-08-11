@@ -26,7 +26,7 @@
         android:layout_height="40dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:contentDescription="@string/createNewFlashcard"
-        android:src="@android:drawable/ic_input_add"
+        android:src="@drawable/ic_text_tool"
         app:layout_constraintTop_toTopOf="@id/tvTitle"
         app:layout_constraintBottom_toBottomOf="@id/tvTitle"
         app:layout_constraintEnd_toEndOf="parent"/>

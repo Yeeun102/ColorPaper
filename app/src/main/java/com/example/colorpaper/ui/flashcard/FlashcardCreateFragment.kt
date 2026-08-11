@@ -2,6 +2,7 @@ package com.example.colorpaper.ui.flashcard
 
 import android.app.Activity
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -87,8 +88,11 @@ class FlashcardCreateFragment : Fragment() {
     }
     private fun applyButtonThemeColor() {
         val buttonColor = ContextCompat.getColor(requireContext(), palette.stroke)
-        binding.btnSave to buttonColor
-        binding.btnImportCsv to buttonColor
+
+        // 💡 backgroundTintList를 이용해 버튼 배경색 적용
+        binding.btnSave.backgroundTintList = ColorStateList.valueOf(buttonColor)
+        binding.btnImportCsv.backgroundTintList = ColorStateList.valueOf(buttonColor)
+        binding.btnNextCard.backgroundTintList = ColorStateList.valueOf(buttonColor)
     }
 
     private fun canAddNewCard(): Boolean {
@@ -112,6 +116,20 @@ class FlashcardCreateFragment : Fragment() {
 
         if (initialQuestion.isNotEmpty()) cardView.findViewById<EditText>(R.id.etQuestion).setText(initialQuestion)
         if (initialAnswer.isNotEmpty()) cardView.findViewById<EditText>(R.id.etAnswer).setText(initialAnswer)
+
+        val cardBgColor = if (cardViewsList.size % 2 != 0) {
+            ContextCompat.getColor(requireContext(), palette.yearsAgo) // 홀수 번 카드
+        } else {
+            ContextCompat.getColor(requireContext(), palette.reminder) // 짝수 번 카드
+        }
+
+        // 카드뷰 배경색 또는 CardView 배경 적용
+        if (cardView is androidx.cardview.widget.CardView) {
+            cardView.setCardBackgroundColor(cardBgColor)
+        } else {
+            cardView.setBackgroundColor(cardBgColor)
+        }
+
 
         binding.layoutCardContainer.addView(cardView)
     }
