@@ -205,7 +205,7 @@ class MainActivity : AppCompatActivity() {
             .alpha(1f)
             .scaleX(1f)
             .scaleY(1f)
-            .translationY(0f)
+            .translationY(-dp(7).toFloat())
             .setDuration(300L)
             .setInterpolator(OvershootInterpolator(1.7f))
             .start()

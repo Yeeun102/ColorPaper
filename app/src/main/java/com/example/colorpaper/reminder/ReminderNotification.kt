@@ -25,7 +25,12 @@ object ReminderNotification {
             PackageManager.PERMISSION_GRANTED
         ) return
 
-        val days = ReminderSchedulePolicy.elapsedDays(diary.reviewCycleDays, stage) ?: return
+        val days = ReminderSchedulePolicy.elapsedDays(
+            diary.reviewCycleDays,
+            stage,
+            diary.reviewCyclePattern,
+            diary.reviewRepeatLast
+        ) ?: return
         val question = ReminderMessageFactory.create(
             content = diary.content,
             emotions = diary.emotionStamp,
