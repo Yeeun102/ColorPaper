@@ -11,7 +11,11 @@ object ReminderScheduler {
         val triggerAt = ReminderSchedulePolicy.nextTriggerAt(
             anchorAt = diary.reminderAnchorAt,
             cycleDays = diary.reviewCycleDays,
-            stage = diary.reminderStage
+            stage = diary.reminderStage,
+            cyclePattern = diary.reviewCyclePattern,
+            repeatLast = diary.reviewRepeatLast,
+            hour = diary.reminderHour,
+            minute = diary.reminderMinute
         ) ?: return cancel(context, diary.diaryId)
 
         val alarmManager = context.getSystemService(AlarmManager::class.java)

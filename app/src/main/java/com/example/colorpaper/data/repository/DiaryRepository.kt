@@ -46,6 +46,10 @@ class DiaryRepository(context: Context) {
                 val reminderEnabled = diary.reviewCycleDays != ReminderSchedulePolicy.DISABLED
                 val keepExistingSchedule = reminderEnabled &&
                     existingDiary?.reviewCycleDays == diary.reviewCycleDays &&
+                    existingDiary.reviewCyclePattern == diary.reviewCyclePattern &&
+                    existingDiary.reviewRepeatLast == diary.reviewRepeatLast &&
+                    existingDiary.reminderHour == diary.reminderHour &&
+                    existingDiary.reminderMinute == diary.reminderMinute &&
                     existingDiary.reminderAnchorAt > 0L
                 val diaryToSave = diary.copy(
                     reminderAnchorAt = when {

@@ -13,6 +13,7 @@ import java.util.Locale
 import androidx.fragment.app.viewModels
 import android.annotation.SuppressLint
 import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import android.content.res.ColorStateList
 import android.os.Bundle
 import android.graphics.Color
@@ -33,6 +34,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.NumberPicker
 import android.text.InputType
 import android.text.TextWatcher
 import android.view.HapticFeedbackConstants
@@ -40,6 +42,7 @@ import android.view.ViewConfiguration
 import androidx.lifecycle.lifecycleScope
 import android.widget.Toast
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 import com.example.colorpaper.R
 import com.example.colorpaper.databinding.FragmentDiaryBinding
 import com.example.colorpaper.data.local.AppDatabase
@@ -47,6 +50,7 @@ import com.example.colorpaper.data.model.DiaryEntity
 import com.example.colorpaper.data.model.HighlightEntity
 import com.example.colorpaper.reminder.ReminderSchedulePolicy
 import com.example.colorpaper.reminder.ReminderScheduler
+import com.example.colorpaper.reminder.ReminderPreferences
 import com.example.colorpaper.ui.theme.AppTheme
 import com.example.colorpaper.ui.theme.ThemeManager
 import com.google.android.material.button.MaterialButton
@@ -67,6 +71,11 @@ class DiaryFragment : Fragment() {
     private val viewModel: DiaryViewModel by viewModels()
     private var currentVisibility: String = "전체공개"
     private var selectedReminderCycleDays: Int = ReminderSchedulePolicy.DISABLED
+    private var selectedReminderPattern: String = ""
+    private var selectedReminderRepeatLast: Boolean = false
+    private var selectedReminderTemplateName: String = ""
+    private var selectedReminderHour: Int = 20
+    private var selectedReminderMinute: Int = 0
     private var reminderSelectionTouched: Boolean = false
 
     private var selectedReminderEndDate: Int = 0 // 0: 없음, YYYYMMDD: 사용자 지정 날짜
@@ -101,12 +110,45 @@ class DiaryFragment : Fragment() {
             val defaultColor = if (originalColor != 0) originalColor else (buttonColorMap[button] ?: "#EDEDED".toColorInt())
 
             if (isSelected) {
-                button.backgroundTintList = ColorStateList.valueOf("#FFF59D".toColorInt())
+                button.backgroundTintList = ColorStateList.valueOf(
+                    ColorUtils.blendARGB(
+                        ContextCompat.getColor(requireContext(), palette.screenBackground),
+                        ContextCompat.getColor(requireContext(), palette.reminder),
+                        .82f
+                    )
+                )
             } else {
                 button.backgroundTintList = ColorStateList.valueOf(defaultColor)
             }
         }
 
+    }
+
+    private fun applyPostItSettingTheme() {
+        val context = requireContext()
+        val density = resources.displayMetrics.density
+        val background = ContextCompat.getColor(context, palette.screenBackground)
+        val reminder = ContextCompat.getColor(context, palette.reminder)
+        val text = ContextCompat.getColor(context, palette.primaryText)
+        binding.layoutPostItSetting.background = android.graphics.drawable.GradientDrawable().apply {
+            cornerRadius = 30f * density
+            setColor(ColorUtils.blendARGB(background, reminder, .10f))
+            setStroke((density + .5f).toInt(), ColorUtils.setAlphaComponent(text, 38))
+        }
+        fun style(view: View) {
+            // 감정 선택 버튼은 기존 디자인과 선택 상태 처리를 그대로 유지한다.
+            if (view === binding.btnSelectEmotion) return
+            if (view is MaterialButton) {
+                view.cornerRadius = (18 * density).toInt()
+                view.strokeWidth = 0
+                view.insetTop = 0
+                view.insetBottom = 0
+                view.setTextColor(text)
+            }
+            if (view is TextView) view.setTextColor(text)
+            if (view is ViewGroup) repeat(view.childCount) { style(view.getChildAt(it)) }
+        }
+        style(binding.layoutPostItSetting)
     }
 
     private fun setupSingleChoiceGroup(
@@ -140,6 +182,7 @@ class DiaryFragment : Fragment() {
 
         val binding = _binding ?: return
         binding.ivFixedDiaryPage.setImageResource(diaryPageResource())
+        applyPostItSettingTheme()
 
         arguments?.getString(ARG_INITIAL_DATE)?.let { initialDate ->
             dateFormat.parse(initialDate)?.let { selectedDate ->
@@ -154,6 +197,11 @@ class DiaryFragment : Fragment() {
             binding.btnRepeatAuto to "#ECECEC".toColorInt(),
             binding.btnRepeatUser to "#D2FFDA".toColorInt(),
             binding.btnRepeatNone to "#F0E2B4".toColorInt(),
+            binding.btnReminderTime to ColorUtils.blendARGB(
+                ContextCompat.getColor(requireContext(), palette.screenBackground),
+                ContextCompat.getColor(requireContext(), palette.reminder),
+                0.72f
+            ),
             binding.btnEndDateNone to "#F0E2B4".toColorInt(),
             binding.btnEndDateUser to "#D2FFDA".toColorInt(),
             binding.btnVisibilityPublic to "#DFD5FF".toColorInt(),
@@ -177,6 +225,7 @@ class DiaryFragment : Fragment() {
             binding.emo11 to "#DC73FF".toColorInt(),
             binding.emo12 to "#C7F0FF".toColorInt()
         )
+        applyCustomButtonState(binding.btnReminderTime, isSelected = false)
         // 초기 날짜 텍스트 세팅 및 오늘 데이터 로드
         updateDateText()
         loadTodayDiary()
@@ -404,45 +453,250 @@ class DiaryFragment : Fragment() {
 
 
     private fun setupReminderChoiceGroup() {
+        if (!reminderSelectionTouched) {
+            selectedReminderHour = ReminderPreferences.defaultHour(requireContext())
+            selectedReminderMinute = ReminderPreferences.defaultMinute(requireContext())
+        }
+        updateReminderTimeButton()
         applyReminderChoiceState(ReminderSchedulePolicy.DISABLED)
         binding.btnRepeatAuto.setOnClickListener {
             selectedReminderCycleDays = ReminderSchedulePolicy.AUTO_CURVE
+            selectedReminderPattern = ""
+            selectedReminderRepeatLast = false
+            selectedReminderTemplateName = ""
             reminderSelectionTouched = true
             applyReminderChoiceState(selectedReminderCycleDays)
         }
         binding.btnRepeatNone.setOnClickListener {
             selectedReminderCycleDays = ReminderSchedulePolicy.DISABLED
+            selectedReminderPattern = ""
+            selectedReminderRepeatLast = false
+            selectedReminderTemplateName = ""
             reminderSelectionTouched = true
             applyReminderChoiceState(selectedReminderCycleDays)
         }
 
         binding.btnRepeatUser.setOnClickListener {
-            val input = EditText(requireContext()).apply {
-                hint = getString(R.string.reminder_custom_cycle_hint)
-                inputType = InputType.TYPE_CLASS_NUMBER
-                setPadding(48, 16, 48, 16)
-            }
-            android.app.AlertDialog.Builder(requireContext())
-                .setTitle(R.string.reminder_custom_cycle_title)
-                .setView(input)
-                .setNegativeButton(R.string.action_cancel, null)
-                .setPositiveButton(R.string.confirm) { _, _ ->
-                    val days = input.text.toString().toIntOrNull()
-                    if (days != null && days > 0) {
-                        selectedReminderCycleDays = days
-                        reminderSelectionTouched = true
-                        applyReminderChoiceState(selectedReminderCycleDays)
-                    } else {
-                        Toast.makeText(
-                            requireContext(),
-                            R.string.reminder_custom_cycle_error,
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                }
-                .show()
+            showReminderTemplatePicker()
         }
 
+        binding.btnReminderTime.setOnClickListener {
+            showCuteReminderTimePicker()
+        }
+
+    }
+
+    private fun showReminderTemplatePicker() {
+        val context = requireContext()
+        val dialog = android.app.Dialog(context)
+        val palette = ThemeManager.currentPalette(context)
+        val pastel = ColorUtils.blendARGB(
+            ContextCompat.getColor(context, palette.screenBackground),
+            ContextCompat.getColor(context, palette.reminder),
+            .72f
+        )
+        val list = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = android.view.Gravity.CENTER_HORIZONTAL
+            setPadding(24, 24, 24, 24)
+            addView(TextView(context).apply {
+                text = "어떤 리마인드로 할까요?"
+                textSize = 18f
+                gravity = android.view.Gravity.CENTER
+                setPadding(0, 0, 0, (14 * resources.displayMetrics.density).toInt())
+            })
+        }
+        ReminderPreferences.templates(context).forEach { template ->
+            list.addView(MaterialButton(context).apply {
+                text = "${template.name}   ${template.days.joinToString("→")}일"
+                minWidth = 0
+                minHeight = 0
+                insetTop = 0
+                insetBottom = 0
+                cornerRadius = (20 * resources.displayMetrics.density).toInt()
+                setPadding((16 * resources.displayMetrics.density).toInt(), 0, (16 * resources.displayMetrics.density).toInt(), 0)
+                backgroundTintList = ColorStateList.valueOf(pastel)
+                setOnClickListener {
+                    selectedReminderCycleDays = ReminderSchedulePolicy.CUSTOM_PATTERN
+                    selectedReminderPattern = template.days.joinToString(",")
+                    selectedReminderRepeatLast = template.repeatLast
+                    selectedReminderTemplateName = template.name
+                    reminderSelectionTouched = true
+                    applyReminderChoiceState(selectedReminderCycleDays)
+                    dialog.dismiss()
+                }
+            }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, (40 * resources.displayMetrics.density).toInt()).apply {
+                topMargin = (12 * resources.displayMetrics.density).toInt()
+            })
+        }
+        list.addView(MaterialButton(context).apply {
+            text = "+ 사용자 지정"
+            minWidth = 0
+            minHeight = 0
+            insetTop = 0
+            insetBottom = 0
+            cornerRadius = (20 * resources.displayMetrics.density).toInt()
+            setPadding((16 * resources.displayMetrics.density).toInt(), 0, (16 * resources.displayMetrics.density).toInt(), 0)
+            backgroundTintList = ColorStateList.valueOf(pastel)
+            setOnClickListener { dialog.dismiss(); showCustomReminderCycleInput() }
+        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, (40 * resources.displayMetrics.density).toInt()).apply {
+            topMargin = (12 * resources.displayMetrics.density).toInt()
+        })
+        val card = com.google.android.material.card.MaterialCardView(context).apply {
+            radius = 28f * resources.displayMetrics.density
+            setCardBackgroundColor(ContextCompat.getColor(context, palette.screenBackground))
+            addView(list)
+        }
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+        dialog.setContentView(card)
+        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+        dialog.show()
+        dialog.window?.setLayout((resources.displayMetrics.widthPixels * .88f).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT)
+    }
+
+    private fun showCuteReminderTimePicker() {
+        val context = requireContext()
+        val dialog = android.app.Dialog(context)
+        val palette = ThemeManager.currentPalette(context)
+        val density = resources.displayMetrics.density
+        fun dp(value: Int) = (value * density).toInt()
+        val textColor = ContextCompat.getColor(context, palette.primaryText)
+        val themedSurface = ColorUtils.blendARGB(
+            ContextCompat.getColor(context, palette.screenBackground),
+            ContextCompat.getColor(context, palette.reminder),
+            .72f
+        )
+        val hourPicker = NumberPicker(context).apply {
+            minValue = 1
+            maxValue = 12
+            value = (selectedReminderHour % 12).let { if (it == 0) 12 else it }
+            wrapSelectorWheel = true
+        }
+        val minutePicker = NumberPicker(context).apply {
+            minValue = 0
+            maxValue = 59
+            value = selectedReminderMinute
+            wrapSelectorWheel = true
+            setFormatter { String.format(Locale.getDefault(), "%02d", it) }
+        }
+        val periodPicker = NumberPicker(context).apply {
+            minValue = 0
+            maxValue = 1
+            displayedValues = arrayOf("오전", "오후")
+            value = if (selectedReminderHour < 12) 0 else 1
+            wrapSelectorWheel = false
+        }
+        val card = com.google.android.material.card.MaterialCardView(context).apply {
+            radius = dp(28).toFloat()
+            strokeWidth = dp(1)
+            strokeColor = ColorUtils.setAlphaComponent(textColor, 36)
+            setCardBackgroundColor(ContextCompat.getColor(context, palette.screenBackground))
+            addView(LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(20), dp(22), dp(20), dp(18))
+                addView(TextView(context).apply {
+                    text = "몇 시에 다시 만날까요?"
+                    textSize = 19f
+                    gravity = android.view.Gravity.CENTER
+                    setTextColor(textColor)
+                    setTypeface(typeface, android.graphics.Typeface.BOLD)
+                })
+                addView(LinearLayout(context).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = android.view.Gravity.CENTER
+                    background = android.graphics.drawable.GradientDrawable().apply {
+                        cornerRadius = dp(22).toFloat()
+                        setColor(themedSurface)
+                    }
+                    setPadding(dp(10), dp(6), dp(10), dp(6))
+                    addView(periodPicker, LinearLayout.LayoutParams(0, dp(142), 1f))
+                    addView(hourPicker, LinearLayout.LayoutParams(0, dp(142), 1f))
+                    addView(TextView(context).apply {
+                        text = ":"
+                        textSize = 24f
+                        gravity = android.view.Gravity.CENTER
+                        setTextColor(textColor)
+                    }, LinearLayout.LayoutParams(dp(20), dp(142)))
+                    addView(minutePicker, LinearLayout.LayoutParams(0, dp(142), 1f))
+                }, LinearLayout.LayoutParams(-1, -2).apply {
+                    topMargin = dp(18)
+                    bottomMargin = dp(18)
+                })
+                addView(MaterialButton(context).apply {
+                    text = "이 시간으로 할래요"
+                    gravity = android.view.Gravity.CENTER
+                    cornerRadius = dp(24)
+                    backgroundTintList = ColorStateList.valueOf(themedSurface)
+                    setTextColor(textColor)
+                    setOnClickListener {
+                        selectedReminderHour = (hourPicker.value % 12) + if (periodPicker.value == 1) 12 else 0
+                        selectedReminderMinute = minutePicker.value
+                        reminderSelectionTouched = true
+                        updateReminderTimeButton()
+                        dialog.dismiss()
+                    }
+                })
+            })
+        }
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+        dialog.setContentView(card)
+        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+        dialog.show()
+        dialog.window?.setLayout((resources.displayMetrics.widthPixels * .86f).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT)
+    }
+
+    private fun showCustomReminderCycleInput() {
+        val input = EditText(requireContext()).apply {
+            hint = "예: 1, 3, 5, 7"
+            inputType = InputType.TYPE_CLASS_TEXT
+            setText(ReminderSchedulePolicy.parsePattern(selectedReminderPattern).joinToString(", "))
+            setPadding(48, 28, 48, 28)
+        }
+        val cycleDialog = android.app.AlertDialog.Builder(requireContext())
+            .setTitle(R.string.reminder_custom_cycle_title)
+            .setView(input)
+            .setNegativeButton(R.string.action_cancel, null)
+            .setPositiveButton(R.string.confirm) { _, _ ->
+                val pattern = input.text.toString()
+                    .split(',', ' ', '\n')
+                    .mapNotNull { it.trim().toIntOrNull() }
+                    .filter { it > 0 }
+                    .distinct()
+                    .sorted()
+                if (pattern.isNotEmpty()) {
+                    val modeDialog = android.app.AlertDialog.Builder(requireContext())
+                        .setTitle("마지막 알림 다음에는?")
+                        .setItems(arrayOf("여기서 중지", "마지막 간격으로 계속 반복")) { _, mode ->
+                            selectedReminderCycleDays = ReminderSchedulePolicy.CUSTOM_PATTERN
+                            selectedReminderPattern = pattern.joinToString(",")
+                            selectedReminderRepeatLast = mode == 1
+                            selectedReminderTemplateName = "사용자 지정"
+                            reminderSelectionTouched = true
+                            applyReminderChoiceState(selectedReminderCycleDays)
+                        }
+                        .create()
+                    modeDialog.setOnShowListener { styleCuteAlert(modeDialog) }
+                    modeDialog.show()
+                } else {
+                    Toast.makeText(requireContext(), R.string.reminder_custom_cycle_error, Toast.LENGTH_SHORT).show()
+                }
+            }
+            .create()
+        cycleDialog.setOnShowListener { styleCuteAlert(cycleDialog) }
+        cycleDialog.show()
+    }
+
+    private fun updateReminderTimeButton() {
+        val period = if (selectedReminderHour < 12) "오전" else "오후"
+        val hour12 = selectedReminderHour % 12
+        val displayHour = if (hour12 == 0) 12 else hour12
+        binding.btnReminderTime.text = String.format(
+            Locale.getDefault(),
+            "%s %d:%02d",
+            period,
+            displayHour,
+            selectedReminderMinute
+        )
     }
 
     private fun setupEndDateChoiceGroup() {
@@ -543,9 +797,15 @@ class DiaryFragment : Fragment() {
     }
 
     private fun applyReminderChoiceState(cycleDays: Int) {
+        binding.btnRepeatUser.text = when {
+            cycleDays == ReminderSchedulePolicy.CUSTOM_PATTERN ->
+                selectedReminderTemplateName.ifBlank { "사용자 지정" }
+            cycleDays > 0 -> "${cycleDays}일 간격"
+            else -> getString(R.string.repeat_user)
+        }
         val selected = when {
             cycleDays == ReminderSchedulePolicy.AUTO_CURVE -> binding.btnRepeatAuto
-            cycleDays > 0 -> binding.btnRepeatUser
+            cycleDays == ReminderSchedulePolicy.CUSTOM_PATTERN || cycleDays > 0 -> binding.btnRepeatUser
             else -> binding.btnRepeatNone
         }
         listOf(binding.btnRepeatAuto, binding.btnRepeatUser, binding.btnRepeatNone)
@@ -555,6 +815,11 @@ class DiaryFragment : Fragment() {
     private fun resetPostItSettingUI() {
         currentSelectedColor = "yellow"
         selectedReminderCycleDays = ReminderSchedulePolicy.DISABLED
+        selectedReminderPattern = ""
+        selectedReminderRepeatLast = false
+        selectedReminderTemplateName = ""
+        selectedReminderHour = ReminderPreferences.defaultHour(requireContext())
+        selectedReminderMinute = ReminderPreferences.defaultMinute(requireContext())
         reminderSelectionTouched = false
         selectedReminderEndDate = 0
         selectedEmotions.clear()
@@ -608,7 +873,9 @@ class DiaryFragment : Fragment() {
         currentActivePostIt?.let { postIt ->
             postIt.tag = colorName
             val ivBg = postIt.findViewById<ImageView>(R.id.ivPostItBg)
-            ivBg.setImageResource(postItResourceMap[colorName] ?: R.drawable.post_yellow)
+            val resource = postItResourceMap[colorName] ?: R.drawable.post_yellow
+            ivBg.setImageResource(resource)
+            postIt.findViewById<ImageView>(R.id.ivPostItShadow)?.setImageResource(resource)
         }
     }
 
@@ -775,17 +1042,34 @@ class DiaryFragment : Fragment() {
 
             if (postIts.isEmpty()) {
                 selectedReminderCycleDays = ReminderSchedulePolicy.DISABLED
+                selectedReminderPattern = ""
+                selectedReminderRepeatLast = false
+                selectedReminderTemplateName = ""
+                selectedReminderHour = ReminderPreferences.defaultHour(requireContext())
+                selectedReminderMinute = ReminderPreferences.defaultMinute(requireContext())
                 applyReminderChoiceState(selectedReminderCycleDays)
+                updateReminderTimeButton()
                 binding.tvEmptyHint.visibility = View.VISIBLE
 
                 isHighlightedState = false
                 applyCustomButtonState(binding.btnHighlightState, isSelected = false)
             } else {
-                selectedReminderCycleDays = postIts
-                    .firstOrNull { !it.content.startsWith("[DECO]:") }
-                    ?.reviewCycleDays
+                val primaryPostIt = postIts.firstOrNull { !it.content.startsWith("[DECO]:") }
+                selectedReminderCycleDays = primaryPostIt?.reviewCycleDays
                     ?: ReminderSchedulePolicy.DISABLED
+                selectedReminderPattern = primaryPostIt?.reviewCyclePattern.orEmpty()
+                selectedReminderRepeatLast = primaryPostIt?.reviewRepeatLast ?: false
+                selectedReminderTemplateName = ReminderPreferences.templates(requireContext())
+                    .firstOrNull {
+                        it.days.joinToString(",") == selectedReminderPattern &&
+                            it.repeatLast == selectedReminderRepeatLast
+                    }?.name ?: if (selectedReminderPattern.isNotBlank()) "사용자 지정" else ""
+                selectedReminderHour = primaryPostIt?.reminderHour
+                    ?: ReminderPreferences.defaultHour(requireContext())
+                selectedReminderMinute = primaryPostIt?.reminderMinute
+                    ?: ReminderPreferences.defaultMinute(requireContext())
                 applyReminderChoiceState(selectedReminderCycleDays)
+                updateReminderTimeButton()
                 binding.tvEmptyHint.visibility = View.GONE
                 val hasHighlighted = postIts.any { !it.content.startsWith("[DECO]:") && it.isHighlighted }
                 isHighlightedState = hasHighlighted
@@ -837,6 +1121,7 @@ class DiaryFragment : Fragment() {
         val postItView = inflater.inflate(R.layout.item_diary_postit, binding.layoutDiaryContainer, false)
 
         val ivBg = postItView.findViewById<ImageView>(R.id.ivPostItBg)
+        val ivShadow = postItView.findViewById<ImageView>(R.id.ivPostItShadow)
         val tvDate = postItView.findViewById<TextView>(R.id.tvPostItDate)
         val etContent = postItView.findViewById<EditText>(R.id.etPostItContent)
 
@@ -855,6 +1140,7 @@ class DiaryFragment : Fragment() {
         val colorKey = diary.color.lowercase(Locale.getDefault()).trim()
         val resId = postItResourceMap[colorKey] ?: R.drawable.post_yellow
         ivBg.setImageResource(resId)
+        ivShadow.setImageResource(resId)
 
         postItView.translationX = diary.positionX.coerceAtLeast(0f)
         postItView.translationY = diary.positionY
@@ -868,11 +1154,14 @@ class DiaryFragment : Fragment() {
         val postItView = inflater.inflate(R.layout.item_diary_postit, binding.layoutDiaryContainer, false)
 
         val ivBg = postItView.findViewById<ImageView>(R.id.ivPostItBg)
+        val ivShadow = postItView.findViewById<ImageView>(R.id.ivPostItShadow)
         val tvDate = postItView.findViewById<TextView>(R.id.tvPostItDate)
         val etContent = postItView.findViewById<EditText>(R.id.etPostItContent)
 
         tvDate.text = binding.tvDateTitle.text.toString()
-        ivBg.setImageResource(postItResourceMap[colorName] ?: R.drawable.post_yellow)
+        val postItResource = postItResourceMap[colorName] ?: R.drawable.post_yellow
+        ivBg.setImageResource(postItResource)
+        ivShadow.setImageResource(postItResource)
 
         etContent.isEnabled = true
         etContent.isFocusable = true
@@ -964,6 +1253,11 @@ class DiaryFragment : Fragment() {
                         isHighlighted = isHighlightedState,
                         visibility = currentVisibility,
                         reviewCycleDays = selectedReminderCycleDays,
+                        reviewCyclePattern = selectedReminderPattern,
+                        reviewRepeatLast = selectedReminderRepeatLast,
+                        reminderEndDate = selectedReminderEndDate,
+                        reminderHour = selectedReminderHour,
+                        reminderMinute = selectedReminderMinute,
                         positionX = childView.translationX,
                         positionY = childView.translationY,
                         zIndex = i,
@@ -983,7 +1277,32 @@ class DiaryFragment : Fragment() {
             // 💡 1. DB에 저장 후 새로 생성된 Primary Key(Long) 리스트 반환
             val savedResults = withContext(Dispatchers.IO) {
                 itemsToSave.map { (view, entity) ->
-                    val savedId = db.diaryDao().insertPostIt(entity)
+                    val existing = entity.diaryId.takeIf { it > 0 }
+                        ?.let { db.diaryDao().getDiaryById(it) }
+                    val reminderEnabled = entity.reviewCycleDays != ReminderSchedulePolicy.DISABLED
+                    val keepSchedule = reminderEnabled && existing != null &&
+                        existing.reviewCycleDays == entity.reviewCycleDays &&
+                        existing.reviewCyclePattern == entity.reviewCyclePattern &&
+                        existing.reviewRepeatLast == entity.reviewRepeatLast &&
+                        existing.reminderHour == entity.reminderHour &&
+                        existing.reminderMinute == entity.reminderMinute &&
+                        existing.reminderAnchorAt > 0L
+                    val entityToSave = entity.copy(
+                        reminderAnchorAt = when {
+                            !reminderEnabled -> 0L
+                            keepSchedule -> existing.reminderAnchorAt
+                            else -> System.currentTimeMillis()
+                        },
+                        reminderStage = if (keepSchedule) existing.reminderStage else 0,
+                        lastRemindedAt = if (keepSchedule) existing.lastRemindedAt else 0L
+                    )
+                    val savedId = db.diaryDao().insertPostIt(entityToSave)
+                    val scheduledDiary = entityToSave.copy(diaryId = savedId.toInt())
+                    if (reminderEnabled) {
+                        ReminderScheduler.schedule(safeContext, scheduledDiary)
+                    } else {
+                        ReminderScheduler.cancel(safeContext, scheduledDiary.diaryId)
+                    }
                     Pair(view, savedId)
                 }
             }
@@ -1036,7 +1355,62 @@ class DiaryFragment : Fragment() {
             dialog.cancel()
         }
 
-        builder.show()
+        val dialog = builder.create()
+        dialog.setOnShowListener { styleCuteAlert(dialog) }
+        dialog.show()
+    }
+
+    private fun styleCuteAlert(dialog: android.app.AlertDialog) {
+        val palette = ThemeManager.currentPalette(requireContext())
+        val density = resources.displayMetrics.density
+        dialog.window?.setBackgroundDrawable(android.graphics.drawable.GradientDrawable().apply {
+            cornerRadius = 26f * resources.displayMetrics.density
+            setColor(ContextCompat.getColor(requireContext(), palette.screenBackground))
+        })
+        val pastel = ColorUtils.blendARGB(
+            ContextCompat.getColor(requireContext(), palette.screenBackground),
+            ContextCompat.getColor(requireContext(), palette.reminder),
+            .72f
+        )
+        listOf(
+            android.app.AlertDialog.BUTTON_POSITIVE,
+            android.app.AlertDialog.BUTTON_NEGATIVE,
+            android.app.AlertDialog.BUTTON_NEUTRAL
+        ).forEach { which ->
+            dialog.getButton(which)?.apply {
+                setTextColor(ContextCompat.getColor(requireContext(), palette.primaryText))
+                minWidth = (68 * resources.displayMetrics.density).toInt()
+                minHeight = 0
+                backgroundTintList = ColorStateList.valueOf(pastel)
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    cornerRadius = 19f * resources.displayMetrics.density
+                    setColor(pastel)
+                }
+                gravity = android.view.Gravity.CENTER
+                setPadding(
+                    (14 * resources.displayMetrics.density).toInt(),
+                    0,
+                    (14 * resources.displayMetrics.density).toInt(),
+                    0
+                )
+                (layoutParams as? LinearLayout.LayoutParams)?.let { params ->
+                    val gap = (5 * resources.displayMetrics.density).toInt()
+                    params.height = (36 * resources.displayMetrics.density).toInt()
+                    params.setMargins(gap, 0, gap, 0)
+                    layoutParams = params
+                }
+            }
+        }
+        // 버튼 자체의 마진은 기본 버튼 바 높이에서 잘릴 수 있으므로,
+        // 버튼 컨테이너에 여백을 줘 팝업 하단 모서리와 떨어뜨린다.
+        (dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE)?.parent as? View)?.apply {
+            setPadding(
+                paddingLeft,
+                (6 * density).toInt(),
+                paddingRight,
+                (14 * density).toInt()
+            )
+        }
     }
 
     private fun addCustomTagChip(tagName: String) {
@@ -1178,7 +1552,9 @@ class DiaryFragment : Fragment() {
             dialog.cancel()
         }
 
-        builder.show()
+        val dialog = builder.create()
+        dialog.setOnShowListener { styleCuteAlert(dialog) }
+        dialog.show()
     }
 
     // 일기장 컨테이너에 자유 배치 텍스트 뷰 꽂아넣기

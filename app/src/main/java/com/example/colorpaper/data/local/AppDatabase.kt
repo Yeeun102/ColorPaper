@@ -38,7 +38,7 @@ import com.example.colorpaper.data.model.WordEntity
         DiaryCommentEntity::class,
         WidgetEntity::class
     ],
-    version = 14,
+    version = 16,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -61,7 +61,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "flashcard_database"
                 )
-                    .addMigrations(MIGRATION_5_6, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
+                    .addMigrations(MIGRATION_5_6, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16)
                     .fallbackToDestructiveMigration()
                     .allowMainThreadQueries()
                     .build()
@@ -133,6 +133,72 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL(
                     "ALTER TABLE comments ADD COLUMN is_checked INTEGER NOT NULL DEFAULT 0"
                 )
+            }
+        }
+
+        private val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                val hasCheckedColumn = db.query("PRAGMA table_info(comments)").use { cursor ->
+                    val nameIndex = cursor.getColumnIndex("name")
+                    var found = false
+                    while (cursor.moveToNext()) {
+                        if (cursor.getString(nameIndex) == "is_checked") {
+                            found = true
+                            break
+                        }
+                    }
+                    found
+                }
+                if (!hasCheckedColumn) {
+                    db.execSQL("ALTER TABLE comments ADD COLUMN is_checked INTEGER NOT NULL DEFAULT 0")
+                }
+                db.execSQL(
+                    """
+                    CREATE TABLE diary_comments_new (
+                        commentId INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        diaryId INTEGER NOT NULL,
+                        writerId INTEGER NOT NULL,
+                        writerName TEXT NOT NULL,
+                        ownerId INTEGER NOT NULL,
+                        emoji TEXT NOT NULL,
+                        content TEXT NOT NULL,
+                        createdAt INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO diary_comments_new (
+                        commentId, diaryId, writerId, writerName,
+                        ownerId, emoji, content, createdAt
+                    )
+                    SELECT
+                        commentId, diaryId, writerId, writerName,
+                        ownerId, emoji, content,
+                        CASE
+                            WHEN CAST(createdAt AS TEXT) NOT GLOB '*[^0-9]*'
+                                THEN CAST(createdAt AS INTEGER)
+                            ELSE COALESCE(CAST(strftime('%s', createdAt) AS INTEGER) * 1000, 0)
+                        END
+                    FROM diary_comments
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE diary_comments")
+                db.execSQL("ALTER TABLE diary_comments_new RENAME TO diary_comments")
+                db.execSQL("ALTER TABLE diaries ADD COLUMN reminder_hour INTEGER NOT NULL DEFAULT 20")
+                db.execSQL("ALTER TABLE diaries ADD COLUMN reminder_minute INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        private val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE diaries ADD COLUMN review_cycle_pattern TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
+        private val MIGRATION_15_16 = object : Migration(15, 16) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE diaries ADD COLUMN review_repeat_last INTEGER NOT NULL DEFAULT 0")
             }
         }
     }
