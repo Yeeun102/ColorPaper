@@ -62,7 +62,19 @@ data class DiaryEntity(
     var zIndex: Int = 0,
 
     @ColumnInfo(name = "highlight_ranges")
-    var highlightRanges: String = ""
+    var highlightRanges: String = "",
+
+    @ColumnInfo(name = "reminder_hour", defaultValue = "20")
+    var reminderHour: Int = 20,
+
+    @ColumnInfo(name = "reminder_minute", defaultValue = "0")
+    var reminderMinute: Int = 0,
+
+    @ColumnInfo(name = "review_cycle_pattern", defaultValue = "''")
+    var reviewCyclePattern: String = "",
+
+    @ColumnInfo(name = "review_repeat_last", defaultValue = "0")
+    var reviewRepeatLast: Boolean = false
 ) {
     // Firestore 파싱용 빈 생성자
-    constructor() : this(0, "", "", "orange", "", null, false, "PRIVATE", 0, 0, 0, 0, 0, 0, "", 0f, 0f, 0, "")}
+    constructor() : this(0, "", "", "orange", "", null, false, "PRIVATE", 0, 0, 0, 0, 0, 0, "", 0f, 0f, 0, "", 20, 0, "", false)}
