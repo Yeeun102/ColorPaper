@@ -145,7 +145,7 @@
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:background="?attr/selectableItemBackground"
-            android:src="@android:drawable/ic_input_add"
+            android:src="@drawable/ic_text_tool"
             android:contentDescription="@string/createEmptyPostit" />
 
         <ImageButton
@@ -154,7 +154,7 @@
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:background="?attr/selectableItemBackground"
-            android:src="@android:drawable/ic_menu_edit"
+            android:src="@drawable/ic_highlighter"
             android:contentDescription="@string/highlight" />
 
         <ImageButton
@@ -163,7 +163,7 @@
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:background="?attr/selectableItemBackground"
-            android:src="@android:drawable/ic_menu_sort_alphabetically"
+            android:src="@drawable/ic_addtext"
             android:contentDescription="@string/enterText" />
 
         <ImageButton
@@ -172,7 +172,7 @@
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:background="?attr/selectableItemBackground"
-            android:src="@android:drawable/sym_action_chat"
+            android:src="@drawable/ic_comment_bubble"
             android:contentDescription="@string/self_comment" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>

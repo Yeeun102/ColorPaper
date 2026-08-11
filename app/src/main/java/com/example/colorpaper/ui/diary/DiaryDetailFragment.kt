@@ -183,6 +183,10 @@ class DiaryDetailFragment : Fragment() {
 
         currentBinding.btnToolbarAddDetail.isEnabled = false
         currentBinding.btnToolbarAddDetail.alpha = 0.3f
+        currentBinding.btnToolbarPenDetail.isEnabled = false
+        currentBinding.btnToolbarPenDetail.alpha = 0.3f
+        currentBinding.btnToolbarTextDetail.isEnabled = false
+        currentBinding.btnToolbarTextDetail.alpha = 0.3f
 
         checkFollowStateAndLoad()
 

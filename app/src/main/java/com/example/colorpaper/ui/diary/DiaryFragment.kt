@@ -202,6 +202,9 @@ class DiaryFragment : Fragment() {
             showAddDirectTextDialog()
         }
 
+        binding.btnToolbarComment.isEnabled = false
+        binding.btnToolbarComment.alpha = 0.3f
+
         // 2. 설정창 내부 색상 서클 클릭 시 -> 실시간 메모지 SVG 파일 교체
         binding.viewColorOrange.setOnClickListener { updateActivePostItColor("orange") }
         binding.viewColorYellow.setOnClickListener { updateActivePostItColor("yellow") }
