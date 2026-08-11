@@ -39,6 +39,12 @@ class SettingFragment : Fragment() {
         view.findViewById<View>(R.id.card_theme_sky).setOnClickListener {
             selectTheme(AppTheme.SKY)
         }
+        view.findViewById<View>(R.id.ll_repeat_cycle).setOnClickListener {
+            parentFragmentManager.beginTransaction()
+                .replace(R.id.fragment_container, RepeatCycleFragment())
+                .addToBackStack(null)
+                .commit()
+        }
 
         applyTheme(view)
     }

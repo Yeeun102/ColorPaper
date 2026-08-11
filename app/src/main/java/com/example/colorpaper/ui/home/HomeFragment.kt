@@ -389,7 +389,9 @@ class HomeFragment : Fragment() {
             }
             val elapsedDays = ReminderSchedulePolicy.elapsedDays(
                 diary.reviewCycleDays,
-                stage
+                stage,
+                diary.reviewCyclePattern,
+                diary.reviewRepeatLast
             ) ?: return@launch
             if (!isAdded) return@launch
 
