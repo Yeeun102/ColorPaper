@@ -48,9 +48,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun diaryDao(): DiaryDao
     abstract fun todoDao(): TodoDao
     abstract fun widgetDao(): WidgetDao
-    abstract fun diaryCommentDao(): DiaryCommentDao
-    abstract fun highlightDao(): HighlightDao // 🌟 하이라이트 DAO 추가
-
     companion object {
         @Volatile
         private var INSTANCE: AppDatabase? = null

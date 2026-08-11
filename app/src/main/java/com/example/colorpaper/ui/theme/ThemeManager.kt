@@ -28,6 +28,7 @@ object ThemeManager {
 
     fun palette(theme: AppTheme): ThemePalette = when (theme) {
         AppTheme.ROSE -> ThemePalette(
+            toolbarLogo = R.drawable.ic_logo_rose,
             screenBackground = R.color.theme_rose_background,
             accent = R.color.theme_rose_accent,
             stroke = R.color.theme_rose_stroke,
@@ -41,6 +42,7 @@ object ThemeManager {
             reminder = R.color.theme_rose_reminder
         )
         AppTheme.SAGE -> ThemePalette(
+            toolbarLogo = R.drawable.ic_logo_sage,
             screenBackground = R.color.theme_sage_background,
             accent = R.color.theme_sage_accent,
             stroke = R.color.theme_sage_stroke,
@@ -54,6 +56,7 @@ object ThemeManager {
             reminder = R.color.theme_sage_reminder
         )
         AppTheme.SKY -> ThemePalette(
+            toolbarLogo = R.drawable.ic_logo_sky,
             screenBackground = R.color.theme_sky_background,
             accent = R.color.theme_sky_accent,
             stroke = R.color.theme_sky_stroke,

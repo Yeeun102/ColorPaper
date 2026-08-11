@@ -19,6 +19,7 @@ import android.os.Bundle
 import android.graphics.Color
 import android.os.Handler
 import android.os.Looper
+import android.text.Editable
 import androidx.fragment.app.Fragment
 import android.text.Spanned
 import android.text.Spannable
@@ -35,6 +36,7 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.NumberPicker
 import android.text.InputType
+import android.text.TextWatcher
 import android.view.HapticFeedbackConstants
 import android.view.ViewConfiguration
 import androidx.lifecycle.lifecycleScope
@@ -1172,6 +1174,7 @@ class DiaryFragment : Fragment() {
         binding.layoutDiaryContainer.bringToFront()
 
         currentActivePostIt = postItView // 제어 대상 지정
+        limitEditTextToPostItBounds(etContent, maxLines = 6)
 
         binding.layoutPostItSetting.visibility = View.VISIBLE
         binding.layoutPostItSetting.bringToFront()
@@ -1678,6 +1681,31 @@ class DiaryFragment : Fragment() {
             }
             true
         }
+    }
+
+    private fun limitEditTextToPostItBounds(editText: EditText, maxLines: Int = 6) {
+        editText.maxLines = maxLines
+
+        editText.addTextChangedListener(object : TextWatcher {
+            private var previousText = ""
+
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
+                // 입력 직전의 텍스트 백업
+                previousText = s?.toString() ?: ""
+            }
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+
+            override fun afterTextChanged(s: Editable?) {
+                // 레이아웃이 계산된 후 줄 수가 최대 허용 줄 수를 초과하면 이전 글자로 원복
+                if (editText.layout != null && editText.layout.lineCount > maxLines) {
+                    editText.setText(previousText)
+                    // 커서를 맨 뒤로 이동
+                    editText.setSelection(editText.text.length)
+                    Toast.makeText(editText.context, "포스트잇 범위를 넘어 입력할 수 없습니다.", Toast.LENGTH_SHORT).show()
+                }
+            }
+        })
     }
 
     private fun moveViewWithinParent(view: View, dx: Float, dy: Float) {
