@@ -11,8 +11,10 @@ import com.example.colorpaper.ui.profile.ProfileFragment
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.text.Editable
 import android.text.SpannableString
 import android.text.Spanned
+import android.text.TextWatcher
 import android.text.style.BackgroundColorSpan
 import android.text.method.PasswordTransformationMethod
 import android.util.Log
@@ -53,6 +55,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.abs
 import kotlin.math.hypot
+import androidx.core.view.isVisible
 
 class DiaryDetailFragment : Fragment() {
     private var _binding: FragmentDiaryDetailBinding? = null
@@ -272,6 +275,7 @@ class DiaryDetailFragment : Fragment() {
             etCommentContent.isFocusable = true
             etCommentContent.isFocusableInTouchMode = true
             etCommentContent.requestFocus()
+            limitEditTextToPostItBounds(etCommentContent, maxLines = 3)
 
             btnCommentDone.setOnClickListener {
                 val safeCtx = context ?: return@setOnClickListener
@@ -949,7 +953,10 @@ class DiaryDetailFragment : Fragment() {
         val posX = view.translationX
         val posY = view.translationY
 
+        val existingCommentId = (view.getTag(R.id.ivCommentBg) as? Int) ?: 0
+
         val newComment = CommentEntity(
+            commentId = existingCommentId,
             diaryId = ownerUid.hashCode(),
             userId = currentUid,
             date = targetDate,
@@ -1004,9 +1011,18 @@ class DiaryDetailFragment : Fragment() {
             val commentView = container.getChildAt(i) ?: continue
             val etCommentContent = commentView.findViewById<EditText>(R.id.etCommentContent) ?: continue
             val tvTime = commentView.findViewById<TextView>(R.id.tvCommentTime) ?: continue
+            val btnCommentDone = commentView.findViewById<TextView>(R.id.btnCommentDone)
 
             val text = etCommentContent.text.toString().trim()
             if (text.isNotBlank()) {
+
+                if (btnCommentDone != null && btnCommentDone.isVisible) {
+                    btnCommentDone.visibility = View.GONE
+                    etCommentContent.clearFocus()
+                    lockCommentEditText(commentView, etCommentContent)
+                    makeViewDraggable(commentView)
+                }
+
                 val existingCommentId = (commentView.getTag(R.id.ivCommentBg) as? Int) ?: 0
                 val colorName = (commentView.tag as? String) ?: "blue"
                 val posX = commentView.translationX
@@ -1265,6 +1281,31 @@ class DiaryDetailFragment : Fragment() {
         etCommentContent.isFocusable = false
         etCommentContent.isFocusableInTouchMode = false
         etCommentContent.setOnTouchListener(null)
+    }
+
+    private fun limitEditTextToPostItBounds(editText: EditText, maxLines: Int = 3) {
+        editText.maxLines = maxLines
+
+        editText.addTextChangedListener(object : TextWatcher {
+            private var previousText = ""
+
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
+                // 입력 직전의 텍스트 백업
+                previousText = s?.toString() ?: ""
+            }
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+
+            override fun afterTextChanged(s: Editable?) {
+                // 레이아웃이 계산된 후 줄 수가 최대 허용 줄 수를 초과하면 이전 글자로 원복
+                if (editText.layout != null && editText.layout.lineCount > maxLines) {
+                    editText.setText(previousText)
+                    // 커서를 맨 뒤로 이동
+                    editText.setSelection(editText.text.length)
+                    Toast.makeText(editText.context, "포스트잇 범위를 넘어 입력할 수 없습니다.", Toast.LENGTH_SHORT).show()
+                }
+            }
+        })
     }
 
     private fun moveViewWithinParent(view: View, dx: Float, dy: Float) {
