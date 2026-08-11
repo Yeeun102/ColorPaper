@@ -238,7 +238,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginTop="10dp"
+            android:layout_marginTop="14dp"
             android:gravity="center_vertical">
             <TextView
                 android:layout_width="60dp"
@@ -302,7 +302,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_marginTop="10dp"
+                android:layout_marginTop="14dp"
                 android:gravity="center_vertical">
                 <TextView
                     android:layout_width="60dp"
@@ -340,7 +340,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_marginTop="10dp"
+                android:layout_marginTop="14dp"
                 android:gravity="center_vertical">
                 <TextView
                     android:layout_width="60dp"
@@ -351,8 +351,9 @@
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnRepeatAuto"
                     style="?android:attr/buttonBarStyle"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="32dp"
+                    android:layout_weight="1"
                     android:minHeight="0dp"
                     android:paddingVertical="0dp"
                     android:insetTop="0dp"
@@ -368,8 +369,9 @@
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnRepeatUser"
                     style="?android:attr/buttonBarStyle"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="32dp"
+                    android:layout_weight="1"
                     android:minHeight="0dp"
                     android:paddingVertical="0dp"
                     android:insetTop="0dp"
@@ -385,8 +387,9 @@
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnRepeatNone"
                     style="?android:attr/buttonBarStyle"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="32dp"
+                    android:layout_weight="1"
                     android:minHeight="0dp"
                     android:paddingVertical="0dp"
                     android:insetTop="0dp"
@@ -400,12 +403,43 @@
                     android:backgroundTint="#F0E2B4"/>
             </LinearLayout>
 
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="60dp"
+                    android:layout_height="wrap_content"
+                    android:text="알림 시간"
+                    android:textColor="#000000"
+                    android:textStyle="bold" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnReminderTime"
+                    style="?android:attr/buttonBarStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:gravity="center"
+                    android:insetBottom="0dp"
+                    android:insetTop="0dp"
+                    android:minHeight="0dp"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="0dp"
+                    android:text="오후 8:00"
+                    android:textColor="#000000"
+                    app:strokeColor="#000000"
+                    app:strokeWidth="1dp" />
+            </LinearLayout>
+
         <!-- 종료일자 라인 -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_marginTop="10dp"
+                android:layout_marginTop="14dp"
                 android:gravity="center_vertical">
                 <TextView
                     android:layout_width="60dp"
@@ -453,7 +487,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_marginTop="10dp"
+                android:layout_marginTop="14dp"
                 android:gravity="center_vertical">
                 <TextView
                     android:layout_width="60dp"

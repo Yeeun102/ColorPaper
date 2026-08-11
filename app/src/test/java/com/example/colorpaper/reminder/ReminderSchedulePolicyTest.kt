@@ -58,4 +58,32 @@ class ReminderSchedulePolicyTest {
             )
         )
     }
+
+    @Test
+    fun `custom pattern uses each configured elapsed day then stops`() {
+        val anchor = 3_000_000L
+        val pattern = "1,3,5,7"
+
+        listOf(1, 3, 5, 7).forEachIndexed { stage, days ->
+            assertEquals(
+                anchor + days * day,
+                ReminderSchedulePolicy.nextTriggerAt(
+                    anchorAt = anchor,
+                    cycleDays = ReminderSchedulePolicy.CUSTOM_PATTERN,
+                    stage = stage,
+                    cyclePattern = pattern,
+                    now = anchor
+                )
+            )
+        }
+        assertNull(
+            ReminderSchedulePolicy.nextTriggerAt(
+                anchorAt = anchor,
+                cycleDays = ReminderSchedulePolicy.CUSTOM_PATTERN,
+                stage = 4,
+                cyclePattern = pattern,
+                now = anchor
+            )
+        )
+    }
 }
