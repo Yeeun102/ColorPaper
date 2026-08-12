@@ -160,7 +160,7 @@ object ProfileThemeStyler {
     private fun color(view: View, colorRes: Int): Int =
         ContextCompat.getColor(view.context, colorRes)
 
-    private val FILLED_TEXT_BUTTON_IDS = setOf(R.id.btnFollowToggle, R.id.btnLogout)
+    private val FILLED_TEXT_BUTTON_IDS = setOf(R.id.btnFollowToggle)
 
     private val THEMED_ICON_IDS = setOf(
         R.id.ivBack,

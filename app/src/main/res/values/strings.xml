@@ -4,8 +4,8 @@
     <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="set1">#set1</string>
     <string name="start">시작하기</string>
-    <string name="myFlashcards">내 단어장</string>
-    <string name="createNewFlashcard">새 단어장 생성</string>
+    <string name="myFlashcards">내 플립카드</string>
+    <string name="createNewFlashcard">새 플립카드 생성</string>
     <string name="FlashcardFront">외울내용(앞면)</string>
     <string name="seeFlashcardBack">← 뒷면보기</string>
     <string name="gotoNextFlashcard">다음 카드 →</string>
@@ -82,11 +82,11 @@
     <string name="masking_correct">정답이에요!</string>
     <string name="masking_incorrect">다시 떠올려 보세요.</string>
     <string name="today">today</string>
-    <string name="no_flashcard">단어장이 없습니다.</string>
+    <string name="no_flashcard">플립카드가 없습니다.</string>
     <string name="f_exit">종료</string>
-    <string name="quick_action_open">리마인드 또는 암기카드 열기</string>
+    <string name="quick_action_open">리마인드 또는 플립카드 열기</string>
     <string name="quick_action_reminder">리마인드</string>
-    <string name="quick_action_flashcard">암기카드</string>
+    <string name="quick_action_flashcard">플립카드</string>
     <string name="reminder_history_title">리마인드</string>
     <string name="reminder_history_title_count">리마인드(%1$d)</string>
     <string name="reminder_history_empty">오늘 답변한 리마인드가 없어요.\n알림을 통해 답변하면 이곳에 모아드려요.</string>
