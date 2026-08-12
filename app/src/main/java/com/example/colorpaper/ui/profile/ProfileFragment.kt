@@ -108,7 +108,6 @@ class ProfileFragment : Fragment() {
         val diaryBookCoverLayer = view.findViewById<View>(R.id.diaryBookCoverLayer)
         val diaryBookFlap = view.findViewById<View>(R.id.diaryBookFlap)
         val btnFollowToggle = view.findViewById<TextView?>(R.id.btnFollowToggle)
-        val btnLogout = view.findViewById<TextView?>(R.id.btnLogout)
 
         val cardEmptySharedFlashcard = view.findViewById<MaterialCardView>(R.id.cardEmptySharedFlashcard)
         val rvSharedFlashcards = view.findViewById<RecyclerView>(R.id.rvSharedFlashcards)
@@ -162,7 +161,6 @@ class ProfileFragment : Fragment() {
         tvFriendUpdateBadge?.isVisible = isMyProfile
         ivSearchFriend?.isVisible = isMyProfile
         btnFollowToggle?.isVisible = !isMyProfile
-        btnLogout?.isVisible = isMyProfile
 
         // 🌟 1. 팝업 리사이클러뷰 어댑터 세팅
         popupFriendAdapter = PopupFriendAdapter(emptyList()) { user ->
@@ -193,7 +191,7 @@ class ProfileFragment : Fragment() {
                     .commit()
             },
             onItemLongClick = { folder ->
-                Toast.makeText(context, "'${folder.folderName}' 단어장", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "'${folder.folderName}' 플립카드", Toast.LENGTH_SHORT).show()
             }
         )
         rvSharedFlashcards?.adapter = profileFlashcardAdapter
@@ -208,10 +206,6 @@ class ProfileFragment : Fragment() {
                 tvUserCodeTop?.text = "#${user.userCode}"
 
                 ivProfileImage?.setImageResource(R.drawable.ic_default_profile)
-            }
-
-            btnLogout?.setOnClickListener {
-                performLogout()
             }
         }
 
@@ -344,7 +338,7 @@ class ProfileFragment : Fragment() {
 
         cardEmptySharedFlashcard?.setOnClickListener {
             viewModel.fetchMySharedFolders(targetUserId)
-            Toast.makeText(context, "공유 단어장 목록을 새로고침했습니다.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "공유 플립카드 목록을 새로고침했습니다.", Toast.LENGTH_SHORT).show()
         }
 
         llSharedDiary?.setOnClickListener {
