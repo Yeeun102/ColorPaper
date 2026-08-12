@@ -184,8 +184,8 @@ class FlashcardFragment : Fragment() {
         val safeAppContext = dialogContext.applicationContext
 
         AlertDialog.Builder(dialogContext)
-            .setTitle("단어장 삭제")
-            .setMessage("${flashcardSet.folderName} 단어장을 정말 삭제하시겠습니까?\n내부 카드들도 함께 삭제됩니다.")
+            .setTitle("플립카드 삭제")
+            .setMessage("${flashcardSet.folderName} 플립카드를 정말 삭제하시겠습니까?\n내부 카드들도 함께 삭제됩니다.")
             .setPositiveButton("삭제") { _, _ ->
                 val currentUserId = auth.currentUser?.uid ?: ""
 
@@ -217,7 +217,7 @@ class FlashcardFragment : Fragment() {
 
                     } catch (e: Exception) {
                         if (e !is CancellationException) {
-                            Log.e("FlashcardFragment", "단어장 삭제 처리 중 오류", e)
+                            Log.e("FlashcardFragment", "플립카드 삭제 처리 중 오류", e)
                         }
                     }
                 }
