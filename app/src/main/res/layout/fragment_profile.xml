@@ -46,7 +46,10 @@
                     tools:text="#0000"
                     android:textSize="18sp"
                     android:textStyle="italic|bold"
-                    android:textColor="#8B5A5A" />
+                    android:textColor="#8B5A5A"
+                    android:layout_toEndOf="@id/ivBack"
+                    android:layout_centerVertical="true"
+                    android:layout_marginStart="12dp"/>
 
                 <ImageView
                     android:id="@+id/ivSearchFriend"
@@ -134,20 +137,6 @@
                         android:src="@android:drawable/ic_menu_edit"
                         android:contentDescription="프로필수정" />
 
-                    <!-- 로그아웃 버튼 (alignParentBottom 제거 및 위치 조정) -->
-                    <TextView
-                        android:id="@+id/btnLogout"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_alignParentEnd="true"
-                        android:layout_below="@id/ivEditProfile"
-                        android:layout_marginTop="8dp"
-                        android:text="로그아웃"
-                        android:textColor="#FF5252"
-                        android:textSize="12sp"
-                        android:textStyle="bold"
-                        android:padding="4dp"
-                        android:visibility="gone"/>
 
                     <!-- 팔로우 버튼 (타인 프로필용) -->
                     <TextView
@@ -240,7 +229,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="center"
-                        android:text="공유 중인 단어장이 없습니다"
+                        android:text="공유 중인 플립카드 없습니다"
                         android:textColor="#8C7676"
                         android:textSize="14sp"
                         android:textStyle="bold" />
