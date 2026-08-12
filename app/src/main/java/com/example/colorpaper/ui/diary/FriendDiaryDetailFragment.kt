@@ -530,45 +530,6 @@ class FriendDiaryDetailFragment : Fragment() {
         }
     }
 
-    private fun deleteCommentFromDb(comment: CommentEntity, targetView: View? = null) {
-        val safeContext = context?.applicationContext ?: return
-        val binding = _binding ?: return
-        val currentUid = AuthUtils.getCurrentUserId()
-        val ownerUid = targetUserId ?: currentUid
-
-        // 1. 화면(UI)에서 해당 댓글 포스트잇 즉시 제거
-        val viewToRemove = targetView ?: binding.layoutCommentsContainer.findViewWithTag<View>(comment.commentId)
-        if (viewToRemove != null) {
-            binding.layoutCommentsContainer.removeView(viewToRemove)
-        }
-
-        val docId = "${ownerUid}_${comment.date}_${comment.commentId}"
-
-        viewLifecycleOwner.lifecycleScope.launch {
-            // 2. Firestore DB 삭제
-            try {
-                firestore.collection("comments")
-                    .document(docId)
-                    .delete()
-                    .await()
-                Log.d("FriendDiaryDetail", "Firestore 댓글 삭제 완료: $docId")
-            } catch (e: Exception) {
-                Log.e("FriendDiaryDetail", "Firestore 댓글 삭제 실패", e)
-            }
-
-            // 3. Room 로컬 DB 삭제
-            try {
-                withContext(Dispatchers.IO) {
-                    val db = AppDatabase.getDatabase(safeContext)
-                    db.diaryDao().deleteComment(comment)
-                }
-                Log.d("FriendDiaryDetail", "Room 댓글 삭제 완료: ${comment.commentId}")
-            } catch (e: Exception) {
-                Log.e("FriendDiaryDetail", "로컬 DB 댓글 삭제 실패", e)
-            }
-        }
-    }
-
     private fun renderCommentPostIt(comment: CommentEntity, authorLabel: String) {
         val safeContext = context ?: return
         val binding = _binding ?: return
@@ -582,9 +543,6 @@ class FriendDiaryDetailFragment : Fragment() {
         val btnCommentDone = view.findViewById<TextView>(R.id.btnCommentDone)
         val tvEmoji = view.findViewById<TextView>(R.id.tvCommentEmoji)
 
-        // 🌟 삭제 버튼 뷰 바인딩
-        val btnDeleteComment = view.findViewById<TextView>(R.id.btnDeleteComment)
-
         val (emoji, plainText) = decodeCommentContent(comment.content)
         etCommentContent.setText(plainText)
         tvEmoji.text = emoji
@@ -594,8 +552,8 @@ class FriendDiaryDetailFragment : Fragment() {
         val resId = commentResourceMap[comment.color] ?: R.drawable.comment_blue
         ivCommentBg.setImageResource(resId)
 
-        view.tag = comment.commentId
         view.setTag(R.id.ivCommentBg, comment.commentId)
+        view.tag = comment.color
         view.setTag(R.id.btnFollow, comment.userId)
         view.setTag(R.id.btnProfileHome, targetUserId ?: "")
         view.setTag(R.id.tvCommentEmoji, comment.createdAt)
@@ -608,66 +566,12 @@ class FriendDiaryDetailFragment : Fragment() {
         etCommentContent.isFocusable = false
         btnCommentDone.visibility = View.GONE
 
-        // 🌟 초기 상태에서 삭제 버튼 숨김
-        btnDeleteComment?.visibility = View.GONE
-
-        // 1️⃣ 단일 클릭 시 실행될 동작 (이모지 ↔ 댓글 전환)
-        val onSingleTapToggle = setupCommentToggle(view, emoji, startCollapsed = true)
-
-        // 2️⃣ 더블 클릭 시 실행될 동작 (명시적으로 : () -> Unit 타입 지정)
-        val onDoubleTapToggleDelete: () -> Unit = {
-            val currentUid = auth.currentUser?.uid ?: ""
-            val canDelete = (targetUserId == currentUid) || (comment.userId == currentUid)
-
-            if (canDelete) {
-                btnDeleteComment?.let { btn ->
-                    if (btn.visibility == View.VISIBLE) {
-                        // 뿅! 사라짐
-                        btn.animate()
-                            .scaleX(0f).scaleY(0f).alpha(0f)
-                            .setDuration(150L)
-                            .setInterpolator(android.view.animation.AnticipateInterpolator())
-                            .withEndAction { btn.visibility = View.GONE }
-                            .start()
-                    } else {
-                        // 뿅! 나타남 (통통 튀는 애니메이션)
-                        btn.visibility = View.VISIBLE
-                        btn.scaleX = 0f; btn.scaleY = 0f; btn.alpha = 0f
-                        btn.animate()
-                            .scaleX(1f).scaleY(1f).alpha(1f)
-                            .setDuration(220L)
-                            .setInterpolator(android.view.animation.OvershootInterpolator(2.0f))
-                            .start()
-                    }
-                }
-            } else {
-                Toast.makeText(safeContext, "삭제 권한이 없습니다.", Toast.LENGTH_SHORT).show()
-            }
-        }
-
-        // 3️⃣ 삭제 버튼 클릭 시 쏙 사라지며 별도 팝업 없이 즉시 삭제
-        btnDeleteComment?.setOnClickListener {
-            btnDeleteComment.animate()
-                .scaleX(0f).scaleY(0f).alpha(0f)
-                .setDuration(120L)
-                .setInterpolator(android.view.animation.AnticipateInterpolator())
-                .withEndAction {
-                    btnDeleteComment.visibility = View.GONE
-                    deleteCommentFromDb(comment, view)
-                }
-                .start()
-        }
-
-        // 4️⃣ 제스처 및 드래그 연결 (단일탭/더블탭 구분 처리)
-        enableDragAndScale(
-            view = view,
-            onSingleTap = onSingleTapToggle,
-            onDoubleTap = onDoubleTapToggleDelete
-        )
-
+        setupCommentToggle(view, emoji, startCollapsed = true)
+        enableDragAndScale(view)
         binding.layoutCommentsContainer.addView(view)
         view.post { DiaryPageBounds.clamp(view, binding.ivFixedFriendDiaryPage) }
     }
+
     private fun showAddCommentDialog() {
         val safeContext = context ?: return
 
@@ -723,7 +627,6 @@ class FriendDiaryDetailFragment : Fragment() {
         val tvTime = commentView.findViewById<TextView>(R.id.tvCommentTime)
         val tvAuthor = commentView.findViewById<TextView>(R.id.tvCommentAuthor)
         val tvEmoji = commentView.findViewById<TextView>(R.id.tvCommentEmoji)
-        val btnDeleteComment = commentView.findViewById<TextView>(R.id.btnDeleteComment)
 
         val todayDateStr = dateFormatFull.format(Date())
         tvTime.text = todayDateStr
@@ -738,47 +641,17 @@ class FriendDiaryDetailFragment : Fragment() {
         etCommentContent.isEnabled = false
         etCommentContent.isFocusable = false
         btnCommentDone.visibility = View.GONE
-        btnDeleteComment?.visibility = View.GONE
         tvEmoji.text = emoji
 
-        // 🌟 1. 클릭 토글 함수 받기
-        val onSingleTapToggle = setupCommentToggle(commentView, emoji, startCollapsed = true)
-
-        // 🌟 2. 더블클릭 삭제 애니메이션 토글 함수 작성
-        val onDoubleTapToggleDelete: () -> Unit = {
-            btnDeleteComment?.let { btn ->
-                if (btn.visibility == View.VISIBLE) {
-                    btn.animate()
-                        .scaleX(0f).scaleY(0f).alpha(0f)
-                        .setDuration(150L)
-                        .setInterpolator(android.view.animation.AnticipateInterpolator())
-                        .withEndAction { btn.visibility = View.GONE }
-                        .start()
-                } else {
-                    btn.visibility = View.VISIBLE
-                    btn.scaleX = 0f; btn.scaleY = 0f; btn.alpha = 0f
-                    btn.animate()
-                        .scaleX(1f).scaleY(1f).alpha(1f)
-                        .setDuration(220L)
-                        .setInterpolator(android.view.animation.OvershootInterpolator(2.0f))
-                        .start()
-                }
-            }
-        }
-
-        // 🌟 3. enableDragAndScale에 onSingleTap과 onDoubleTap을 함께 전달
-        enableDragAndScale(
-            view = commentView,
-            onSingleTap = onSingleTapToggle,
-            onDoubleTap = onDoubleTapToggleDelete
-        )
-
+        setupCommentToggle(commentView, emoji, startCollapsed = true)
+        enableDragAndScale(commentView)
         saveNewCommentToDb(commentView, emoji, text, randomColor, todayDateStr)
 
         binding.layoutCommentsContainer.addView(commentView)
         commentView.post { DiaryPageBounds.clamp(commentView, binding.ivFixedFriendDiaryPage) }
         commentView.bringToFront()
     }
+
     private fun saveNewCommentToDb(view: View, emoji: String, text: String, color: String, timestamp: String) {
         val safeContext = context?.applicationContext ?: return
         val ownerUid = targetUserId ?: return
@@ -811,7 +684,6 @@ class FriendDiaryDetailFragment : Fragment() {
 
             withContext(Dispatchers.Main) {
                 if (_binding != null) {
-                    view.tag = savedId.toInt()
                     view.setTag(R.id.ivCommentBg, savedId.toInt())
                     view.setTag(R.id.btnFollow, currentUid)
                     view.setTag(R.id.btnProfileHome, ownerUid)
@@ -822,6 +694,7 @@ class FriendDiaryDetailFragment : Fragment() {
             }
         }
     }
+
     private fun persistCommentPosition(commentView: View) {
         val safeContext = context?.applicationContext ?: return
         val commentId = (commentView.getTag(R.id.ivCommentBg) as? Int) ?: return
@@ -830,10 +703,7 @@ class FriendDiaryDetailFragment : Fragment() {
         val color = (commentView.tag as? String) ?: "blue"
         val etContent = commentView.findViewById<EditText>(R.id.etCommentContent)
         val tvEmoji = commentView.findViewById<TextView>(R.id.tvCommentEmoji)
-
-        // 🌟 tvTime -> tvCommentTime 으로 수정
         val tvTime = commentView.findViewById<TextView>(R.id.tvCommentTime)
-
         val createdAt = (commentView.getTag(R.id.tvCommentEmoji) as? Long) ?: System.currentTimeMillis()
         val isChecked = (commentView.getTag(R.id.btnCommentDone) as? Boolean) ?: false
 
@@ -854,7 +724,7 @@ class FriendDiaryDetailFragment : Fragment() {
             date = selectedDate,
             content = payload,
             color = color,
-            timestamp = tvTime?.text?.toString().orEmpty(), // 이제 시간 값이 유지됩니다!
+            timestamp = tvTime.text?.toString().orEmpty(),
             createdAt = createdAt,
             isChecked = isChecked,
             posX = commentView.translationX,
@@ -873,6 +743,7 @@ class FriendDiaryDetailFragment : Fragment() {
             }
         }
     }
+
     private fun encodeCommentContent(emoji: String, content: String): String {
         val safeEmoji = emoji.replace(COMMENT_SEPARATOR, "")
         return "$safeEmoji$COMMENT_SEPARATOR$content"
@@ -887,7 +758,7 @@ class FriendDiaryDetailFragment : Fragment() {
         return Pair(emoji, text)
     }
 
-    private fun setupCommentToggle(commentView: View, emoji: String, startCollapsed: Boolean): () -> Unit {
+    private fun setupCommentToggle(commentView: View, emoji: String, startCollapsed: Boolean) {
         val ivCommentBg = commentView.findViewById<ImageView>(R.id.ivCommentBg)
         val etCommentContent = commentView.findViewById<EditText>(R.id.etCommentContent)
         val tvTime = commentView.findViewById<TextView>(R.id.tvCommentTime)
@@ -907,38 +778,27 @@ class FriendDiaryDetailFragment : Fragment() {
             tvEmoji.visibility = if (collapsed) View.VISIBLE else View.GONE
         }
 
-        setCollapsed(startCollapsed)
-
-        // 💡 단일 클릭 시 실행될 토글 동작 반환
-        return {
+        val toggleClick = View.OnClickListener {
             val expanded = (commentView.getTag(R.id.btnFriendComment) as? Boolean) ?: false
             setCollapsed(expanded)
         }
+
+        commentView.setOnClickListener(toggleClick)
+        tvEmoji.setOnClickListener(toggleClick)
+        ivCommentBg.setOnClickListener(toggleClick)
+        etCommentContent.setOnClickListener(toggleClick)
+        tvTime.setOnClickListener(toggleClick)
+
+        setCollapsed(startCollapsed)
     }
+
     @SuppressLint("ClickableViewAccessibility")
-    private fun enableDragAndScale(
-        view: View,
-        onSingleTap: () -> Unit = {},
-        onDoubleTap: () -> Unit = {}
-    ) {
+    private fun enableDragAndScale(view: View) {
         val safeContext = context ?: return
         val diaryPage = _binding?.ivFixedFriendDiaryPage ?: return
         var lastX = 0f
         var lastY = 0f
         var moved = false
-
-        // 💡 클릭 vs 더블클릭을 정밀하게 구분해주는 제스처 감지기
-        val gestureDetector = GestureDetector(safeContext, object : GestureDetector.SimpleOnGestureListener() {
-            override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
-                onSingleTap() // 더블탭이 아님이 확정되었을 때만 이모지 ↔ 댓글 토글 실행
-                return true
-            }
-
-            override fun onDoubleTap(e: MotionEvent): Boolean {
-                onDoubleTap() // 더블탭 시 즉시 삭제 버튼 애니메이션 토글 실행
-                return true
-            }
-        })
 
         val scaleDetector = ScaleGestureDetector(safeContext, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
             override fun onScale(detector: ScaleGestureDetector): Boolean {
@@ -957,8 +817,6 @@ class FriendDiaryDetailFragment : Fragment() {
 
         val dragAndScaleTouchListener = View.OnTouchListener { _, event ->
             scaleDetector.onTouchEvent(event)
-            gestureDetector.onTouchEvent(event) // 터치 이벤트를 GestureDetector에 전달
-
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     lastX = event.rawX
@@ -971,7 +829,7 @@ class FriendDiaryDetailFragment : Fragment() {
                     val dx = event.rawX - lastX
                     val dy = event.rawY - lastY
 
-                    if (kotlin.math.abs(dx) > 3f || kotlin.math.abs(dy) > 3f) {
+                    if (kotlin.math.abs(dx) > 2f || kotlin.math.abs(dy) > 2f) {
                         moved = true
                     }
 
@@ -983,6 +841,9 @@ class FriendDiaryDetailFragment : Fragment() {
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     if (moved) {
                         persistCommentPosition(view)
+                    }
+                    if (!moved) {
+                        view.performClick()
                     }
                 }
             }

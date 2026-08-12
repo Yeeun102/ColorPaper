@@ -848,9 +848,10 @@ class DiaryDetailFragment : Fragment() {
         val tvAuthor = view.findViewById<TextView>(R.id.tvCommentAuthor)
         val btnCommentDone = view.findViewById<TextView>(R.id.btnCommentDone)
         val tvEmoji = view.findViewById<TextView>(R.id.tvCommentEmoji)
-        val btnDeleteComment = view.findViewById<TextView>(R.id.btnDeleteComment)
 
         val layoutAuthor = view.findViewById<View>(R.id.layoutCommentAuthor)
+        val ivProfile = view.findViewById<ImageView>(R.id.ivCommentProfile)
+
         val (emoji, plainText) = decodeCommentContent(comment.content)
         val isEmojiComment = isEmojiCommentContent(comment.content)
 
@@ -902,7 +903,6 @@ class DiaryDetailFragment : Fragment() {
         view.translationY = comment.posY
 
         btnCommentDone.visibility = View.GONE
-        btnDeleteComment?.visibility = View.GONE
 
         if (isEmojiComment) {
             setupEmojiCommentToggle(
@@ -920,57 +920,17 @@ class DiaryDetailFragment : Fragment() {
         }
 
         if (!isHighlightMode) {
+            // 💡 [수정] 삭제 권한(내 일기장 OR 내가 단 댓글) 체크 후 더블탭 콜백 전달
             val myUid = auth.currentUser?.uid ?: ""
             val canDelete = isMyDiary || (comment.userId == myUid)
 
-            // 💡 더블탭 시 삭제 버튼 토글 애니메이션
             makeViewDraggable(view) {
                 if (canDelete) {
-                    btnDeleteComment?.let { btn ->
-                        if (btn.visibility == View.VISIBLE) {
-                            btn.animate()
-                                .scaleX(0f)
-                                .scaleY(0f)
-                                .alpha(0f)
-                                .setDuration(150L)
-                                .setInterpolator(android.view.animation.AnticipateInterpolator())
-                                .withEndAction { btn.visibility = View.GONE }
-                                .start()
-                        } else {
-                            btn.visibility = View.VISIBLE
-                            btn.scaleX = 0f
-                            btn.scaleY = 0f
-                            btn.alpha = 0f
-                            btn.animate()
-                                .scaleX(1f)
-                                .scaleY(1f)
-                                .alpha(1f)
-                                .setDuration(220L)
-                                .setInterpolator(android.view.animation.OvershootInterpolator(2.0f))
-                                .start()
-                        }
-                    }
+                    showCuteDeleteDialog(view, comment)
                 } else {
                     Toast.makeText(safeContext, "다른 사람의 댓글은 삭제할 수 없습니다.", Toast.LENGTH_SHORT).show()
                 }
             }
-
-            // 🌟 [수정] 삭제 버튼 클릭 시 댓글 전체 View가 화면에서 축소/소멸 후 제거되도록 변경
-            btnDeleteComment?.setOnClickListener {
-                view.animate()
-                    .scaleX(0f)
-                    .scaleY(0f)
-                    .alpha(0f)
-                    .setDuration(200L)
-                    .setInterpolator(android.view.animation.AnticipateInterpolator())
-                    .withEndAction {
-                        currentBinding.layoutCommentsContainer.removeView(view) // UI에서 즉시 제거
-                        deleteCommentFromDb(comment)                            // DB 삭제 실행
-                        Toast.makeText(safeContext, "댓글이 삭제되었습니다.", Toast.LENGTH_SHORT).show()
-                    }
-                    .start()
-            }
-
             lockCommentEditText(view, etCommentContent)
         }
 
@@ -1233,24 +1193,60 @@ class DiaryDetailFragment : Fragment() {
         }
     }
 
+    private fun showCuteDeleteDialog(commentView: View, comment: CommentEntity) {
+        val safeContext = context ?: return
+        val currentBinding = _binding ?: return
+
+        val dialogView = LayoutInflater.from(safeContext).inflate(R.layout.dialog_delete_comment, null)
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(safeContext)
+            .setView(dialogView)
+            .create()
+
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+
+        val btnCancel = dialogView.findViewById<TextView>(R.id.btnCancel)
+        val btnDelete = dialogView.findViewById<TextView>(R.id.btnDelete)
+
+        // 💡 현재 앱의 Palette 테마 색상 자동 적용
+        val accentColor = ContextCompat.getColor(safeContext, palette.accent)
+        val strokeColor = ContextCompat.getColor(safeContext, palette.stroke)
+
+        btnDelete.backgroundTintList = ColorStateList.valueOf(accentColor)
+        btnCancel.backgroundTintList = ColorStateList.valueOf(strokeColor)
+
+        btnCancel.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        btnDelete.setOnClickListener {
+            // 1. 화면 컨테이너에서 포스트잇 제거
+            currentBinding.layoutCommentsContainer.removeView(commentView)
+
+            // 2. Firestore & Room DB 데이터 삭제
+            deleteCommentFromDb(comment)
+
+            Toast.makeText(safeContext, "댓글이 삭제되었습니다.", Toast.LENGTH_SHORT).show()
+            dialog.dismiss()
+        }
+
+        dialog.show()
+    }
     private fun deleteCommentFromDb(comment: CommentEntity) {
         val safeContext = context?.applicationContext ?: return
         val currentUid = AuthUtils.getCurrentUserId()
         val ownerUid = if (isMyDiary) currentUid else (targetUserId ?: currentUid)
 
-        val commentId = comment.commentId
-        val docId = "${ownerUid}_${comment.date}_${commentId}"
+        // Firestore 문서 키 구조: ${ownerUid}_${date}_${commentId}
+        val docId = "${ownerUid}_${comment.date}_${comment.commentId}"
 
         viewLifecycleOwner.lifecycleScope.launch {
             // 1. Firestore DB 삭제
             try {
-                if (commentId > 0) {
-                    firestore.collection("comments")
-                        .document(docId)
-                        .delete()
-                        .await()
-                    Log.d("DiaryDetail", "Firestore 댓글 삭제 완료: $docId")
-                }
+                firestore.collection("comments")
+                    .document(docId)
+                    .delete()
+                    .await()
+                Log.d("DiaryDetail", "Firestore 댓글 삭제 완료: $docId")
             } catch (e: Exception) {
                 Log.e("DiaryDetail", "Firestore 댓글 삭제 실패", e)
             }
@@ -1261,14 +1257,12 @@ class DiaryDetailFragment : Fragment() {
                     val db = AppDatabase.getDatabase(safeContext)
                     db.diaryDao().deleteComment(comment)
                 }
-                Log.d("DiaryDetail", "Room 댓글 삭제 완료: $commentId")
+                Log.d("DiaryDetail", "Room 댓글 삭제 완료: ${comment.commentId}")
             } catch (e: Exception) {
                 Log.e("DiaryDetail", "로컬 DB 댓글 삭제 실패", e)
             }
         }
     }
-
-
     @SuppressLint("ClickableViewAccessibility")
     private fun lockCommentEditText(commentView: View, etCommentContent: EditText) {
         etCommentContent.keyListener = null
