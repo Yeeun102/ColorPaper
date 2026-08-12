@@ -3,17 +3,13 @@ package com.example.colorpaper.ui.diary
 import androidx.core.graphics.toColorInt
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
-import com.example.colorpaper.data.repository.DiaryRepository
-import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-import androidx.fragment.app.viewModels
 import android.annotation.SuppressLint
 import android.app.DatePickerDialog
-import android.app.TimePickerDialog
 import android.content.res.ColorStateList
 import android.os.Bundle
 import android.graphics.Color
@@ -39,7 +35,6 @@ import android.text.InputType
 import android.text.TextWatcher
 import android.view.HapticFeedbackConstants
 import android.view.ViewConfiguration
-import androidx.lifecycle.lifecycleScope
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.ColorUtils
@@ -55,11 +50,7 @@ import com.example.colorpaper.ui.theme.AppTheme
 import com.example.colorpaper.ui.theme.ThemeManager
 import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
-import java.util.*
-import androidx.core.graphics.toColorInt
 import com.example.colorpaper.util.AuthUtils
 import kotlin.math.hypot
 
