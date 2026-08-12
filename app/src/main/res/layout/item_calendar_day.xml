@@ -24,4 +24,11 @@
         android:maxLines="1"
         android:textSize="15sp" />
 
+    <View
+        android:id="@+id/view_calendar_record_indicator"
+        android:layout_width="5dp"
+        android:layout_height="5dp"
+        android:layout_marginTop="3dp"
+        android:visibility="invisible" />
+
 </LinearLayout>

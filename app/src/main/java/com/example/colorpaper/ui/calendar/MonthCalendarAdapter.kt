@@ -16,7 +16,8 @@ data class MonthDayUi(
     val dateKey: String?,
     val dayNumber: Int?,
     val emotionStamps: String = "",
-    val isToday: Boolean = false
+    val isToday: Boolean = false,
+    val hasRecord: Boolean = false
 )
 
 class MonthCalendarAdapter(
@@ -46,6 +47,7 @@ class MonthCalendarAdapter(
     inner class DayViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val dayText: TextView = itemView.findViewById(R.id.tv_calendar_day)
         private val emotions: TextView = itemView.findViewById(R.id.tv_calendar_emotions)
+        private val recordIndicator: View = itemView.findViewById(R.id.view_calendar_record_indicator)
 
         fun bind(day: MonthDayUi) {
             val context = itemView.context
@@ -54,6 +56,11 @@ class MonthCalendarAdapter(
             emotions.text = day.emotionStamps
             dayText.setTextColor(textColor)
             emotions.setTextColor(textColor)
+            recordIndicator.visibility = if (day.hasRecord) View.VISIBLE else View.INVISIBLE
+            recordIndicator.background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(ContextCompat.getColor(context, palette.accent))
+            }
             itemView.isEnabled = day.dateKey != null
             itemView.alpha = if (day.dateKey == null) 0f else 1f
 

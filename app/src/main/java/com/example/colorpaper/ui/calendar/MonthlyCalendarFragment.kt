@@ -11,10 +11,13 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import com.example.colorpaper.R
+import com.example.colorpaper.MainActivity
 import com.example.colorpaper.data.local.AppDatabase
+import com.example.colorpaper.data.repository.UserRepository
 import com.example.colorpaper.databinding.FragmentMonthlyCalendarBinding
 import com.example.colorpaper.ui.diary.DiaryFragment
 import com.example.colorpaper.ui.theme.ThemeManager
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -94,10 +97,7 @@ class MonthlyCalendarFragment : Fragment() {
 
         binding.btnCalendarRecord.setOnClickListener {
             val date = selectedDate ?: return@setOnClickListener
-            parentFragmentManager.beginTransaction()
-                .replace(R.id.fragment_container, DiaryFragment.newInstance(date))
-                .addToBackStack(null)
-                .commit()
+            (requireActivity() as? MainActivity)?.openDiaryDate(date)
         }
     }
 
@@ -122,12 +122,20 @@ class MonthlyCalendarFragment : Fragment() {
                 val monthKeyFormat = SimpleDateFormat("yyyy-MM", Locale.KOREAN)
                 val monthKey = monthKeyFormat.format(monthTime)
 
-                val diaries = AppDatabase.getDatabase(safeContext).diaryDao().getDiariesForMonth(monthKey)
+                val database = AppDatabase.getDatabase(safeContext)
+                val userId = FirebaseAuth.getInstance().currentUser?.uid
+                val diaries = if (userId.isNullOrBlank()) {
+                    database.diaryDao().getDiariesForMonth(monthKey)
+                } else {
+                    UserRepository(database)
+                        .getPublicDiariesByUserId(userId)
+                        .filter { it.createdAt.startsWith(monthKey) }
+                }
                 val emotionsByDate = diaries.groupBy { it.createdAt }.mapValues { (_, records) ->
                     EmotionStampFormatter.format(records.map { it.emotionStamp.orEmpty() })
                 }
 
-                buildMonthDays(emotionsByDate)
+                buildMonthDays(emotionsByDate, diaries.map { it.createdAt }.toSet())
             }
 
             if (_binding != null) {
@@ -137,7 +145,10 @@ class MonthlyCalendarFragment : Fragment() {
     }
 
     // Dispatchers.IO 전용 계산 함수
-    private fun buildMonthDays(emotionsByDate: Map<String, String>): List<MonthDayUi> {
+    private fun buildMonthDays(
+        emotionsByDate: Map<String, String>,
+        recordedDates: Set<String>
+    ): List<MonthDayUi> {
         val dateKeyFormat = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN)
 
         val firstDay = displayedMonth.clone() as Calendar
@@ -152,12 +163,19 @@ class MonthlyCalendarFragment : Fragment() {
         for (day in 1..lastDay) {
             firstDay.set(Calendar.DAY_OF_MONTH, day)
             val dateKey = dateKeyFormat.format(firstDay.time)
+            val hasRecord = dateKey in recordedDates
+            val emotion = emotionsByDate[dateKey].orEmpty()
 
             cells += MonthDayUi(
                 dateKey = dateKey,
                 dayNumber = day,
-                emotionStamps = emotionsByDate[dateKey].orEmpty(),
-                isToday = dateKey == todayKey
+                emotionStamps = if (hasRecord && emotion.isBlank()) {
+                    DEFAULT_EMOTION_EMOJI
+                } else {
+                    emotion
+                },
+                isToday = dateKey == todayKey,
+                hasRecord = hasRecord
             )
         }
 
@@ -204,5 +222,9 @@ class MonthlyCalendarFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null // 메모리 누수 방지
+    }
+
+    companion object {
+        private const val DEFAULT_EMOTION_EMOJI = "🙂"
     }
 }

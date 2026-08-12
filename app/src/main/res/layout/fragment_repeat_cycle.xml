@@ -127,4 +127,15 @@
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_test_reminder"
+        android:layout_width="0dp"
+        android:layout_height="46dp"
+        android:layout_marginTop="18dp"
+        android:text="테스트 알림 보내기"
+        app:cornerRadius="23dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/cv_reminder_time" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>

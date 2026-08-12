@@ -185,18 +185,31 @@ class UserRepository(
             else -> listOf("전체공개")
         }
 
-        return try {
-            val snapshot = firestore.collection("diaries")
+        val localItems = if (isMe) {
+            db.diaryDao().getAllDiaries().filter {
+                it.userId == targetUserId || it.userId.isBlank() || it.userId == "1"
+            }
+        } else {
+            db.diaryDao().getDiariesByUserId(targetUserId)
+                .filter { it.visibility in allowedVisibilities }
+        }
+        val remoteItems = try {
+            val userQuery = firestore.collection("diaries")
                 .whereEqualTo("userId", targetUserId)
-                .whereIn("visibility", allowedVisibilities)
-                .get()
-                .await()
+            val snapshot = if (isMe) {
+                userQuery.get().await()
+            } else {
+                userQuery.whereIn("visibility", allowedVisibilities).get().await()
+            }
 
             snapshot.documents.mapNotNull { doc ->
                 try { doc.toObject(DiaryEntity::class.java) } catch (e: Exception) { null }
             }
         } catch (e: Exception) {
             emptyList()
+        }
+        return (remoteItems + localItems).distinctBy {
+            "${it.userId}|${it.createdAt}|${it.diaryId}|${it.content}"
         }
     }
 

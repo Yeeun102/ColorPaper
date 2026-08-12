@@ -28,6 +28,7 @@ import com.example.colorpaper.ui.diary.DiaryDayFragmentFactory
 import com.example.colorpaper.ui.diary.DiaryDetailFragment
 import com.example.colorpaper.ui.diary.DiaryFragment
 import com.example.colorpaper.ui.diary.FriendDiaryDetailFragment
+import com.example.colorpaper.ui.calendar.MonthlyCalendarFragment
 import com.example.colorpaper.ui.flashcard.FlashcardFragment
 import com.example.colorpaper.ui.friend.FriendListFragment
 import com.example.colorpaper.ui.home.HomeFragment
@@ -310,7 +311,33 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun openDiaryDate(dateKey: String) {
-        showScreen(DiaryDayFragmentFactory.create(dateKey), R.id.nav_diary)
+        if (quickActionsOpen) hideQuickActions()
+        findViewById<MaterialCardView>(R.id.bottom_navigation_bar)?.visibility = View.VISIBLE
+        supportFragmentManager.beginTransaction()
+            .setCustomAnimations(R.animator.screen_morph_enter, R.animator.screen_morph_exit)
+            .replace(R.id.fragment_container, DiaryDayFragmentFactory.create(dateKey))
+            .addToBackStack("diary_date_$dateKey")
+            .commit()
+        selectNavigation(R.id.nav_diary)
+    }
+
+    fun openMonthlyCalendar() {
+        if (quickActionsOpen) hideQuickActions()
+        findViewById<MaterialCardView>(R.id.bottom_navigation_bar)?.visibility = View.VISIBLE
+        supportFragmentManager.beginTransaction()
+            .setCustomAnimations(R.animator.screen_morph_enter, R.animator.screen_morph_exit)
+            .replace(R.id.fragment_container, MonthlyCalendarFragment())
+            .addToBackStack("monthly_calendar")
+            .commit()
+        selectNavigation(R.id.nav_home)
+    }
+
+    fun openReminder(diaryId: Int, stage: Int) {
+        showScreen(HomeFragment.newInstance(diaryId, stage), R.id.nav_home)
+    }
+
+    fun openReminderHistory() {
+        showScreen(ReminderHistoryFragment(), R.id.nav_flashcard)
     }
 
     // 💡 하단 네비게이션 바 숨김/표시 제어용 메서드
@@ -440,6 +467,8 @@ class MainActivity : AppCompatActivity() {
         supportFragmentManager.findFragmentById(R.id.fragment_container)
     ) {
         is DiaryFragment, is DiaryDetailFragment -> R.id.nav_diary
+        is MonthlyCalendarFragment -> R.id.nav_home
+        is FriendDiaryDetailFragment -> R.id.nav_profile
         is FlashcardFragment, is ReminderHistoryFragment -> R.id.nav_flashcard
         is ProfileFragment -> R.id.nav_profile
         is SettingFragment -> R.id.nav_setting
@@ -453,6 +482,9 @@ class MainActivity : AppCompatActivity() {
                     quickActionsOpen -> hideQuickActions()
                     supportFragmentManager.backStackEntryCount > 0 -> {
                         supportFragmentManager.popBackStack()
+                        supportFragmentManager.executePendingTransactions()
+                        findViewById<MaterialCardView>(R.id.bottom_navigation_bar)?.visibility = View.VISIBLE
+                        selectNavigation(currentNavigationId())
                     }
                     selectedNavigationId != R.id.nav_home -> {
                         showScreen(HomeFragment(), R.id.nav_home)

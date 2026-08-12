@@ -11,6 +11,7 @@ import android.widget.TextView
 import android.widget.EditText
 import android.widget.Toast
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.ItemTouchHelper
@@ -22,13 +23,18 @@ import com.example.colorpaper.data.model.WidgetEntity
 import com.example.colorpaper.data.local.AppDatabase
 import com.example.colorpaper.data.model.ReminderAnswerEntity
 import com.example.colorpaper.data.model.TodoEntity
+import com.example.colorpaper.data.repository.UserRepository
 import com.example.colorpaper.reminder.ReminderIntents
+import com.example.colorpaper.reminder.PendingReminder
+import com.example.colorpaper.reminder.ReminderInbox
 import com.example.colorpaper.reminder.MaskingText
 import com.example.colorpaper.reminder.ReminderMessageFactory
 import com.example.colorpaper.reminder.ReminderSchedulePolicy
 import com.example.colorpaper.ui.calendar.EmotionStampFormatter
 import com.example.colorpaper.ui.theme.ThemeManager
+import com.example.colorpaper.ui.theme.ThemedDialogStyler
 import com.google.android.material.snackbar.Snackbar
+import com.google.android.material.button.MaterialButton
 import com.google.firebase.auth.FirebaseAuth
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -40,9 +46,12 @@ import kotlinx.coroutines.withContext
 
 class HomeFragment : Fragment() {
 
+    private enum class ReminderPromptMode { QUESTION, QUIZ, RESOLUTION }
+
     private lateinit var adapter: HomeWidgetAdapter
     private var editMode = false
     private var allWidgets: List<WidgetEntity> = emptyList()
+    private var pendingReminders: List<PendingReminder> = emptyList()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -72,9 +81,12 @@ class HomeFragment : Fragment() {
             widgets = emptyList(),
             palette = palette,
             onCalendarDateClick = ::openDiaryDate,
+            onCalendarWidgetClick = ::openMonthlyCalendar,
             onTodoAdd = ::addTodo,
             onTodoCompletionChange = ::updateTodoCompletion,
             onTodoMoveToTomorrow = ::moveTodoToTomorrow,
+            onReminderClick = ::openReminderHistory,
+            onYearsAgoClick = ::openDiaryDate,
             onWidgetSizeChange = ::saveWidgetSizes
         )
         adapter.setLargeWidgetTypes(loadWidgetSizes())
@@ -121,11 +133,51 @@ class HomeFragment : Fragment() {
             loadTodos()
             loadYearsAgoRecord()
             loadTodayChecklist()
+            loadPendingReminders()
+        }
+    }
+
+    private fun loadPendingReminders(openNext: Boolean = false) {
+        val userId = com.example.colorpaper.util.AuthUtils.getCurrentUserId()
+        val appContext = requireContext().applicationContext
+        viewLifecycleOwner.lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                val dao = AppDatabase.getDatabase(appContext).diaryDao()
+                val pending = ReminderInbox.pendingToday(dao, userId)
+                pending
+            }
+            if (!isAdded) return@launch
+            pendingReminders = result
+            adapter.updatePendingReminders(
+                pendingCount = result.size,
+                preview = result.firstOrNull()?.let {
+                    ReminderMessageFactory.create(
+                        it.diary.content, it.diary.emotionStamp, it.stage, it.elapsedDays
+                    ).title
+                }.orEmpty()
+            )
+            if (openNext) result.firstOrNull()?.let {
+                showReminderDialog(it.diary.diaryId, it.stage)
+            }
+        }
+    }
+
+    private fun openPendingReminder() {
+        pendingReminders.firstOrNull()?.let {
+            showReminderDialog(it.diary.diaryId, it.stage)
         }
     }
 
     private fun openDiaryDate(dateKey: String) {
         (requireActivity() as? MainActivity)?.openDiaryDate(dateKey)
+    }
+
+    private fun openMonthlyCalendar() {
+        (requireActivity() as? MainActivity)?.openMonthlyCalendar()
+    }
+
+    private fun openReminderHistory() {
+        (requireActivity() as? MainActivity)?.openReminderHistory()
     }
 
     private fun loadTodos() {
@@ -347,14 +399,15 @@ class HomeFragment : Fragment() {
         val userId = FirebaseAuth.getInstance().currentUser?.uid
         viewLifecycleOwner.lifecycleScope.launch {
             val diaries = withContext(Dispatchers.IO) {
-                if (userId == null) {
-                    emptyList()
-                } else {
-                    AppDatabase.getDatabase(appContext).diaryDao().getDiariesBetweenByUserId(
-                        userId = userId,
-                        startDate = days.first().dateKey,
-                        endDate = days.last().dateKey
-                    )
+                val database = AppDatabase.getDatabase(appContext)
+                val byUser = userId?.let { uid ->
+                    UserRepository(database)
+                        .getPublicDiariesByUserId(uid)
+                        .filter { it.createdAt in days.first().dateKey..days.last().dateKey }
+                }.orEmpty()
+                // 로컬 기록의 과거 UID가 달라도 월간 캘린더처럼 감정은 유지한다.
+                if (byUser.isNotEmpty()) byUser else {
+                    database.diaryDao().getDiariesBetween(days.first().dateKey, days.last().dateKey)
                 }
             }
             val emotionsByDate = diaries.groupBy { it.createdAt }.mapValues { (_, records) ->
@@ -368,7 +421,7 @@ class HomeFragment : Fragment() {
                     val emotion = emotionsByDate[day.dateKey].orEmpty()
                     val hasRecord = diaries.any { it.createdAt == day.dateKey }
                     day.copy(
-                        emotionEmoji = if (day.isToday && hasRecord && emotion.isBlank()) {
+                        emotionEmoji = if (hasRecord && emotion.isBlank()) {
                             DEFAULT_EMOTION_EMOJI
                         } else {
                             emotion
@@ -396,7 +449,7 @@ class HomeFragment : Fragment() {
             if (!isAdded) return@launch
 
             val dialogView = layoutInflater.inflate(R.layout.dialog_reminder, null)
-            val question = ReminderMessageFactory.create(
+            var question = ReminderMessageFactory.create(
                 content = diary.content,
                 emotions = diary.emotionStamp,
                 stage = stage,
@@ -408,10 +461,62 @@ class HomeFragment : Fragment() {
                 diary.content.removePrefix("[DECO]:"),
                 diary.highlightRanges
             )
-            recordText.text = listOf(diary.createdAt, masking.masked).joinToString("\n")
-            if (masking.hasMasks) bindMaskingView(dialogView, recordText, diary.createdAt, masking)
+            recordText.text = listOf(diary.createdAt, masking.original).joinToString("\n")
             val answerInput = dialogView.findViewById<EditText>(R.id.et_reminder_answer)
-            answerInput.setText(previousAnswer?.answer.orEmpty())
+            val modes = buildList {
+                add(ReminderPromptMode.QUESTION)
+                if (masking.hasMasks) add(ReminderPromptMode.QUIZ)
+                if (ReminderMessageFactory.isDifficultEmotion(diary.emotionStamp)) {
+                    add(ReminderPromptMode.RESOLUTION)
+                }
+            }
+            val promptMode = modes[Math.floorMod(diaryId * 31 + stage, modes.size)]
+            dialogView.findViewById<View>(R.id.layout_reminder_masking).visibility = View.GONE
+            dialogView.findViewById<View>(R.id.layout_resolution_choices).visibility = View.GONE
+            answerInput.visibility = View.GONE
+            when (promptMode) {
+                ReminderPromptMode.QUESTION -> {
+                    answerInput.visibility = View.VISIBLE
+                    answerInput.setText(previousAnswer?.answer.orEmpty())
+                }
+                ReminderPromptMode.QUIZ -> {
+                    question = "빈칸에 들어갈 말은 무엇일까요?"
+                    dialogView.findViewById<TextView>(R.id.tv_reminder_question).text = question
+                    recordText.text = listOf(diary.createdAt, masking.masked).joinToString("\n")
+                    bindQuizView(dialogView, recordText, diary.createdAt, masking, answerInput, diaryId, stage)
+                }
+                ReminderPromptMode.RESOLUTION -> {
+                    question = "그 때의 감정, 해결됐나요?"
+                    dialogView.findViewById<TextView>(R.id.tv_reminder_question).text = question
+                    dialogView.findViewById<View>(R.id.layout_resolution_choices).visibility = View.VISIBLE
+                }
+            }
+            val resolvedYes = dialogView.findViewById<MaterialButton>(R.id.btn_resolved_yes).apply {
+                text = "해결했어요"
+            }
+            val resolvedNo = dialogView.findViewById<MaterialButton>(R.id.btn_resolved_no).apply {
+                text = "아직이에요"
+            }
+            val palette = ThemeManager.currentPalette(requireContext())
+            val screenColor = ContextCompat.getColor(requireContext(), palette.screenBackground)
+            val reminderColor = ContextCompat.getColor(requireContext(), palette.reminder)
+            val accentColor = ContextCompat.getColor(requireContext(), palette.accent)
+            val normalChoiceColor = ColorUtils.blendARGB(screenColor, reminderColor, .42f)
+            val selectedChoiceColor = ColorUtils.blendARGB(screenColor, accentColor, .82f)
+            fun selectResolution(selected: MaterialButton, other: MaterialButton) {
+                selected.backgroundTintList = ColorStateList.valueOf(selectedChoiceColor)
+                other.backgroundTintList = ColorStateList.valueOf(normalChoiceColor)
+                selected.alpha = 1f
+                other.alpha = .78f
+            }
+            resolvedYes.setOnClickListener {
+                answerInput.setText("해결했어요")
+                selectResolution(resolvedYes, resolvedNo)
+            }
+            resolvedNo.setOnClickListener {
+                answerInput.setText("아직이에요")
+                selectResolution(resolvedNo, resolvedYes)
+            }
 
             val dialog = AlertDialog.Builder(requireContext())
                 .setTitle(R.string.reminder_dialog_title)
@@ -421,6 +526,7 @@ class HomeFragment : Fragment() {
                 .create()
 
             dialog.setOnShowListener {
+                ThemedDialogStyler.applyWidePopup(dialog, requireContext())
                 dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                     val answerText = answerInput.text.toString().trim()
                     if (answerText.isEmpty()) {
@@ -445,6 +551,7 @@ class HomeFragment : Fragment() {
                                     Toast.LENGTH_SHORT
                                 ).show()
                                 loadTodayChecklist()
+                                loadPendingReminders(openNext = true)
                             }
                             dialog.dismiss()
                         }
@@ -453,6 +560,74 @@ class HomeFragment : Fragment() {
             }
             dialog.show()
         }
+    }
+
+    private fun bindQuizView(
+        dialogView: View,
+        recordText: TextView,
+        dateText: String,
+        masking: MaskingText,
+        answerInput: EditText,
+        diaryId: Int,
+        stage: Int
+    ) {
+        val maskingLayout = dialogView.findViewById<View>(R.id.layout_reminder_masking)
+        val modeGroup = dialogView.findViewById<View>(R.id.group_masking_mode)
+        val inputLayout = dialogView.findViewById<View>(R.id.layout_masking_input)
+        val choiceLayout = dialogView.findViewById<android.widget.LinearLayout>(R.id.layout_masking_choices)
+        val feedback = dialogView.findViewById<TextView>(R.id.tv_masking_feedback)
+        val palette = ThemeManager.currentPalette(requireContext())
+        val screenColor = ContextCompat.getColor(requireContext(), palette.screenBackground)
+        val reminderColor = ContextCompat.getColor(requireContext(), palette.reminder)
+        val accentColor = ContextCompat.getColor(requireContext(), palette.accent)
+        val normalChoiceColor = ColorUtils.blendARGB(screenColor, reminderColor, .42f)
+        val selectedChoiceColor = ColorUtils.blendARGB(screenColor, accentColor, .82f)
+        val choiceButtons = mutableListOf<MaterialButton>()
+        maskingLayout.visibility = View.VISIBLE
+        modeGroup.visibility = View.GONE
+        inputLayout.visibility = View.GONE
+        choiceLayout.visibility = View.VISIBLE
+        choiceLayout.removeAllViews()
+
+        val answer = masking.answers.firstOrNull().orEmpty()
+        val seed = diaryId * 31 + stage
+        val distractors = masking.original
+            .split(Regex("[^가-힣A-Za-z0-9]+"))
+            .map(String::trim)
+            .filter { it.isNotBlank() && it != answer }
+            .distinct()
+            .shuffled(kotlin.random.Random(seed))
+            .toMutableList()
+        listOf("기억이 안 나요", "다른 내용", "아직 모르겠어요").forEach {
+            if (it != answer && it !in distractors) distractors += it
+        }
+        (listOf(answer) + distractors.take(2))
+            .shuffled(kotlin.random.Random(seed + 1))
+            .forEach { option ->
+                val choiceButton = MaterialButton(requireContext()).apply {
+                    text = option
+                    cornerRadius = (18 * resources.displayMetrics.density).toInt()
+                    setOnClickListener {
+                        choiceButtons.forEach { button ->
+                            val selected = button === this
+                            button.backgroundTintList = ColorStateList.valueOf(
+                                if (selected) selectedChoiceColor else normalChoiceColor
+                            )
+                            button.alpha = if (selected) 1f else .78f
+                        }
+                        val correct = option == answer
+                        answerInput.setText(option)
+                        feedback.text = if (correct) "정답이에요" else "다시 생각해 보세요"
+                        feedback.setTextColor(Color.parseColor(if (correct) "#2E7D32" else "#B3261E"))
+                        feedback.visibility = View.VISIBLE
+                        if (correct) {
+                            recordText.text = listOf(dateText, masking.original).joinToString("\n")
+                        }
+                    }
+                }
+                choiceButtons += choiceButton
+                choiceLayout.addView(choiceButton)
+            }
     }
 
     private fun bindMaskingView(
@@ -464,6 +639,7 @@ class HomeFragment : Fragment() {
         val maskingLayout = dialogView.findViewById<View>(R.id.layout_reminder_masking)
         val modeGroup = dialogView.findViewById<android.widget.RadioGroup>(R.id.group_masking_mode)
         val inputLayout = dialogView.findViewById<View>(R.id.layout_masking_input)
+        val choiceLayout = dialogView.findViewById<android.widget.LinearLayout>(R.id.layout_masking_choices)
         val maskInput = dialogView.findViewById<EditText>(R.id.et_masking_answer)
         val feedback = dialogView.findViewById<TextView>(R.id.tv_masking_feedback)
         var answerVisible = false
@@ -487,6 +663,7 @@ class HomeFragment : Fragment() {
             } else {
                 View.GONE
             }
+            choiceLayout.visibility = if (checkedId == R.id.radio_mask_choice) View.VISIBLE else View.GONE
             feedback.visibility = View.GONE
         }
         dialogView.findViewById<View>(R.id.btn_masking_check).setOnClickListener {
@@ -495,6 +672,27 @@ class HomeFragment : Fragment() {
             feedback.setTextColor(Color.parseColor(if (correct) "#2E7D32" else "#B3261E"))
             feedback.visibility = View.VISIBLE
             if (correct) showRecord(masking.original)
+        }
+
+        val answer = masking.answers.firstOrNull().orEmpty()
+        val distractors = masking.original
+            .split(Regex("[^가-힣A-Za-z0-9]+"))
+            .filter { it.isNotBlank() && it != answer }
+            .distinct()
+            .shuffled()
+            .take(2)
+        (distractors + answer).shuffled().forEach { option ->
+            choiceLayout.addView(com.google.android.material.button.MaterialButton(requireContext()).apply {
+                text = option
+                cornerRadius = (18 * resources.displayMetrics.density).toInt()
+                setOnClickListener {
+                    val correct = option == answer
+                    feedback.text = if (correct) "정답이에요!" else "다시 생각해 보세요."
+                    feedback.setTextColor(Color.parseColor(if (correct) "#2E7D32" else "#B3261E"))
+                    feedback.visibility = View.VISIBLE
+                    if (correct) showRecord(masking.original)
+                }
+            })
         }
     }
 

@@ -4,6 +4,7 @@ import androidx.core.graphics.toColorInt
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import com.example.colorpaper.data.repository.DiaryRepository
+import com.example.colorpaper.data.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -53,6 +54,8 @@ import com.example.colorpaper.reminder.ReminderScheduler
 import com.example.colorpaper.reminder.ReminderPreferences
 import com.example.colorpaper.ui.theme.AppTheme
 import com.example.colorpaper.ui.theme.ThemeManager
+import com.example.colorpaper.ui.calendar.RecordDatePickerDialog
+import com.example.colorpaper.ui.theme.ThemedDialogStyler
 import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -960,38 +963,32 @@ class DiaryFragment : Fragment() {
     }
 
     private fun showDatePicker() {
-        DatePickerDialog(
-            requireContext(),
-            { _, year, month, dayOfMonth ->
-                val targetCal = Calendar.getInstance().apply {
-                    set(year, month, dayOfMonth)
-                }
-
-
+        val appContext = requireContext().applicationContext
+        val userId = FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
+        viewLifecycleOwner.lifecycleScope.launch {
+            val recordedDates = withContext(Dispatchers.IO) {
+                UserRepository(AppDatabase.getDatabase(appContext))
+                    .getPublicDiariesByUserId(userId)
+                    .map { it.createdAt }
+                    .toSet()
+            }
+            if (!isAdded) return@launch
+            RecordDatePickerDialog.show(
+                requireContext(),
+                dateFormat.format(selectedDateCalendar.time),
+                recordedDates
+            ) { selectedStr ->
                 val todayStr = dateFormat.format(Date())
-                val selectedStr = dateFormat.format(targetCal.time)
-
                 if (selectedStr == todayStr) {
-                    selectedDateCalendar = targetCal
+                    dateFormat.parse(selectedStr)?.let { selectedDateCalendar.time = it }
                     updateDateText()
                     loadTodayDiary()
                 } else {
-                    // 과거 날짜 선택 시 상세 보기 전용 화면으로 데이터 넘기며 전환
-                    val detailFragment = DiaryDetailFragment().apply {
-                        arguments = Bundle().apply {
-                            putString("TARGET_DATE", selectedStr)
-                        }
-                    }
-                    parentFragmentManager.beginTransaction()
-                        .replace(R.id.main, detailFragment)
-                        .addToBackStack(null)
-                        .commit()
+                    (requireActivity() as? com.example.colorpaper.MainActivity)
+                        ?.openDiaryDate(selectedStr)
                 }
-            },
-            selectedDateCalendar.get(Calendar.YEAR),
-            selectedDateCalendar.get(Calendar.MONTH),
-            selectedDateCalendar.get(Calendar.DAY_OF_MONTH)
-        ).show()
+            }
+        }
     }
 
 
@@ -1055,6 +1052,19 @@ class DiaryFragment : Fragment() {
                 applyCustomButtonState(binding.btnHighlightState, isSelected = false)
             } else {
                 val primaryPostIt = postIts.firstOrNull { !it.content.startsWith("[DECO]:") }
+                selectedEmotions.clear()
+                selectedEmotions.addAll(
+                    postIts.asSequence()
+                        .filterNot { it.content.startsWith("[DECO]:") }
+                        .flatMap { it.emotionStamp.orEmpty().split(',').asSequence() }
+                        .map { it.trim() }
+                        .filter { it.isNotBlank() }
+                        .distinct()
+                        .toList()
+                )
+                tempSelectedEmotions.clear()
+                tempSelectedEmotions.addAll(selectedEmotions)
+                renderSelectedEmotionsInSetting()
                 selectedReminderCycleDays = primaryPostIt?.reviewCycleDays
                     ?: ReminderSchedulePolicy.DISABLED
                 selectedReminderPattern = primaryPostIt?.reviewCyclePattern.orEmpty()
@@ -1361,56 +1371,7 @@ class DiaryFragment : Fragment() {
     }
 
     private fun styleCuteAlert(dialog: android.app.AlertDialog) {
-        val palette = ThemeManager.currentPalette(requireContext())
-        val density = resources.displayMetrics.density
-        dialog.window?.setBackgroundDrawable(android.graphics.drawable.GradientDrawable().apply {
-            cornerRadius = 26f * resources.displayMetrics.density
-            setColor(ContextCompat.getColor(requireContext(), palette.screenBackground))
-        })
-        val pastel = ColorUtils.blendARGB(
-            ContextCompat.getColor(requireContext(), palette.screenBackground),
-            ContextCompat.getColor(requireContext(), palette.reminder),
-            .72f
-        )
-        listOf(
-            android.app.AlertDialog.BUTTON_POSITIVE,
-            android.app.AlertDialog.BUTTON_NEGATIVE,
-            android.app.AlertDialog.BUTTON_NEUTRAL
-        ).forEach { which ->
-            dialog.getButton(which)?.apply {
-                setTextColor(ContextCompat.getColor(requireContext(), palette.primaryText))
-                minWidth = (68 * resources.displayMetrics.density).toInt()
-                minHeight = 0
-                backgroundTintList = ColorStateList.valueOf(pastel)
-                background = android.graphics.drawable.GradientDrawable().apply {
-                    cornerRadius = 19f * resources.displayMetrics.density
-                    setColor(pastel)
-                }
-                gravity = android.view.Gravity.CENTER
-                setPadding(
-                    (14 * resources.displayMetrics.density).toInt(),
-                    0,
-                    (14 * resources.displayMetrics.density).toInt(),
-                    0
-                )
-                (layoutParams as? LinearLayout.LayoutParams)?.let { params ->
-                    val gap = (5 * resources.displayMetrics.density).toInt()
-                    params.height = (36 * resources.displayMetrics.density).toInt()
-                    params.setMargins(gap, 0, gap, 0)
-                    layoutParams = params
-                }
-            }
-        }
-        // 버튼 자체의 마진은 기본 버튼 바 높이에서 잘릴 수 있으므로,
-        // 버튼 컨테이너에 여백을 줘 팝업 하단 모서리와 떨어뜨린다.
-        (dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE)?.parent as? View)?.apply {
-            setPadding(
-                paddingLeft,
-                (6 * density).toInt(),
-                paddingRight,
-                (14 * density).toInt()
-            )
-        }
+        ThemedDialogStyler.apply(dialog, requireContext())
     }
 
     private fun addCustomTagChip(tagName: String) {

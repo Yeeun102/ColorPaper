@@ -39,10 +39,12 @@ import com.example.colorpaper.R
 import com.example.colorpaper.data.local.AppDatabase
 import com.example.colorpaper.data.model.CommentEntity
 import com.example.colorpaper.data.model.DiaryEntity
+import com.example.colorpaper.data.repository.UserRepository
 import com.example.colorpaper.databinding.FragmentDiaryDetailBinding
 import com.example.colorpaper.util.AuthUtils
 import com.example.colorpaper.ui.theme.AppTheme
 import com.example.colorpaper.ui.theme.ThemeManager
+import com.example.colorpaper.ui.calendar.RecordDatePickerDialog
 import com.google.android.material.button.MaterialButton
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -356,11 +358,6 @@ class DiaryDetailFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        (activity as? MainActivity)?.setBottomNavVisibility(false)
-    }
-
-    override fun onPause() {
-        super.onPause()
         (activity as? MainActivity)?.setBottomNavVisibility(true)
     }
 
@@ -493,36 +490,29 @@ class DiaryDetailFragment : Fragment() {
 
     private fun showDatePicker() {
         if (!canNavigateDate()) return
-        val safeContext = context ?: return
-        val cal = Calendar.getInstance()
-        try {
-            val parsedDate = dateFormat.parse(targetDate)
-            if (parsedDate != null) cal.time = parsedDate
-        } catch (_: Exception) {}
-
-        DatePickerDialog(
-            safeContext,
-            { _, year, month, dayOfMonth ->
-                val targetCal = Calendar.getInstance().apply {
-                    set(year, month, dayOfMonth)
-                }
-
+        val safeContext = context?.applicationContext ?: return
+        val myUid = auth.currentUser?.uid.orEmpty()
+        val ownerUid = if (isMyDiary) myUid else targetUserId.orEmpty()
+        viewLifecycleOwner.lifecycleScope.launch {
+            val recordedDates = withContext(Dispatchers.IO) {
+                UserRepository(AppDatabase.getDatabase(safeContext))
+                    .getPublicDiariesByUserId(ownerUid)
+                    .map { it.createdAt }
+                    .toSet()
+            }
+            if (!isAdded) return@launch
+            RecordDatePickerDialog.show(requireContext(), targetDate, recordedDates) { selectedStr ->
                 val todayStr = dateFormat.format(Date())
-                val selectedStr = dateFormat.format(targetCal.time)
-
                 if (selectedStr == todayStr) {
-                    parentFragmentManager.popBackStack(null, androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE)
+                    (requireActivity() as? MainActivity)?.openDiaryDate(todayStr)
                 } else if (selectedStr != targetDate) {
                     targetDate = selectedStr
                     updateTitleDateText()
                     updateCommentButtonState()
                     checkFollowStateAndLoad()
                 }
-            },
-            cal.get(Calendar.YEAR),
-            cal.get(Calendar.MONTH),
-            cal.get(Calendar.DAY_OF_MONTH)
-        ).show()
+            }
+        }
     }
 
     private fun loadDiaryAndComments() {

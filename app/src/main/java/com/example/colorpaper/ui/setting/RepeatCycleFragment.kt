@@ -18,16 +18,25 @@ import android.widget.NumberPicker
 import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.TextView
+import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.ColorUtils
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import com.example.colorpaper.R
+import com.example.colorpaper.data.local.AppDatabase
 import com.example.colorpaper.databinding.FragmentRepeatCycleBinding
+import com.example.colorpaper.reminder.ReminderNotification
 import com.example.colorpaper.reminder.ReminderPreferences
+import com.example.colorpaper.reminder.ReminderSchedulePolicy
 import com.example.colorpaper.reminder.ReminderTemplate
 import com.example.colorpaper.ui.theme.ThemeManager
+import com.example.colorpaper.ui.theme.ThemedDialogStyler
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Locale
 
 class RepeatCycleFragment : Fragment() {
@@ -45,9 +54,43 @@ class RepeatCycleFragment : Fragment() {
             editTemplate(ReminderTemplate(System.currentTimeMillis(), "새 복습", listOf(1), false), true)
         }
         binding.btnReminderTime.setOnClickListener { showTimePicker() }
+        binding.btnTestReminder.setOnClickListener { sendTestReminder() }
         applyTheme()
         renderTemplates()
         renderTime()
+    }
+
+    private fun sendTestReminder() {
+        val appContext = requireContext().applicationContext
+        viewLifecycleOwner.lifecycleScope.launch {
+            val diary = withContext(Dispatchers.IO) {
+                AppDatabase.getDatabase(appContext).diaryDao()
+                    .getReminderEnabledDiaries()
+                    .firstOrNull { item ->
+                        ReminderSchedulePolicy.elapsedDays(
+                            item.reviewCycleDays,
+                            item.reminderStage,
+                            item.reviewCyclePattern,
+                            item.reviewRepeatLast
+                        ) != null
+                    }
+            }
+            if (!isAdded) return@launch
+            if (diary == null) {
+                Toast.makeText(
+                    requireContext(),
+                    "먼저 반복주기가 설정된 메모지를 저장해 주세요.",
+                    Toast.LENGTH_SHORT
+                ).show()
+                return@launch
+            }
+            ReminderNotification.show(appContext, diary, diary.reminderStage)
+            Toast.makeText(
+                requireContext(),
+                "테스트 알림을 보냈어요. 알림을 눌러 홈 화면도 확인해 보세요.",
+                Toast.LENGTH_LONG
+            ).show()
+        }
     }
 
     private fun renderTemplates() {
@@ -259,28 +302,7 @@ class RepeatCycleFragment : Fragment() {
 
     private fun styleDialog(dialog: android.app.AlertDialog) {
         dialog.setOnShowListener {
-            val palette = ThemeManager.currentPalette(requireContext())
-            val backgroundColor = color(palette.screenBackground)
-            val text = color(palette.primaryText)
-            val pastel = ColorUtils.blendARGB(backgroundColor, color(palette.reminder), .72f)
-            dialog.window?.setBackgroundDrawable(roundedBackground(backgroundColor, 28))
-            listOf(android.app.AlertDialog.BUTTON_POSITIVE, android.app.AlertDialog.BUTTON_NEGATIVE, android.app.AlertDialog.BUTTON_NEUTRAL).forEach { which ->
-                dialog.getButton(which)?.apply {
-                    setTextColor(text)
-                    backgroundTintList = ColorStateList.valueOf(pastel)
-                    background = roundedBackground(pastel, 20)
-                    minWidth = dp(68)
-                    minHeight = 0
-                    val params = layoutParams as? LinearLayout.LayoutParams
-                    params?.height = dp(36)
-                    params?.setMargins(dp(5), 0, dp(5), 0)
-                    layoutParams = params
-                    setPadding(dp(14), 0, dp(14), 0)
-                }
-            }
-            (dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE)?.parent as? View)?.apply {
-                setPadding(paddingLeft, dp(6), paddingRight, dp(14))
-            }
+            ThemedDialogStyler.apply(dialog, requireContext())
         }
     }
 
@@ -296,7 +318,10 @@ class RepeatCycleFragment : Fragment() {
         val p = ThemeManager.currentPalette(requireContext()); val bg = color(p.screenBackground); val text = color(p.primaryText); val surface = color(p.todo); val pastel = ColorUtils.blendARGB(bg, color(p.reminder), .72f)
         binding.root.setBackgroundColor(bg); tintText(binding.root, text); binding.ivBackRepeatCycle.imageTintList = ColorStateList.valueOf(text)
         listOf(binding.cvDefaultCycle, binding.cvReminderTime).forEach { it.setCardBackgroundColor(surface); it.strokeColor = ColorUtils.setAlphaComponent(text, 38); it.strokeWidth = dp(1) }
-        listOf(binding.ivAddCustomCycle, binding.btnReminderTime).forEach { it.backgroundTintList = ColorStateList.valueOf(pastel); it.setTextColor(text) }
+        listOf(binding.ivAddCustomCycle, binding.btnReminderTime, binding.btnTestReminder).forEach {
+            it.backgroundTintList = ColorStateList.valueOf(pastel)
+            it.setTextColor(text)
+        }
     }
     private fun tintText(view: View, color: Int) { if (view is TextView) view.setTextColor(color); if (view is ViewGroup) repeat(view.childCount) { tintText(view.getChildAt(it), color) } }
     private fun color(id: Int) = ContextCompat.getColor(requireContext(), id)

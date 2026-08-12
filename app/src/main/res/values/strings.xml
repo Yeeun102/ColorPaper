@@ -73,7 +73,7 @@
     <string name="reminder_custom_cycle_error">1일 이상의 숫자를 입력해 주세요.</string>
     <string name="calendar_previous_month">이전 달</string>
     <string name="calendar_next_month">다음 달</string>
-    <string name="calendar_write_record">이 날 기록하기</string>
+    <string name="calendar_write_record">이 날의 기록</string>
     <string name="calendar_selected_date_format">%1$d일 %2$s</string>
     <string name="masking_touch_mode">터치하여 정답 확인</string>
     <string name="masking_input_mode">직접 입력</string>
@@ -102,7 +102,7 @@
     <string name="home_todo_moved_tomorrow">내일 할 일로 등록했어요.</string>
     <string name="home_todo_undo">되돌리기</string>
     <string name="home_checklist_pending">오늘의 기록</string>
-    <string name="home_checklist_completed">오늘의 복습</string>
+    <string name="home_checklist_completed">오늘의 리마인드</string>
     <string name="home_widget_size_default">기본</string>
     <string name="home_widget_size_large">크게</string>
     <string name="years_ago_empty">같은 날짜의 지난 기록이 없어요.</string>

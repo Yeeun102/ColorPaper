@@ -19,8 +19,24 @@ object ReminderSchedulePolicy {
         now: Long = System.currentTimeMillis()
     ): Long? {
         if (anchorAt <= 0L || stage < 0 || cycleDays == DISABLED) return null
+        val plannedAt = plannedTriggerAt(
+            anchorAt, cycleDays, stage, cyclePattern, repeatLast, hour, minute
+        ) ?: return null
+        return maxOf(plannedAt, now + MIN_RESCHEDULE_DELAY_MILLIS)
+    }
+
+    fun plannedTriggerAt(
+        anchorAt: Long,
+        cycleDays: Int,
+        stage: Int,
+        cyclePattern: String = "",
+        repeatLast: Boolean = false,
+        hour: Int = -1,
+        minute: Int = 0
+    ): Long? {
+        if (anchorAt <= 0L || stage < 0 || cycleDays == DISABLED) return null
         val elapsedDays = elapsedDays(cycleDays, stage, cyclePattern, repeatLast) ?: return null
-        val plannedAt = if (hour in 0..23) {
+        return if (hour in 0..23) {
             Calendar.getInstance().apply {
                 timeInMillis = anchorAt
                 add(Calendar.DAY_OF_YEAR, elapsedDays.toInt())
@@ -32,7 +48,6 @@ object ReminderSchedulePolicy {
         } else {
             anchorAt + elapsedDays * DAY_MILLIS
         }
-        return maxOf(plannedAt, now + MIN_RESCHEDULE_DELAY_MILLIS)
     }
 
     fun elapsedDays(

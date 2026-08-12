@@ -265,7 +265,12 @@ class ProfileFragment : Fragment() {
                 if (diaries.isNullOrEmpty()) {
                     Toast.makeText(context, "공개 중인 다이어리가 없습니다.", Toast.LENGTH_SHORT).show()
                 } else {
-                    val latestDiary = diaries.last()
+                    val latestDiary = diaries
+                        .filter { it.createdAt.isNotBlank() }
+                        .maxWithOrNull(
+                        compareBy<com.example.colorpaper.data.model.DiaryEntity> { diaryDateMillis(it.createdAt) }
+                            .thenBy { it.diaryId }
+                    ) ?: return@observe
                     // 💡 Date().toString()은 java.util.Date.parse()에서 인식 못 할 수 있으므로
                     // 일관된 yyyy-MM-dd 형식으로 변환하여 전달
                     val targetDateStr = latestDiary.createdAt
@@ -359,6 +364,11 @@ class ProfileFragment : Fragment() {
         viewModel.fetchMySharedFolders(targetUserId)
         viewModel.fetchHighlights(targetUserId)
     }
+
+    private fun diaryDateMillis(dateKey: String): Long = runCatching {
+        SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN).apply { isLenient = true }
+            .parse(dateKey)?.time ?: Long.MIN_VALUE
+    }.getOrDefault(Long.MIN_VALUE)
 
     private fun checkFollowStatus(targetUid: String, btnToggle: TextView) {
         val myUid = auth.currentUser?.uid ?: return

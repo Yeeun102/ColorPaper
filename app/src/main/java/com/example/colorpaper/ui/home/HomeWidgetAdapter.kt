@@ -29,9 +29,12 @@ class HomeWidgetAdapter(
     widgets: List<WidgetEntity>,
     private val palette: ThemePalette,
     private val onCalendarDateClick: (String) -> Unit = {},
+    private val onCalendarWidgetClick: () -> Unit = {},
     private val onTodoAdd: (String, Boolean) -> Unit = { _, _ -> },
     private val onTodoCompletionChange: (TodoEntity, Boolean) -> Unit = { _, _ -> },
     private val onTodoMoveToTomorrow: (TodoEntity) -> Unit = {},
+    private val onReminderClick: () -> Unit = {},
+    private val onYearsAgoClick: (String) -> Unit = {},
     private val onWidgetSizeChange: (Set<String>) -> Unit = {}
 ) : RecyclerView.Adapter<HomeWidgetAdapter.WidgetViewHolder>() {
 
@@ -42,6 +45,8 @@ class HomeWidgetAdapter(
     private var yearsAgo: YearsAgoUi? = null
     private var hasTodayRecord = false
     private var hasTodayReview = false
+    private var pendingReminderCount = 0
+    private var pendingReminderPreview = ""
     private val largeWidgetTypes = mutableSetOf<String>()
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): WidgetViewHolder {
@@ -100,6 +105,12 @@ class HomeWidgetAdapter(
         notifyWidgetChanged("CHECKLIST")
     }
 
+    fun updatePendingReminders(pendingCount: Int, preview: String) {
+        pendingReminderCount = pendingCount
+        pendingReminderPreview = preview
+        notifyWidgetChanged("REMINDER")
+    }
+
     fun setLargeWidgetTypes(types: Set<String>) {
         largeWidgetTypes.clear()
         largeWidgetTypes.addAll(types)
@@ -142,12 +153,15 @@ class HomeWidgetAdapter(
             card.strokeColor = outlineColor
             card.strokeWidth = dp(1)
             title.text = when (widget.type) {
-                "YEARS_AGO" -> yearsAgo?.let { "${it.yearsAgo}년 전 오늘" } ?: display.first
+                "YEARS_AGO" -> display.first
                 else -> display.first
             }
             content.text = when (widget.type) {
                 "YEARS_AGO" -> yearsAgo?.preview
                     ?: itemView.context.getString(R.string.years_ago_empty)
+                "REMINDER" -> if (pendingReminderCount > 0) {
+                    "답변을 기다리는 리마인드 ${pendingReminderCount}개\n$pendingReminderPreview"
+                } else display.second
                 else -> display.second
             }
             title.setTextColor(textColor)
@@ -212,12 +226,21 @@ class HomeWidgetAdapter(
                     ?.let(::notifyItemChanged)
             }
 
-            card.isClickable = false
-            card.isFocusable = false
+            val widgetClick = when {
+                editMode -> null
+                widget.type == "CALENDAR" -> View.OnClickListener { onCalendarWidgetClick() }
+                widget.type == "REMINDER" -> View.OnClickListener { onReminderClick() }
+                widget.type == "YEARS_AGO" && yearsAgo != null -> View.OnClickListener {
+                    yearsAgo?.dateKey?.let(onYearsAgoClick)
+                }
+                else -> null
+            }
+            card.isClickable = widgetClick != null
+            card.isFocusable = widgetClick != null
             card.isLongClickable = false
             card.isCheckable = false
             card.setRippleColor(ColorStateList.valueOf(android.graphics.Color.TRANSPARENT))
-            card.setOnClickListener(null)
+            card.setOnClickListener(widgetClick)
             card.setOnLongClickListener(null)
 
             visibilitySwitch.setOnCheckedChangeListener(null)
@@ -384,7 +407,7 @@ class HomeWidgetAdapter(
         "CALENDAR" -> "주간 캘린더" to ""
         "CHECKLIST" -> "체크리스트" to ""
         "TODO_LIST" -> "TodoList" to ""
-        "YEARS_AGO" -> "1년 전 오늘" to "이런 일이 있었네요"
+        "YEARS_AGO" -> "n년 전 오늘" to "이런 일이 있었네요"
         "REMINDER" -> "오늘의 리마인더" to "오늘의 답변을 다시 확인해보세요"
         else -> type to "예시 위젯"
     }

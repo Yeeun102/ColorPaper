@@ -6,11 +6,14 @@ object ReminderMessageFactory {
     private val concernKeywords = listOf("고민", "걱정", "어떻게", "어쩌지", "?")
     private val difficultEmotions = listOf("짜증나요", "힘들어요", "화나요", "우울해요", "속상해요", "불안해요", "슬퍼요")
 
+    fun isDifficultEmotion(emotions: String?): Boolean =
+        difficultEmotions.any { emotions.orEmpty().contains(it) }
+
     fun create(content: String, emotions: String?, stage: Int, elapsedDays: Long): ReminderMessage {
         val title = when {
             concernKeywords.any(content::contains) ->
                 "${elapsedDays}일 전 하던 고민, 해결됐나요?"
-            difficultEmotions.any { emotions.orEmpty().contains(it) } ->
+            isDifficultEmotion(emotions) ->
                 "${elapsedDays}일 전의 마음은 괜찮아졌나요?"
             else -> when (stage % 4) {
                 0 -> "${elapsedDays}일 전, 이런 일이 있었어요"

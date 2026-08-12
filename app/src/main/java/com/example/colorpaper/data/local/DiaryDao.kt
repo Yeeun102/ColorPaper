@@ -9,6 +9,9 @@ import com.example.colorpaper.data.model.ReminderAnswerWithDiary
 
 @Dao
 interface DiaryDao {
+    @Query("SELECT * FROM diaries")
+    suspend fun getAllDiaries(): List<DiaryEntity>
+
     @Query("SELECT * FROM diaries WHERE diary_id = :diaryId LIMIT 1")
     suspend fun getDiaryById(diaryId: Int): DiaryEntity?
 

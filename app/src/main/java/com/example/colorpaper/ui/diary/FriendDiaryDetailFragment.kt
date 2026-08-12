@@ -29,7 +29,9 @@ import com.example.colorpaper.R
 import com.example.colorpaper.data.local.AppDatabase
 import com.example.colorpaper.data.model.CommentEntity
 import com.example.colorpaper.data.model.DiaryEntity
+import com.example.colorpaper.data.repository.UserRepository
 import com.example.colorpaper.databinding.FragmentFriendDiaryDetailBinding
+import com.example.colorpaper.ui.calendar.RecordDatePickerDialog
 import com.example.colorpaper.ui.theme.AppTheme
 import com.example.colorpaper.ui.theme.ThemeManager
 import com.example.colorpaper.util.AuthUtils
@@ -259,27 +261,23 @@ class FriendDiaryDetailFragment : Fragment() {
 
     private fun showDatePickerDialog() {
         if (!canNavigateDate()) return
-        try {
-            val parsedDate = dateFormatFull.parse(selectedDate)
-            if (parsedDate != null) {
-                calendar.time = parsedDate
+        val uid = targetUserId ?: return
+        val appContext = requireContext().applicationContext
+        viewLifecycleOwner.lifecycleScope.launch {
+            val recordedDates = withContext(Dispatchers.IO) {
+                UserRepository(AppDatabase.getDatabase(appContext))
+                    .getPublicDiariesByUserId(uid)
+                    .map { it.createdAt }
+                    .toSet()
             }
-        } catch (_: Exception) { }
-
-        val datePicker = DatePickerDialog(
-            requireContext(),
-            { _, year, month, dayOfMonth ->
-                calendar.set(year, month, dayOfMonth)
-                selectedDate = dateFormatFull.format(calendar.time)
+            if (!isAdded) return@launch
+            RecordDatePickerDialog.show(requireContext(), selectedDate, recordedDates) { dateKey ->
+                selectedDate = dateKey
                 updateDateTextDisplay()
                 updateCommentButtonState()
                 loadFriendDiaryData()
-            },
-            calendar.get(Calendar.YEAR),
-            calendar.get(Calendar.MONTH),
-            calendar.get(Calendar.DAY_OF_MONTH)
-        )
-        datePicker.show()
+            }
+        }
     }
 
     private fun loadFriendDiaryData() {
@@ -896,11 +894,6 @@ class FriendDiaryDetailFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        (activity as? com.example.colorpaper.MainActivity)?.setBottomNavVisibility(false)
-    }
-
-    override fun onPause() {
-        super.onPause()
         (activity as? com.example.colorpaper.MainActivity)?.setBottomNavVisibility(true)
     }
 
