@@ -12,6 +12,8 @@ import androidx.core.graphics.ColorUtils
 import androidx.fragment.app.Fragment
 import com.example.colorpaper.MainActivity
 import com.example.colorpaper.R
+import com.example.colorpaper.ui.profile.ProfileEditFragment
+import com.example.colorpaper.ui.setting.com.example.colorpaper.ui.setting.TagManageFragment
 import com.example.colorpaper.ui.theme.AppTheme
 import com.example.colorpaper.ui.theme.ThemeManager
 import com.google.android.material.card.MaterialCardView
@@ -42,6 +44,20 @@ class SettingFragment : Fragment() {
         view.findViewById<View>(R.id.ll_repeat_cycle).setOnClickListener {
             parentFragmentManager.beginTransaction()
                 .replace(R.id.fragment_container, RepeatCycleFragment())
+                .addToBackStack(null)
+                .commit()
+        }
+
+        view.findViewById<View>(R.id.ll_personal_info)?.setOnClickListener {
+            parentFragmentManager.beginTransaction()
+                .replace(R.id.fragment_container, ProfileEditFragment())
+                .addToBackStack(null)
+                .commit()
+        }
+
+        view.findViewById<View>(R.id.ll_tag_manage)?.setOnClickListener {
+            parentFragmentManager.beginTransaction()
+                .replace(R.id.fragment_container, TagManageFragment())
                 .addToBackStack(null)
                 .commit()
         }

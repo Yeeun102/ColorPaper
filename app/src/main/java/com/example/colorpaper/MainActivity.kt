@@ -1,5 +1,6 @@
 package com.example.colorpaper
 
+import SplashFragment
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -107,18 +108,7 @@ class MainActivity : AppCompatActivity() {
         requestNotificationPermissionIfNeeded()
 
         if (savedInstanceState == null) {
-            val currentUser = try {
-                FirebaseAuth.getInstance().currentUser
-            } catch (e: SecurityException) {
-                Log.e("MainActivity", "FirebaseAuth currentUser 접근 실패", e)
-                null
-            }
-
-            if (currentUser == null) {
-                showScreen(LoginFragment(), R.id.nav_home)
-            } else {
-                showScreen(homeFragmentFromIntent(intent), R.id.nav_home)
-            }
+            showScreen(SplashFragment(), R.id.nav_home)
         } else {
             selectNavigation(currentNavigationId())
         }
@@ -361,6 +351,7 @@ class MainActivity : AppCompatActivity() {
         )
 
         findViewById<View>(R.id.main).setBackgroundColor(background)
+        @Suppress("DEPRECATION")
         window.navigationBarColor = background
         findViewById<MaterialCardView>(R.id.bottom_navigation_bar).apply {
             setCardBackgroundColor(navBackground)

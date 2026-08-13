@@ -36,11 +36,11 @@
 
     <!-- 스플래시 테마 -->
     <style name="Theme.App.Starting" parent="Theme.SplashScreen">
-        <!-- 스플래시 배경색 (원하는 색으로 바꿔!) -->
+        <!-- 스플래시 배경색 -->
         <item name="windowSplashScreenBackground">#FFFFFF</item>
 
-        <!-- 중앙에 들어갈 로고 이미지 (res/drawable 안에 있는 이미지 이름) -->
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <!-- 중앙에 들어갈 로고 이미지 -->
+        <item name="windowSplashScreenAnimatedIcon">@android:color/transparent</item>
 
         <!-- 스플래시가 끝나고 넘어갈 원래 메인 테마 이름 지정 -->
         <item name="postSplashScreenTheme">@style/Base.Theme.ColorPaper</item>
