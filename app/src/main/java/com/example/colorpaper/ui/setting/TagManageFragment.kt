@@ -13,9 +13,11 @@ import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 import androidx.fragment.app.Fragment
 import com.example.colorpaper.databinding.FragmentTagManageBinding
 import com.example.colorpaper.ui.theme.ThemeManager
+import com.google.android.material.card.MaterialCardView
 import com.google.android.material.chip.Chip
 
 class TagManageFragment : Fragment() {
@@ -62,11 +64,24 @@ class TagManageFragment : Fragment() {
         val palette = ThemeManager.currentPalette(requireContext())
         val background = ContextCompat.getColor(requireContext(), palette.screenBackground)
         val text = ContextCompat.getColor(requireContext(), palette.primaryText)
+        val surface = ContextCompat.getColor(requireContext(), palette.todo)\
+        val outline = ColorUtils.setAlphaComponent(text, 38)
 
+        // 1. 전체 화면 배경색 적용
         root.setBackgroundColor(background)
+
+        // 2. 상단 아이콘 색상 틴트 적용
         binding.ivBackTag.imageTintList = ColorStateList.valueOf(text)
         binding.ivAddTag.imageTintList = ColorStateList.valueOf(text)
 
+        // 3. 태그 관리 폼을 감싸고 있는 네모 박스 배경 및 테두리 적용
+        root.findViewById<MaterialCardView>(com.example.colorpaper.R.id.card_tag_background)?.let { card ->
+            card.setCardBackgroundColor(surface)
+            card.strokeColor = outline
+            card.strokeWidth = dp(1)
+        }
+
+        // 4. 모든 텍스트뷰 글자색 통일
         tintTextRecursively(root, text)
     }
 
@@ -79,7 +94,6 @@ class TagManageFragment : Fragment() {
         }
     }
 
-    // 팝업창을 띄워서 사용자에게 태그 이름을 입력받는 함수
     private fun showAddTagDialog() {
         val builder = AlertDialog.Builder(requireContext())
         builder.setTitle("새 태그 추가")
@@ -107,7 +121,6 @@ class TagManageFragment : Fragment() {
         builder.show()
     }
 
-    // 태그를 화면에 붙이는 함수 (saveToPrefs가 true면 기기에 저장)
     private fun addNewTag(tagName: String, saveToPrefs: Boolean) {
         val palette = ThemeManager.currentPalette(requireContext())
 
@@ -127,7 +140,6 @@ class TagManageFragment : Fragment() {
             chipBackgroundColor = ColorStateList.valueOf(ContextCompat.getColor(requireContext(), colorRes))
             colorIndex++
 
-            // 칩을 길게 누르면 삭제되는 기능 추가! (디테일 챙기기)
             setOnLongClickListener {
                 binding.cgTags.removeView(this)
                 saveAllTagsToPrefs()
@@ -144,7 +156,6 @@ class TagManageFragment : Fragment() {
         }
     }
 
-    // 현재 화면에 있는 모든 태그들을 SharedPreferences에 저장
     private fun saveAllTagsToPrefs() {
         val sharedPrefs = requireActivity().getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
         val tagSet = mutableSetOf<String>()
@@ -157,7 +168,6 @@ class TagManageFragment : Fragment() {
         sharedPrefs.edit().putStringSet(KEY_TAGS, tagSet).apply()
     }
 
-    // 기기에 저장된 태그들을 불러와서 화면에 칩으로 생성
     private fun loadSavedTags() {
         val sharedPrefs = requireActivity().getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
         val tagSet = sharedPrefs.getStringSet(KEY_TAGS, emptySet()) ?: emptySet()
@@ -169,6 +179,9 @@ class TagManageFragment : Fragment() {
             addNewTag(tagName, saveToPrefs = false)
         }
     }
+
+    private fun dp(value: Int): Int =
+        (value * resources.displayMetrics.density).toInt()
 
     private fun Int.spToPx(): Float {
         return TypedValue.applyDimension(

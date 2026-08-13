@@ -10,7 +10,6 @@ import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.ColorUtils
 import androidx.fragment.app.Fragment
-import com.example.colorpaper.R
 import com.example.colorpaper.databinding.FragmentPersonalInfoEditBinding
 import com.example.colorpaper.ui.theme.ThemeManager
 import com.google.android.material.card.MaterialCardView
@@ -65,7 +64,6 @@ class PersonalInfoEditFragment : Fragment() {
 
             if (newPassword.isNotBlank() && newPassword == confirmPassword) {
                 Toast.makeText(requireContext(), "정보가 성공적으로 저장되었습니다.", Toast.LENGTH_SHORT).show()
-                // TODO: 실제 백엔드에 정보 수정 요청 보내는 로직 추가
             } else if (newPassword != confirmPassword) {
                 Toast.makeText(requireContext(), "비밀번호가 서로 일치하지 않습니다.", Toast.LENGTH_SHORT).show()
             } else {
@@ -73,6 +71,7 @@ class PersonalInfoEditFragment : Fragment() {
             }
         }
 
+        // 5. 테마 색상 적용 함수 호출
         applyTheme(view)
     }
 
@@ -83,16 +82,26 @@ class PersonalInfoEditFragment : Fragment() {
         val surface = ContextCompat.getColor(requireContext(), palette.todo)
         val outline = ColorUtils.setAlphaComponent(text, 38)
 
-        // 배경색 설정
+        // 1. 전체 화면 배경색 적용
         root.setBackgroundColor(background)
 
-        // 뒤로가기 아이콘 색상(Tint) 적용
+        // 2. 뒤로가기 아이콘 색상 적용
         binding.ivBackEditInfo.imageTintList = ColorStateList.valueOf(text)
 
-        // 저장하기 버튼 배경색을 테마 포인트 컬러(accent)로 변경
-        binding.btnSavePersonalInfo.setBackgroundColor(ContextCompat.getColor(requireContext(), palette.accent))
+        // 3. 폼을 감싸고 있는 큰 네모 카드박스 배경색 및 테두리 테마 연동
+        binding.cardFormBackground.setCardBackgroundColor(surface)
+        binding.cardFormBackground.strokeColor = outline
+        binding.cardFormBackground.strokeWidth = dp(1)
 
-        // 화면 내의 텍스트뷰 글자색 자동 통일
+        // 4. 저장하기 버튼 색상 테마 accent 적용
+        binding.btnSavePersonalInfo.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(requireContext(), palette.accent))
+        binding.btnSavePersonalInfo.setTextColor(text)
+
+        // 5. 인증 버튼 색상도 테마 서피스에 맞추기
+        binding.btnVerify.backgroundTintList = ColorStateList.valueOf(background)
+        binding.btnVerify.setTextColor(text)
+
+        // 6. 모든 텍스트뷰 글자색 통일
         tintTextRecursively(root, text)
     }
 

@@ -97,6 +97,12 @@ class PersonalInfoFragment : Fragment() {
         binding.ivBackPersonalInfo.imageTintList = ColorStateList.valueOf(text)
 
         tintTextRecursively(root, text)
+
+        root.findViewById<MaterialCardView>(R.id.cv_personal_info_group)?.let { card ->
+            card.setCardBackgroundColor(surface)
+            card.strokeColor = outline
+            card.strokeWidth = dp(1)
+        }
     }
 
     private fun tintTextRecursively(view: View, color: Int) {
