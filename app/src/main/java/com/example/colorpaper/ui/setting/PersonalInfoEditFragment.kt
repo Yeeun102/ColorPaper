@@ -1,12 +1,19 @@
 package com.example.colorpaper.ui.setting
 
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
 import android.widget.Toast
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 import androidx.fragment.app.Fragment
+import com.example.colorpaper.R
 import com.example.colorpaper.databinding.FragmentPersonalInfoEditBinding
+import com.example.colorpaper.ui.theme.ThemeManager
+import com.google.android.material.card.MaterialCardView
 
 class PersonalInfoEditFragment : Fragment() {
 
@@ -26,11 +33,10 @@ class PersonalInfoEditFragment : Fragment() {
 
         // 1. 뒤로가기 버튼
         binding.ivBackEditInfo.setOnClickListener {
-            // TODO: 개인정보(8.1) 화면으로 돌아가는 코드 추가
-            Toast.makeText(requireContext(), "뒤로 가기 (임시)", Toast.LENGTH_SHORT).show()
+            requireActivity().onBackPressedDispatcher.onBackPressed()
         }
 
-        // 2. 이메일/전화번호 라디오 버튼 선택에 따라 입력창 힌트 바꾸기 (디테일 챙기기!)
+        // 2. 이메일/전화번호 라디오 버튼 선택에 따라 입력창 힌트 바꾸기
         binding.rgVerifyMethod.setOnCheckedChangeListener { _, checkedId ->
             when (checkedId) {
                 binding.rbEmail.id -> {
@@ -66,7 +72,41 @@ class PersonalInfoEditFragment : Fragment() {
                 Toast.makeText(requireContext(), "저장할 정보를 입력해주세요.", Toast.LENGTH_SHORT).show()
             }
         }
+
+        applyTheme(view)
     }
+
+    private fun applyTheme(root: View) {
+        val palette = ThemeManager.currentPalette(requireContext())
+        val background = ContextCompat.getColor(requireContext(), palette.screenBackground)
+        val text = ContextCompat.getColor(requireContext(), palette.primaryText)
+        val surface = ContextCompat.getColor(requireContext(), palette.todo)
+        val outline = ColorUtils.setAlphaComponent(text, 38)
+
+        // 배경색 설정
+        root.setBackgroundColor(background)
+
+        // 뒤로가기 아이콘 색상(Tint) 적용
+        binding.ivBackEditInfo.imageTintList = ColorStateList.valueOf(text)
+
+        // 저장하기 버튼 배경색을 테마 포인트 컬러(accent)로 변경
+        binding.btnSavePersonalInfo.setBackgroundColor(ContextCompat.getColor(requireContext(), palette.accent))
+
+        // 화면 내의 텍스트뷰 글자색 자동 통일
+        tintTextRecursively(root, text)
+    }
+
+    private fun tintTextRecursively(view: View, color: Int) {
+        if (view is TextView) view.setTextColor(color)
+        if (view is ViewGroup) {
+            for (index in 0 until view.childCount) {
+                tintTextRecursively(view.getChildAt(index), color)
+            }
+        }
+    }
+
+    private fun dp(value: Int): Int =
+        (value * resources.displayMetrics.density).toInt()
 
     override fun onDestroyView() {
         super.onDestroyView()
