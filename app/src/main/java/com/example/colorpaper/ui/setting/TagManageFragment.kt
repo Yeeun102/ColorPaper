@@ -41,7 +41,7 @@ class TagManageFragment : Fragment() {
 
         // 1. 뒤로가기 버튼
         binding.ivBackTag.setOnClickListener {
-            Toast.makeText(requireContext(), "뒤로 가기 (임시)", Toast.LENGTH_SHORT).show()
+            requireActivity().onBackPressedDispatcher.onBackPressed()
         }
 
         // 2. 태그 추가 버튼 (+) 클릭 -> 입력 팝업
