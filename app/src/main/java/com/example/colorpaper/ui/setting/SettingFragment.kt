@@ -50,7 +50,7 @@ class SettingFragment : Fragment() {
 
         view.findViewById<View>(R.id.ll_personal_info)?.setOnClickListener {
             parentFragmentManager.beginTransaction()
-                .replace(R.id.fragment_container, ProfileEditFragment())
+                .replace(R.id.fragment_container, PersonalInfoFragment())
                 .addToBackStack(null)
                 .commit()
         }
