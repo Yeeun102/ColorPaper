@@ -7,6 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import com.example.colorpaper.R
@@ -16,6 +17,7 @@ import com.example.colorpaper.data.model.UserEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import com.example.colorpaper.ui.home.HomeFragment
+import com.example.colorpaper.ui.theme.ThemeManager
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
@@ -56,36 +58,73 @@ class RegisterFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        // 1. ThemeManager에서 현재 테마 팔레트 가져오기
+        val palette = ThemeManager.currentPalette(requireContext())
+
+        // 2. 배경색 바꾸기 (root 뷰를 가져와서 배경 설정)
+        val rootLayout = view.findViewById<View>(R.id.root_layout) // 👈 XML 최상위 레이아웃 ID
+        rootLayout.setBackgroundResource(palette.screenBackground)
+
+        // 3. 버튼 색상 바꾸기
+        val btnLogin = view.findViewById<Button>(R.id.btn_login)
+        btnLogin.setBackgroundResource(palette.accent) // 👈 테마별 포인트 컬러(accent) 적용
+
+        // 4. 로고 이미지 바꾸기
+        val ivLogo = view.findViewById<ImageView>(R.id.iv_app_logo)
+        ivLogo.setImageResource(palette.toolbarLogo)
+
+        // 1. XML에 있는 ID랑 정확하게 똑같이 맞춰서 뷰(화면 요소)들 가져오기!
         val etName = view.findViewById<EditText>(R.id.et_name)
-        val etEmail = view.findViewById<EditText>(R.id.et_email)
+        val etContact = view.findViewById<EditText>(R.id.et_contact) // 👈 et_email에서 et_contact로 수정됨!
         val etPassword = view.findViewById<EditText>(R.id.et_password)
         val etPasswordConfirm = view.findViewById<EditText>(R.id.et_password_confirm)
         val btnRegister = view.findViewById<Button>(R.id.btn_register)
         val tvToLogin = view.findViewById<TextView>(R.id.tv_to_login)
+        val btnVerify = view.findViewById<Button>(R.id.btn_verify) // 👈 XML에 있던 인증 버튼 추가!
 
+        // 인증 버튼 눌렀을 때 작동할 코드
+        btnVerify?.setOnClickListener {
+            val contact = etContact?.text.toString().trim()
+            if (contact.isEmpty()) {
+                Toast.makeText(requireContext(), "이메일(연락처)을 먼저 입력해 주세요.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            // 임시 인증 안내 메시지 (파이어베이스는 보통 가입 완료 후에 인증 메일을 보내!)
+            Toast.makeText(requireContext(), "사용 가능한 이메일입니다!", Toast.LENGTH_SHORT).show()
+        }
+
+        // 가입 완료 버튼 눌렀을 때 작동할 코드
         btnRegister?.setOnClickListener {
             val name = etName?.text.toString().trim()
-            val email = etEmail?.text.toString().trim()
+            val email = etContact?.text.toString().trim() // 👈 가져온 입력값을 email 변수에 담음
             val password = etPassword?.text.toString().trim()
             val passwordConfirm = etPasswordConfirm?.text.toString().trim()
 
+            // 빈칸 검사
             if (name.isEmpty() || email.isEmpty() || password.isEmpty()) {
                 Toast.makeText(requireContext(), "모든 항목을 입력해 주세요.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
+            // 비밀번호 일치 검사
             if (password != passwordConfirm) {
                 Toast.makeText(requireContext(), "비밀번호가 일치하지 않습니다.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
+            // 이메일 형식(test@test.com)이 맞는지 검사하는 강력한 방패!
+            if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                Toast.makeText(requireContext(), "올바른 이메일 형식을 적어주세요!", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            // 모든 검사 통과! 파이어베이스로 진짜 가입 요청 날리기
             performRegister(email, password) { isSuccess ->
                 if (isSuccess) {
                     val uid = auth.currentUser?.uid ?: ""
-                    // 🌟 4자리 임의의 유저 코드 생성 (예: 1234)
                     val generatedUserCode = (1000..9999).random().toString()
 
-                    // 1. Firestore 저장 (필드명을 nickname, userCode로 통일)
+                    // 1. 파이어베이스 Firestore 저장
                     val userMap = hashMapOf(
                         "uid" to uid,
                         "nickname" to name,
@@ -94,19 +133,20 @@ class RegisterFragment : Fragment() {
                     )
                     FirebaseFirestore.getInstance().collection("users").document(uid).set(userMap)
 
-                    // 2. 🌟 Room 로컬 DB에도 유저 정보 저장 (ProfileFragment 관찰용)
+                    // 2. 룸(Room) 로컬 DB 저장
                     val db = AppDatabase.getDatabase(requireContext())
                     lifecycleScope.launch(Dispatchers.IO) {
                         val userEntity = UserEntity(
                             userCode = generatedUserCode,
                             email = email,
-                            passwordHash = "", // 필요 시 저장
+                            passwordHash = "",
                             nickname = name,
                             profileImageUrl = null
                         )
                         db.userDao().insertUser(userEntity)
                     }
 
+                    // 3. 성공했으니 홈 화면으로 스르륵 이동!
                     parentFragmentManager.beginTransaction()
                         .replace(R.id.fragment_container, HomeFragment())
                         .commit()
@@ -116,6 +156,7 @@ class RegisterFragment : Fragment() {
             }
         }
 
+        // 로그인 화면으로 돌아가기 버튼
         tvToLogin?.setOnClickListener {
             parentFragmentManager.beginTransaction()
                 .replace(R.id.fragment_container, LoginFragment())
