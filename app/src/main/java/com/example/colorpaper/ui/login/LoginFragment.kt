@@ -6,12 +6,14 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.example.colorpaper.MainActivity
 import com.example.colorpaper.R
 import com.example.colorpaper.ui.home.HomeFragment
+import com.example.colorpaper.ui.theme.ThemeManager
 import com.google.firebase.auth.FirebaseAuth
 
 class LoginFragment : Fragment() {
@@ -33,9 +35,23 @@ class LoginFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        // 1. ThemeManager에서 현재 테마 팔레트 가져오기
+        val palette = ThemeManager.currentPalette(requireContext())
+
+        // 2. 배경색 바꾸기 (root 뷰를 가져와서 배경 설정)
+        val rootLayout = view.findViewById<View>(R.id.root_layout) // 👈 XML 최상위 레이아웃 ID
+        rootLayout.setBackgroundResource(palette.screenBackground)
+
+        // 3. 버튼 색상 바꾸기
+        val btnLogin = view.findViewById<Button>(R.id.btn_login)
+        btnLogin.setBackgroundResource(palette.accent) // 👈 테마별 포인트 컬러(accent) 적용
+
+        // 4. 로고 이미지 바꾸기
+        val ivLogo = view.findViewById<ImageView>(R.id.iv_app_logo)
+        ivLogo.setImageResource(palette.toolbarLogo)
+
         val etEmail = view.findViewById<EditText>(R.id.et_email)
         val etPassword = view.findViewById<EditText>(R.id.et_password)
-        val btnLogin = view.findViewById<Button>(R.id.btn_login)
         val tvToRegister = view.findViewById<TextView>(R.id.tv_to_register)
 
         btnLogin?.setOnClickListener {
