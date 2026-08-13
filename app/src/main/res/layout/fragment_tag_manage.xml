@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/card_tag_background"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#F5F1F1"
@@ -35,6 +34,7 @@
     <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:id="@+id/card_tag_background"
         android:layout_marginTop="32dp"
         app:cardBackgroundColor="#F9F6F6"
         app:cardCornerRadius="16dp"

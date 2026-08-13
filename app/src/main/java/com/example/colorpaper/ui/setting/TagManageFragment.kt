@@ -64,7 +64,7 @@ class TagManageFragment : Fragment() {
         val palette = ThemeManager.currentPalette(requireContext())
         val background = ContextCompat.getColor(requireContext(), palette.screenBackground)
         val text = ContextCompat.getColor(requireContext(), palette.primaryText)
-        val surface = ContextCompat.getColor(requireContext(), palette.todo)\
+        val surface = ContextCompat.getColor(requireContext(), palette.todo)
         val outline = ColorUtils.setAlphaComponent(text, 38)
 
         // 1. 전체 화면 배경색 적용

@@ -291,7 +291,7 @@
                     android:id="@+id/btnAddCustomTag"
                     android:layout_width="32dp"
                     android:layout_height="32dp"
-                    android:src="@android:drawable/ic_input_add"
+                    android:src="@drawable/ic_text_tool"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:padding="2dp"
                     android:contentDescription="@string/add_tag" />

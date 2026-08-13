@@ -13,7 +13,7 @@ import androidx.fragment.app.Fragment
 import com.example.colorpaper.MainActivity
 import com.example.colorpaper.R
 import com.example.colorpaper.ui.profile.ProfileEditFragment
-import com.example.colorpaper.ui.setting.com.example.colorpaper.ui.setting.TagManageFragment
+import com.example.colorpaper.ui.setting.TagManageFragment
 import com.example.colorpaper.ui.theme.AppTheme
 import com.example.colorpaper.ui.theme.ThemeManager
 import com.google.android.material.card.MaterialCardView
