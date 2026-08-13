@@ -1,5 +1,6 @@
 package com.example.colorpaper.ui.login
 
+import android.content.res.ColorStateList
 import android.os.Bundle
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
@@ -10,10 +11,12 @@ import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import com.example.colorpaper.R
 import androidx.lifecycle.lifecycleScope
 import com.example.colorpaper.data.local.AppDatabase
 import com.example.colorpaper.data.model.UserEntity
+import com.example.colorpaper.databinding.FragmentRegisterBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import com.example.colorpaper.ui.home.HomeFragment
@@ -36,6 +39,9 @@ class RegisterFragment : Fragment() {
     private var param1: String? = null
     private var param2: String? = null
 
+    private var _binding: FragmentRegisterBinding? = null
+    private val binding get() = _binding!!
+
     private lateinit var auth: FirebaseAuth
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,7 +58,8 @@ class RegisterFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View? {
         // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_register, container, false)
+        _binding = FragmentRegisterBinding.inflate(inflater, container, false)
+        return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -65,13 +72,10 @@ class RegisterFragment : Fragment() {
         val rootLayout = view.findViewById<View>(R.id.root_layout) // 👈 XML 최상위 레이아웃 ID
         rootLayout.setBackgroundResource(palette.screenBackground)
 
-        // 3. 버튼 색상 바꾸기
-        val btnLogin = view.findViewById<Button>(R.id.btn_login)
-        btnLogin.setBackgroundResource(palette.accent) // 👈 테마별 포인트 컬러(accent) 적용
 
         // 4. 로고 이미지 바꾸기
-        val ivLogo = view.findViewById<ImageView>(R.id.iv_app_logo)
-        ivLogo.setImageResource(palette.toolbarLogo)
+        //val ivLogo = view.findViewById<ImageView>(R.id.iv_app_logo)
+        //ivLogo.setImageResource(palette.toolbarLogo)
 
         // 1. XML에 있는 ID랑 정확하게 똑같이 맞춰서 뷰(화면 요소)들 가져오기!
         val etName = view.findViewById<EditText>(R.id.et_name)
@@ -81,6 +85,13 @@ class RegisterFragment : Fragment() {
         val btnRegister = view.findViewById<Button>(R.id.btn_register)
         val tvToLogin = view.findViewById<TextView>(R.id.tv_to_login)
         val btnVerify = view.findViewById<Button>(R.id.btn_verify) // 👈 XML에 있던 인증 버튼 추가!
+
+        // 3. 버튼 색상 바꾸기
+        //val btnLogin = view.findViewById<Button>(R.id.btn_login)
+        val strokeColor = ContextCompat.getColor(requireContext(), palette.stroke)
+        val buttonColor = ContextCompat.getColor(requireContext(), palette.reminder)
+        binding.btnRegister.backgroundTintList = ColorStateList.valueOf(strokeColor) // 👈 테마별 포인트 컬러(accent) 적용
+        binding.btnVerify.backgroundTintList = ColorStateList.valueOf(buttonColor)
 
         // 인증 버튼 눌렀을 때 작동할 코드
         btnVerify?.setOnClickListener {

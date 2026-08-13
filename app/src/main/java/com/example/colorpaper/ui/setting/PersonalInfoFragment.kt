@@ -98,7 +98,7 @@ class PersonalInfoFragment : Fragment() {
 
         tintTextRecursively(root, text)
 
-        root.findViewById<MaterialCardView>(R.id.cv_personal_info_group)?.let { card ->
+        root.findViewById<MaterialCardView>(R.id.cv_personal_info_menu)?.let { card ->
             card.setCardBackgroundColor(surface)
             card.strokeColor = outline
             card.strokeWidth = dp(1)

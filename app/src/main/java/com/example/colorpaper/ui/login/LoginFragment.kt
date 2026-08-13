@@ -1,5 +1,6 @@
 package com.example.colorpaper.ui.login
 
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -9,14 +10,19 @@ import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.example.colorpaper.MainActivity
 import com.example.colorpaper.R
+import com.example.colorpaper.databinding.FragmentLoginBinding
 import com.example.colorpaper.ui.home.HomeFragment
 import com.example.colorpaper.ui.theme.ThemeManager
 import com.google.firebase.auth.FirebaseAuth
 
 class LoginFragment : Fragment() {
+
+    private var _binding: FragmentLoginBinding? = null
+    private val binding get() = _binding!!
 
     private lateinit var auth: FirebaseAuth
 
@@ -29,7 +35,8 @@ class LoginFragment : Fragment() {
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        return inflater.inflate(R.layout.fragment_login, container, false)
+        _binding = FragmentLoginBinding.inflate(inflater, container, false)
+        return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -44,7 +51,9 @@ class LoginFragment : Fragment() {
 
         // 3. 버튼 색상 바꾸기
         val btnLogin = view.findViewById<Button>(R.id.btn_login)
-        btnLogin.setBackgroundResource(palette.accent) // 👈 테마별 포인트 컬러(accent) 적용
+        //btnLogin.setBackgroundResource(palette.accent) // 👈 테마별 포인트 컬러(accent) 적용
+        val strokeColor = ContextCompat.getColor(requireContext(), palette.stroke)
+        binding.btnLogin.backgroundTintList = ColorStateList.valueOf(strokeColor) // 👈 테마별 포인트 컬러(accent) 적용
 
         // 4. 로고 이미지 바꾸기
         val ivLogo = view.findViewById<ImageView>(R.id.iv_app_logo)
