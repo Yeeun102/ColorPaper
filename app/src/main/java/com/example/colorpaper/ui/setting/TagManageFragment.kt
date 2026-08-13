@@ -9,9 +9,12 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
+import android.widget.TextView
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.example.colorpaper.databinding.FragmentTagManageBinding
+import com.example.colorpaper.ui.theme.ThemeManager
 import com.google.android.material.chip.Chip
 
 class TagManageFragment : Fragment() {
@@ -47,6 +50,30 @@ class TagManageFragment : Fragment() {
         // 2. 태그 추가 버튼 (+) 클릭 -> 입력 팝업
         binding.ivAddTag.setOnClickListener {
             showAddTagDialog()
+        }
+
+        // 3. 테마 색상 적용
+        applyTheme(view)
+    }
+
+    private fun applyTheme(root: View) {
+        val palette = ThemeManager.currentPalette(requireContext())
+        val background = ContextCompat.getColor(requireContext(), palette.screenBackground)
+        val text = ContextCompat.getColor(requireContext(), palette.primaryText)
+
+        root.setBackgroundColor(background)
+        binding.ivBackTag.imageTintList = ColorStateList.valueOf(text)
+        binding.ivAddTag.imageTintList = ColorStateList.valueOf(text)
+
+        tintTextRecursively(root, text)
+    }
+
+    private fun tintTextRecursively(view: View, color: Int) {
+        if (view is TextView) view.setTextColor(color)
+        if (view is ViewGroup) {
+            for (index in 0 until view.childCount) {
+                tintTextRecursively(view.getChildAt(index), color)
+            }
         }
     }
 
