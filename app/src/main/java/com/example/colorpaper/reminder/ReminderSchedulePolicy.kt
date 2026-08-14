@@ -16,11 +16,12 @@ object ReminderSchedulePolicy {
         repeatLast: Boolean = false,
         hour: Int = -1,
         minute: Int = 0,
+        endDate: Int = 0,
         now: Long = System.currentTimeMillis()
     ): Long? {
         if (anchorAt <= 0L || stage < 0 || cycleDays == DISABLED) return null
         val plannedAt = plannedTriggerAt(
-            anchorAt, cycleDays, stage, cyclePattern, repeatLast, hour, minute
+            anchorAt, cycleDays, stage, cyclePattern, repeatLast, hour, minute, endDate
         ) ?: return null
         return maxOf(plannedAt, now + MIN_RESCHEDULE_DELAY_MILLIS)
     }
@@ -32,11 +33,12 @@ object ReminderSchedulePolicy {
         cyclePattern: String = "",
         repeatLast: Boolean = false,
         hour: Int = -1,
-        minute: Int = 0
+        minute: Int = 0,
+        endDate: Int = 0
     ): Long? {
         if (anchorAt <= 0L || stage < 0 || cycleDays == DISABLED) return null
         val elapsedDays = elapsedDays(cycleDays, stage, cyclePattern, repeatLast) ?: return null
-        return if (hour in 0..23) {
+        val triggerAt = if (hour in 0..23) {
             Calendar.getInstance().apply {
                 timeInMillis = anchorAt
                 add(Calendar.DAY_OF_YEAR, elapsedDays.toInt())
@@ -48,6 +50,7 @@ object ReminderSchedulePolicy {
         } else {
             anchorAt + elapsedDays * DAY_MILLIS
         }
+        return triggerAt.takeUnless { endDate > 0 && dateKey(it) > endDate }
     }
 
     fun elapsedDays(
@@ -74,6 +77,24 @@ object ReminderSchedulePolicy {
         if (!repeatLast || days.isEmpty() || stage < days.size) return null
         val interval = if (days.size == 1) days.last() else days.last() - days[days.lastIndex - 1]
         return days.last().toLong() + interval.coerceAtLeast(1).toLong() * (stage - days.lastIndex)
+    }
+
+    fun anchorAfterAnswer(
+        answeredAt: Long,
+        cycleDays: Int,
+        answeredStage: Int,
+        cyclePattern: String = "",
+        repeatLast: Boolean = false
+    ): Long {
+        val elapsedAtAnsweredStage = elapsedDays(
+            cycleDays, answeredStage, cyclePattern, repeatLast
+        ) ?: 0L
+        return answeredAt - elapsedAtAnsweredStage * DAY_MILLIS
+    }
+
+    private fun dateKey(timeMillis: Long): Int = Calendar.getInstance().run {
+        this.timeInMillis = timeMillis
+        get(Calendar.YEAR) * 10_000 + (get(Calendar.MONTH) + 1) * 100 + get(Calendar.DAY_OF_MONTH)
     }
 
     private const val DAY_MILLIS = 24L * 60L * 60L * 1000L

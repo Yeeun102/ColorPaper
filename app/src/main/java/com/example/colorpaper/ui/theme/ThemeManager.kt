@@ -1,6 +1,8 @@
 package com.example.colorpaper.ui.theme
 
 import android.content.Context
+import android.content.ComponentName
+import android.content.pm.PackageManager
 import com.example.colorpaper.R
 
 /**
@@ -21,7 +23,29 @@ object ThemeManager {
         context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_THEME, theme.name)
-            .apply()
+            .commit()
+        syncLauncherIcon(context, theme)
+    }
+
+    fun syncLauncherIcon(context: Context, theme: AppTheme = currentTheme(context)) {
+        val aliases = mapOf(
+            AppTheme.ROSE to "${context.packageName}.RoseLauncher",
+            AppTheme.SAGE to "${context.packageName}.SageLauncher",
+            AppTheme.SKY to "${context.packageName}.SkyLauncher"
+        )
+        val selected = aliases.getValue(theme)
+        context.packageManager.setComponentEnabledSetting(
+            ComponentName(context.packageName, selected),
+            PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+            PackageManager.DONT_KILL_APP
+        )
+        aliases.filterKeys { it != theme }.forEach { (_, className) ->
+            context.packageManager.setComponentEnabledSetting(
+                ComponentName(context.packageName, className),
+                PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                PackageManager.DONT_KILL_APP
+            )
+        }
     }
 
     fun currentPalette(context: Context): ThemePalette = palette(currentTheme(context))

@@ -29,6 +29,35 @@
         android:textSize="15sp" />
 
     <LinearLayout
+        android:id="@+id/layout_previous_reminder_answer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:background="#F3ECFF"
+        android:orientation="vertical"
+        android:padding="14dp"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="지난 리마인드 질문과 답변"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_previous_reminder_question"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" />
+
+        <TextView
+            android:id="@+id/tv_previous_reminder_answer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp" />
+    </LinearLayout>
+
+    <LinearLayout
         android:id="@+id/layout_reminder_masking"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

@@ -28,15 +28,17 @@ import com.example.colorpaper.data.local.AppDatabase
 import com.example.colorpaper.databinding.FragmentRepeatCycleBinding
 import com.example.colorpaper.reminder.ReminderNotification
 import com.example.colorpaper.reminder.ReminderPreferences
-import com.example.colorpaper.reminder.ReminderSchedulePolicy
 import com.example.colorpaper.reminder.ReminderTemplate
 import com.example.colorpaper.ui.theme.ThemeManager
 import com.example.colorpaper.ui.theme.ThemedDialogStyler
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 class RepeatCycleFragment : Fragment() {
@@ -64,30 +66,29 @@ class RepeatCycleFragment : Fragment() {
         val appContext = requireContext().applicationContext
         viewLifecycleOwner.lifecycleScope.launch {
             val diary = withContext(Dispatchers.IO) {
-                AppDatabase.getDatabase(appContext).diaryDao()
-                    .getReminderEnabledDiaries()
-                    .firstOrNull { item ->
-                        ReminderSchedulePolicy.elapsedDays(
-                            item.reviewCycleDays,
-                            item.reminderStage,
-                            item.reviewCyclePattern,
-                            item.reviewRepeatLast
-                        ) != null
-                    }
+                val dao = AppDatabase.getDatabase(appContext).diaryDao()
+                val userId = FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
+                if (userId.isBlank()) null else {
+                    val diaries = dao.getReminderEnabledDiaries().filter { it.userId == userId }
+                    val today = SimpleDateFormat("yyyy-MM-dd", Locale.KOREA).format(Date())
+                    diaries.filter { it.createdAt < today }
+                        .maxByOrNull { it.createdAt }
+                        ?: diaries.maxByOrNull { it.createdAt }
+                }
             }
             if (!isAdded) return@launch
             if (diary == null) {
                 Toast.makeText(
                     requireContext(),
-                    "먼저 반복주기가 설정된 메모지를 저장해 주세요.",
+                    "테스트 알림에 사용할 리마인드 기록을 먼저 저장해 주세요.",
                     Toast.LENGTH_SHORT
                 ).show()
                 return@launch
             }
-            ReminderNotification.show(appContext, diary, diary.reminderStage)
+            ReminderNotification.showTestNotifications(appContext, diary)
             Toast.makeText(
                 requireContext(),
-                "테스트 알림을 보냈어요. 알림을 눌러 홈 화면도 확인해 보세요.",
+                "현재 기록으로 테스트 알림 3개를 보냈어요.",
                 Toast.LENGTH_LONG
             ).show()
         }

@@ -24,12 +24,15 @@ import com.example.colorpaper.data.local.AppDatabase
 import com.example.colorpaper.data.model.ReminderAnswerEntity
 import com.example.colorpaper.data.model.TodoEntity
 import com.example.colorpaper.data.repository.UserRepository
+import com.example.colorpaper.data.repository.ReminderAnswerStore
+import com.example.colorpaper.data.repository.DiaryRepository
 import com.example.colorpaper.reminder.ReminderIntents
 import com.example.colorpaper.reminder.PendingReminder
 import com.example.colorpaper.reminder.ReminderInbox
 import com.example.colorpaper.reminder.MaskingText
 import com.example.colorpaper.reminder.ReminderMessageFactory
 import com.example.colorpaper.reminder.ReminderSchedulePolicy
+import com.example.colorpaper.reminder.ReminderScheduler
 import com.example.colorpaper.ui.calendar.EmotionStampFormatter
 import com.example.colorpaper.ui.theme.ThemeManager
 import com.example.colorpaper.ui.theme.ThemedDialogStyler
@@ -52,6 +55,7 @@ class HomeFragment : Fragment() {
     private var editMode = false
     private var allWidgets: List<WidgetEntity> = emptyList()
     private var pendingReminders: List<PendingReminder> = emptyList()
+    private var diarySyncStarted = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -76,7 +80,7 @@ class HomeFragment : Fragment() {
         )
 
         dateTitle.text = SimpleDateFormat("M월 d일", Locale.KOREAN).format(Date())
-        allWidgets = defaultWidgets()
+        allWidgets = currentLocalUserId()?.let(::defaultWidgets).orEmpty()
         adapter = HomeWidgetAdapter(
             widgets = emptyList(),
             palette = palette,
@@ -121,9 +125,7 @@ class HomeFragment : Fragment() {
 
         val reminderDiaryId = arguments?.getInt(ReminderIntents.EXTRA_DIARY_ID, -1) ?: -1
         val reminderStage = arguments?.getInt(ReminderIntents.EXTRA_STAGE, -1) ?: -1
-        if (reminderDiaryId > 0 && reminderStage >= 0) {
-            showReminderDialog(reminderDiaryId, reminderStage)
-        }
+        syncRemoteDiaries(reminderDiaryId, reminderStage)
     }
 
     override fun onResume() {
@@ -181,14 +183,16 @@ class HomeFragment : Fragment() {
     }
 
     private fun loadTodos() {
+        val localUserId = currentLocalUserId() ?: return
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN).format(Date())
         val appContext = requireContext().applicationContext
         viewLifecycleOwner.lifecycleScope.launch {
             val todos = withContext(Dispatchers.IO) {
                 val dao = AppDatabase.getDatabase(appContext).todoDao()
-                val todayItems = dao.getTodosForDate(DEMO_USER_ID, today)
+                dao.reassignLegacyUser(LEGACY_LOCAL_USER_ID, localUserId)
+                val todayItems = dao.getTodosForDate(localUserId, today)
                 val existingContents = todayItems.map { it.content.trim() }.toMutableSet()
-                dao.getCarryOverCandidates(DEMO_USER_ID, today)
+                dao.getCarryOverCandidates(localUserId, today)
                     .distinctBy { it.content.trim() }
                     .forEach { previous ->
                         if (existingContents.add(previous.content.trim())) {
@@ -202,20 +206,21 @@ class HomeFragment : Fragment() {
                         }
                         dao.updateCarryOver(previous.todoId, false)
                     }
-                dao.getTodosForDate(DEMO_USER_ID, today)
+                dao.getTodosForDate(localUserId, today)
             }
             if (isAdded) adapter.updateTodoItems(todos)
         }
     }
 
     private fun addTodo(content: String, carryOver: Boolean) {
+        val localUserId = currentLocalUserId() ?: return
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.KOREAN).format(Date())
         val appContext = requireContext().applicationContext
         viewLifecycleOwner.lifecycleScope.launch {
             withContext(Dispatchers.IO) {
                 AppDatabase.getDatabase(appContext).todoDao().insertTodo(
                     TodoEntity(
-                        userId = DEMO_USER_ID,
+                        userId = localUserId,
                         content = content,
                         targetDate = today,
                         carryOver = carryOver
@@ -342,16 +347,18 @@ class HomeFragment : Fragment() {
     }
 
     private fun loadWidgetLayout() {
+        val localUserId = currentLocalUserId() ?: return
         val appContext = requireContext().applicationContext
         viewLifecycleOwner.lifecycleScope.launch {
             val widgets = withContext(Dispatchers.IO) {
                 val dao = AppDatabase.getDatabase(appContext).widgetDao()
-                val saved = dao.getWidgetsByUser(DEMO_USER_ID)
+                dao.reassignLegacyUser(LEGACY_LOCAL_USER_ID, localUserId)
+                val saved = dao.getWidgetsByUser(localUserId)
                 if (saved.isNotEmpty()) {
                     saved
                 } else {
-                    dao.insertWidgets(defaultWidgets())
-                    dao.getWidgetsByUser(DEMO_USER_ID)
+                    dao.insertWidgets(defaultWidgets(localUserId))
+                    dao.getWidgetsByUser(localUserId)
                 }
             }
             if (!isAdded) return@launch
@@ -360,15 +367,54 @@ class HomeFragment : Fragment() {
         }
     }
 
-    private fun loadWidgetSizes(): Set<String> =
-        requireContext().getSharedPreferences(HOME_PREFERENCES, android.content.Context.MODE_PRIVATE)
-            .getStringSet(KEY_LARGE_WIDGETS, emptySet())
-            .orEmpty()
+    private fun loadWidgetSizes(): Set<String> {
+        val preferences = requireContext().getSharedPreferences(
+            HOME_PREFERENCES, android.content.Context.MODE_PRIVATE
+        )
+        val accountKey = widgetSizesKey()
+        if (preferences.contains(accountKey)) {
+            return preferences.getStringSet(accountKey, emptySet()).orEmpty()
+        }
+        val legacySizes = preferences.getStringSet(KEY_LARGE_WIDGETS, emptySet()).orEmpty()
+        preferences.edit()
+            .putStringSet(accountKey, legacySizes)
+            .remove(KEY_LARGE_WIDGETS)
+            .apply()
+        return legacySizes
+    }
+
+    private fun syncRemoteDiaries(reminderDiaryId: Int = -1, reminderStage: Int = -1) {
+        if (diarySyncStarted) return
+        val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
+        diarySyncStarted = true
+        val appContext = requireContext().applicationContext
+        viewLifecycleOwner.lifecycleScope.launch {
+            val syncSucceeded = withContext(Dispatchers.IO) {
+                runCatching {
+                    DiaryRepository(appContext).syncUserDiariesFromRemote(userId)
+                    val dao = AppDatabase.getDatabase(appContext).diaryDao()
+                    ReminderAnswerStore(dao).syncUserAnswers(userId)
+                }.onFailure {
+                    android.util.Log.e("HomeFragment", "Firestore 다이어리 복원 실패", it)
+                }.isSuccess
+            }
+            if (!syncSucceeded) diarySyncStarted = false
+            if (!isAdded) return@launch
+            loadWeeklyCalendar()
+            loadYearsAgoRecord()
+            loadTodayChecklist()
+            loadPendingReminders()
+            if (reminderDiaryId > 0 && reminderStage >= 0) {
+                showReminderDialog(reminderDiaryId, reminderStage)
+            }
+        }
+    }
 
     private fun saveWidgetSizes(types: Set<String>) {
+        if (currentLocalUserId() == null) return
         requireContext().getSharedPreferences(HOME_PREFERENCES, android.content.Context.MODE_PRIVATE)
             .edit()
-            .putStringSet(KEY_LARGE_WIDGETS, types)
+            .putStringSet(widgetSizesKey(), types)
             .apply()
     }
 
@@ -405,10 +451,7 @@ class HomeFragment : Fragment() {
                         .getPublicDiariesByUserId(uid)
                         .filter { it.createdAt in days.first().dateKey..days.last().dateKey }
                 }.orEmpty()
-                // 로컬 기록의 과거 UID가 달라도 월간 캘린더처럼 감정은 유지한다.
-                if (byUser.isNotEmpty()) byUser else {
-                    database.diaryDao().getDiariesBetween(days.first().dateKey, days.last().dateKey)
-                }
+                byUser
             }
             val emotionsByDate = diaries.groupBy { it.createdAt }.mapValues { (_, records) ->
                 EmotionStampFormatter.format(
@@ -433,12 +476,19 @@ class HomeFragment : Fragment() {
     }
 
     private fun showReminderDialog(diaryId: Int, stage: Int) {
+        val appContext = requireContext().applicationContext
         viewLifecycleOwner.lifecycleScope.launch {
             val dao = AppDatabase.getDatabase(requireContext()).diaryDao()
             val diary = withContext(Dispatchers.IO) { dao.getDiaryById(diaryId) }
                 ?: return@launch
+            val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return@launch
+            if (diary.userId != userId) return@launch
+            val answerStore = ReminderAnswerStore(dao)
+            val currentAnswer = withContext(Dispatchers.IO) {
+                answerStore.get(userId, diaryId, stage)
+            }
             val previousAnswer = withContext(Dispatchers.IO) {
-                dao.getReminderAnswer(diaryId, stage)
+                answerStore.getLatestBeforeStage(userId, diaryId, stage)
             }
             val elapsedDays = ReminderSchedulePolicy.elapsedDays(
                 diary.reviewCycleDays,
@@ -449,7 +499,7 @@ class HomeFragment : Fragment() {
             if (!isAdded) return@launch
 
             val dialogView = layoutInflater.inflate(R.layout.dialog_reminder, null)
-            var question = ReminderMessageFactory.create(
+            var question = previousAnswer?.question ?: ReminderMessageFactory.create(
                 content = diary.content,
                 emotions = diary.emotionStamp,
                 stage = stage,
@@ -463,7 +513,9 @@ class HomeFragment : Fragment() {
             )
             recordText.text = listOf(diary.createdAt, masking.original).joinToString("\n")
             val answerInput = dialogView.findViewById<EditText>(R.id.et_reminder_answer)
-            val modes = buildList {
+            val modes = if (previousAnswer != null) {
+                listOf(ReminderPromptMode.QUESTION)
+            } else buildList {
                 add(ReminderPromptMode.QUESTION)
                 if (masking.hasMasks) add(ReminderPromptMode.QUIZ)
                 if (ReminderMessageFactory.isDifficultEmotion(diary.emotionStamp)) {
@@ -477,7 +529,7 @@ class HomeFragment : Fragment() {
             when (promptMode) {
                 ReminderPromptMode.QUESTION -> {
                     answerInput.visibility = View.VISIBLE
-                    answerInput.setText(previousAnswer?.answer.orEmpty())
+                    answerInput.setText(currentAnswer?.answer.orEmpty())
                 }
                 ReminderPromptMode.QUIZ -> {
                     question = "빈칸에 들어갈 말은 무엇일까요?"
@@ -527,22 +579,64 @@ class HomeFragment : Fragment() {
 
             dialog.setOnShowListener {
                 ThemedDialogStyler.applyWidePopup(dialog, requireContext())
+                var currentAnswerSaved = false
                 dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                    if (currentAnswerSaved) {
+                        dialog.dismiss()
+                        loadPendingReminders(openNext = true)
+                        return@setOnClickListener
+                    }
                     val answerText = answerInput.text.toString().trim()
                     if (answerText.isEmpty()) {
                         answerInput.error = getString(R.string.reminder_answer_required)
                         return@setOnClickListener
                     }
                     viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-                        dao.saveReminderAnswer(
-                            ReminderAnswerEntity(
-                                answerId = previousAnswer?.answerId ?: 0,
-                                diaryId = diaryId,
-                                reminderStage = stage,
-                                question = question,
-                                answer = answerText
+                        try {
+                            answerStore.save(
+                                userId = userId,
+                                diary = diary,
+                                answer = ReminderAnswerEntity(
+                                    answerId = currentAnswer?.answerId ?: 0,
+                                    diaryId = diaryId,
+                                    reminderStage = stage,
+                                    question = question,
+                                    answer = answerText
+                                )
                             )
-                        )
+                        } catch (error: Exception) {
+                            android.util.Log.e("HomeFragment", "리마인드 질문/답변 서버 저장 실패", error)
+                            withContext(Dispatchers.Main) {
+                                if (isAdded) {
+                                    Toast.makeText(
+                                        requireContext(),
+                                        "서버 DB 저장에 실패했습니다. 네트워크를 확인해 주세요.",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                            return@launch
+                        }
+                        val latestDiary = dao.getDiaryById(diaryId)
+                        if (latestDiary?.reminderStage == stage) {
+                            val answeredAt = System.currentTimeMillis()
+                            val nextAnchorAt = ReminderSchedulePolicy.anchorAfterAnswer(
+                                answeredAt = answeredAt,
+                                cycleDays = latestDiary.reviewCycleDays,
+                                answeredStage = stage,
+                                cyclePattern = latestDiary.reviewCyclePattern,
+                                repeatLast = latestDiary.reviewRepeatLast
+                            )
+                            dao.advanceReminderAfterAnswer(
+                                diaryId = diaryId,
+                                answeredAt = answeredAt,
+                                nextStage = stage + 1,
+                                nextAnchorAt = nextAnchorAt
+                            )
+                            dao.getDiaryById(diaryId)?.let {
+                                ReminderScheduler.schedule(appContext, it)
+                            }
+                        }
                         withContext(Dispatchers.Main) {
                             if (isAdded) {
                                 Toast.makeText(
@@ -551,9 +645,26 @@ class HomeFragment : Fragment() {
                                     Toast.LENGTH_SHORT
                                 ).show()
                                 loadTodayChecklist()
-                                loadPendingReminders(openNext = true)
+                                if (previousAnswer == null) {
+                                    loadPendingReminders(openNext = true)
+                                }
                             }
-                            dialog.dismiss()
+                            if (previousAnswer == null) {
+                                dialog.dismiss()
+                            } else {
+                                currentAnswerSaved = true
+                                dialogView.findViewById<View>(
+                                    R.id.layout_previous_reminder_answer
+                                ).visibility = View.VISIBLE
+                                dialogView.findViewById<TextView>(
+                                    R.id.tv_previous_reminder_question
+                                ).text = "질문: ${previousAnswer.question}"
+                                dialogView.findViewById<TextView>(
+                                    R.id.tv_previous_reminder_answer
+                                ).text = "답변: ${previousAnswer.answer}"
+                                dialog.getButton(AlertDialog.BUTTON_POSITIVE).text = "닫기"
+                                dialog.getButton(AlertDialog.BUTTON_NEGATIVE).visibility = View.GONE
+                            }
                         }
                     }
                 }
@@ -722,18 +833,23 @@ class HomeFragment : Fragment() {
         adapter.updateData(allWidgets.filter { it.isVisible })
     }
 
-    private fun defaultWidgets(): List<WidgetEntity> = listOf(
-        WidgetEntity(userId = DEMO_USER_ID, type = "CALENDAR", isVisible = true, order = 0),
-        WidgetEntity(userId = DEMO_USER_ID, type = "CHECKLIST", isVisible = true, order = 1),
-        WidgetEntity(userId = DEMO_USER_ID, type = "TODO_LIST", isVisible = true, order = 2),
-        WidgetEntity(userId = DEMO_USER_ID, type = "YEARS_AGO", isVisible = true, order = 3),
-        WidgetEntity(userId = DEMO_USER_ID, type = "REMINDER", isVisible = true, order = 4)
+    private fun currentLocalUserId(): Int? = FirebaseAuth.getInstance().currentUser?.uid?.hashCode()
+
+    private fun widgetSizesKey(): String =
+        "${KEY_LARGE_WIDGETS}_${FirebaseAuth.getInstance().currentUser?.uid.orEmpty()}"
+
+    private fun defaultWidgets(userId: Int): List<WidgetEntity> = listOf(
+        WidgetEntity(userId = userId, type = "CALENDAR", isVisible = true, order = 0),
+        WidgetEntity(userId = userId, type = "CHECKLIST", isVisible = true, order = 1),
+        WidgetEntity(userId = userId, type = "TODO_LIST", isVisible = true, order = 2),
+        WidgetEntity(userId = userId, type = "YEARS_AGO", isVisible = true, order = 3),
+        WidgetEntity(userId = userId, type = "REMINDER", isVisible = true, order = 4)
     )
 
     companion object {
-        private const val DEMO_USER_ID = 1
         private const val HOME_PREFERENCES = "home_widget_preferences"
         private const val KEY_LARGE_WIDGETS = "large_widget_types"
+        private const val LEGACY_LOCAL_USER_ID = 1
         private const val DEFAULT_EMOTION_EMOJI = "🙂"
 
         fun newInstance(diaryId: Int, stage: Int) = HomeFragment().apply {

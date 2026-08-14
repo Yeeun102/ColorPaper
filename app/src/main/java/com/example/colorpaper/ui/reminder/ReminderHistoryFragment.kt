@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.colorpaper.MainActivity
 import com.example.colorpaper.R
 import com.example.colorpaper.data.local.AppDatabase
+import com.example.colorpaper.data.repository.ReminderAnswerStore
 import com.example.colorpaper.reminder.ReminderInbox
 import com.example.colorpaper.reminder.ReminderMessageFactory
 import com.example.colorpaper.ui.theme.ThemeManager
@@ -111,6 +112,7 @@ class ReminderHistoryFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             val items = withContext(Dispatchers.IO) {
                 val dao = AppDatabase.getDatabase(appContext).diaryDao()
+                runCatching { ReminderAnswerStore(dao).syncUserAnswers(userId) }
                 val pending = ReminderInbox.pendingToday(dao, userId).map { item ->
                     ReminderHistoryItem(
                         diaryId = item.diary.diaryId,

@@ -2,7 +2,6 @@ package com.example.colorpaper.reminder
 
 import com.example.colorpaper.data.local.DiaryDao
 import com.example.colorpaper.data.model.DiaryEntity
-import java.util.Calendar
 
 data class PendingReminder(
     val diary: DiaryEntity,
@@ -13,27 +12,35 @@ data class PendingReminder(
 object ReminderInbox {
     suspend fun pendingToday(dao: DiaryDao, userId: String, now: Long = System.currentTimeMillis()): List<PendingReminder> {
         if (userId.isBlank()) return emptyList()
-        val startOfDay = Calendar.getInstance().apply {
-            timeInMillis = now
-            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
-        }.timeInMillis
         val pending = mutableListOf<PendingReminder>()
         for (diary in dao.getReminderEnabledDiaries().filter { it.userId == userId }) {
-                val stage = when {
-                    diary.lastRemindedAt >= startOfDay && diary.reminderStage > 0 -> diary.reminderStage - 1
-                    ReminderSchedulePolicy.plannedTriggerAt(
-                        diary.reminderAnchorAt, diary.reviewCycleDays, diary.reminderStage,
-                        diary.reviewCyclePattern, diary.reviewRepeatLast,
-                        diary.reminderHour, diary.reminderMinute
-                    )?.let { it in startOfDay..now } == true -> diary.reminderStage
-                    else -> continue
+            val unansweredStages = mutableSetOf<Int>()
+
+            for (deliveredStage in 0 until diary.reminderStage) {
+                if (dao.getReminderAnswer(diary.diaryId, deliveredStage) == null) {
+                    unansweredStages += deliveredStage
                 }
-                if (dao.getReminderAnswer(diary.diaryId, stage) != null) continue
+            }
+
+            val currentStageDue = ReminderSchedulePolicy.plannedTriggerAt(
+                diary.reminderAnchorAt, diary.reviewCycleDays, diary.reminderStage,
+                diary.reviewCyclePattern, diary.reviewRepeatLast,
+                diary.reminderHour, diary.reminderMinute, diary.reminderEndDate
+            )?.let { it <= now } == true
+            if (currentStageDue && dao.getReminderAnswer(diary.diaryId, diary.reminderStage) == null) {
+                unansweredStages += diary.reminderStage
+            }
+
+            for (stage in unansweredStages.sorted()) {
                 val elapsed = ReminderSchedulePolicy.elapsedDays(
                     diary.reviewCycleDays, stage, diary.reviewCyclePattern, diary.reviewRepeatLast
                 ) ?: continue
                 pending += PendingReminder(diary, stage, elapsed)
+            }
         }
-        return pending.sortedByDescending { it.diary.lastRemindedAt }
+        return pending.sortedWith(
+            compareByDescending<PendingReminder> { it.diary.lastRemindedAt }
+                .thenBy { it.stage }
+        )
     }
 }

@@ -6,6 +6,8 @@ import androidx.lifecycle.lifecycleScope
 import com.example.colorpaper.data.repository.DiaryRepository
 import com.example.colorpaper.data.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Calendar
@@ -1301,6 +1303,15 @@ class DiaryFragment : Fragment() {
                     )
                     val savedId = db.diaryDao().insertPostIt(entityToSave)
                     val scheduledDiary = entityToSave.copy(diaryId = savedId.toInt())
+                    runCatching {
+                        FirebaseFirestore.getInstance()
+                            .collection("diaries")
+                            .document("${scheduledDiary.userId}_${scheduledDiary.createdAt}_$savedId")
+                            .set(scheduledDiary)
+                            .await()
+                    }.onFailure { error ->
+                        android.util.Log.e("DiaryFragment", "Firestore 다이어리 저장 실패", error)
+                    }
                     if (reminderEnabled) {
                         ReminderScheduler.schedule(safeContext, scheduledDiary)
                     } else {

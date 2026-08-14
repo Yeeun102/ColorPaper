@@ -53,11 +53,43 @@ interface DiaryDao {
     @Query("UPDATE diaries SET last_reminded_at = :triggeredAt, reminder_stage = :nextStage WHERE diary_id = :diaryId")
     suspend fun markReminderTriggered(diaryId: Int, triggeredAt: Long, nextStage: Int): Int
 
+    @Query(
+        """
+        UPDATE diaries
+        SET last_reminded_at = :answeredAt,
+            reminder_stage = :nextStage,
+            reminder_anchor_at = :nextAnchorAt
+        WHERE diary_id = :diaryId
+        """
+    )
+    suspend fun advanceReminderAfterAnswer(
+        diaryId: Int,
+        answeredAt: Long,
+        nextStage: Int,
+        nextAnchorAt: Long
+    ): Int
+
+    @Query("UPDATE diaries SET last_reminded_at = :deliveredAt WHERE diary_id = :diaryId")
+    suspend fun markReminderDelivered(diaryId: Int, deliveredAt: Long): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveReminderAnswer(answer: ReminderAnswerEntity)
 
     @Query("SELECT * FROM reminder_answers WHERE diary_id = :diaryId AND reminder_stage = :stage LIMIT 1")
     suspend fun getReminderAnswer(diaryId: Int, stage: Int): ReminderAnswerEntity?
+
+    @Query(
+        """
+        SELECT * FROM reminder_answers
+        WHERE diary_id = :diaryId AND reminder_stage < :stage
+        ORDER BY reminder_stage DESC
+        LIMIT 1
+        """
+    )
+    suspend fun getLatestReminderAnswerBeforeStage(
+        diaryId: Int,
+        stage: Int
+    ): ReminderAnswerEntity?
 
     @Query(
         """

@@ -41,6 +41,7 @@ class LoginFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        (activity as? MainActivity)?.setBottomNavVisibility(false)
 
         // 1. ThemeManager에서 현재 테마 팔레트 가져오기
         val palette = ThemeManager.currentPalette(requireContext())

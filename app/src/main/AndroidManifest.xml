@@ -22,13 +22,46 @@
             android:name=".MainActivity"
             android:exported="true"
             android:theme="@style/Theme.App.Starting"
-            android:launchMode="singleTop">
+            android:launchMode="singleTop" />
+
+        <activity-alias
+            android:name=".RoseLauncher"
+            android:enabled="true"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_rose"
+            android:label="@string/app_name"
+            android:targetActivity=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".SageLauncher"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_sage"
+            android:label="@string/app_name"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".SkyLauncher"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_sky"
+            android:label="@string/app_name"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
 
         <receiver
             android:name=".reminder.ReminderReceiver"

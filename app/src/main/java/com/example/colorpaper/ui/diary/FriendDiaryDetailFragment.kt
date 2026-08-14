@@ -342,9 +342,7 @@ class FriendDiaryDetailFragment : Fragment() {
                         }
                 }
 
-                val visibleComments = comments.filter { comment ->
-                    comment.userId != uid
-                }
+                val visibleComments = comments
 
                 val commentAuthorMap = mutableMapOf<String, String>()
                 val commentUserIds = visibleComments.map { it.userId }.toSet()
