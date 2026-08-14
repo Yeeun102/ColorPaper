@@ -78,7 +78,7 @@ class LoginFragment : Fragment() {
                 if (!isAdded || isStateSaved) return@performLogin
 
                 if (isSuccess) {
-                    (activity as? MainActivity)?.openDiaryDate("")
+                    (activity as? MainActivity)?.openHome()
                     parentFragmentManager.beginTransaction()
                         .replace(R.id.fragment_container, HomeFragment())
                         .commitAllowingStateLoss()
