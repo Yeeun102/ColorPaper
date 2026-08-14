@@ -14,6 +14,9 @@ import com.example.colorpaper.MainActivity
 import com.google.firebase.auth.FirebaseAuth
 
 class SplashFragment : Fragment() {
+    private val handler = Handler(Looper.getMainLooper())
+    private var navigationFinished = false
+    private var authStateListener: FirebaseAuth.AuthStateListener? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -43,18 +46,55 @@ class SplashFragment : Fragment() {
         fadeIn.start()
 
         // 4. 1.5초 뒤에 다음 화면으로 이동
-        Handler(Looper.getMainLooper()).postDelayed({
-            if (isAdded) {
-                val currentUser = FirebaseAuth.getInstance().currentUser
-                
-                if (currentUser != null) {
-                    (activity as? MainActivity)?.openHome()
-                } else {
-                    parentFragmentManager.beginTransaction().replace(R.id.fragment_container,
-                        LoginFragment()
-                    ).commitAllowingStateLoss()
-                }
-            }
-        }, 1500)
+        handler.postDelayed(::resolveStartDestination, SPLASH_DURATION_MILLIS)
+    }
+
+    private fun resolveStartDestination() {
+        if (!isAdded || navigationFinished) return
+        val auth = FirebaseAuth.getInstance()
+        if (auth.currentUser != null) {
+            openHome(auth)
+            return
+        }
+
+        // Firebase가 디스크에 저장된 세션을 복원하는 동안 최초 currentUser가 잠시 null일 수 있다.
+        authStateListener = FirebaseAuth.AuthStateListener { updatedAuth ->
+            if (updatedAuth.currentUser != null) openHome(updatedAuth)
+        }.also(auth::addAuthStateListener)
+        handler.postDelayed({
+            if (!navigationFinished && isAdded) openLogin(auth)
+        }, AUTH_RESTORE_TIMEOUT_MILLIS)
+    }
+
+    private fun openHome(auth: FirebaseAuth) {
+        if (!isAdded || navigationFinished) return
+        navigationFinished = true
+        removeAuthListener(auth)
+        (activity as? MainActivity)?.openHome()
+    }
+
+    private fun openLogin(auth: FirebaseAuth) {
+        if (!isAdded || navigationFinished) return
+        navigationFinished = true
+        removeAuthListener(auth)
+        parentFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, LoginFragment())
+            .commitAllowingStateLoss()
+    }
+
+    private fun removeAuthListener(auth: FirebaseAuth = FirebaseAuth.getInstance()) {
+        authStateListener?.let(auth::removeAuthStateListener)
+        authStateListener = null
+    }
+
+    override fun onDestroyView() {
+        handler.removeCallbacksAndMessages(null)
+        removeAuthListener()
+        super.onDestroyView()
+    }
+
+    private companion object {
+        const val SPLASH_DURATION_MILLIS = 1_500L
+        const val AUTH_RESTORE_TIMEOUT_MILLIS = 1_500L
     }
 }

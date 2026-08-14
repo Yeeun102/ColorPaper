@@ -33,4 +33,7 @@ interface TodoDao {
 
     @Query("UPDATE todos SET target_date = :targetDate WHERE todo_id = :todoId")
     suspend fun moveToDate(todoId: Int, targetDate: String)
+
+    @Query("UPDATE todos SET user_id = :newUserId WHERE user_id = :legacyUserId")
+    suspend fun reassignLegacyUser(legacyUserId: Int, newUserId: Int)
 }

@@ -15,7 +15,8 @@ object ReminderScheduler {
             cyclePattern = diary.reviewCyclePattern,
             repeatLast = diary.reviewRepeatLast,
             hour = diary.reminderHour,
-            minute = diary.reminderMinute
+            minute = diary.reminderMinute,
+            endDate = diary.reminderEndDate
         ) ?: return cancel(context, diary.diaryId)
 
         val alarmManager = context.getSystemService(AlarmManager::class.java)

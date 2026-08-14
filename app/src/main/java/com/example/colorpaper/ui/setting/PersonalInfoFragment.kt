@@ -13,8 +13,8 @@ import androidx.core.content.ContextCompat
 import androidx.core.graphics.ColorUtils
 import androidx.fragment.app.Fragment
 import com.example.colorpaper.R
+import com.example.colorpaper.MainActivity
 import com.example.colorpaper.databinding.FragmentPersonalInfoBinding
-import com.example.colorpaper.ui.login.LoginFragment
 import com.example.colorpaper.ui.theme.ThemeManager
 import com.google.android.material.card.MaterialCardView
 import com.google.firebase.auth.FirebaseAuth
@@ -115,10 +115,7 @@ class PersonalInfoFragment : Fragment() {
     }
 
     private fun moveToLogin() {
-        requireActivity().findViewById<View>(R.id.bottom_navigation_bar)?.visibility = View.GONE
-        parentFragmentManager.beginTransaction()
-            .replace(R.id.fragment_container, LoginFragment())
-            .commit()
+        (activity as? MainActivity)?.openLogin()
     }
 
     private fun dp(value: Int): Int =

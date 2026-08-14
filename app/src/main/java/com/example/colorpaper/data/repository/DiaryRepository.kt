@@ -38,6 +38,44 @@ class DiaryRepository(context: Context) {
         }
     }
 
+    suspend fun syncUserDiariesFromRemote(userId: String): Int {
+        val remoteDiaries = firestore.collection("diaries")
+            .whereEqualTo("userId", userId)
+            .get()
+            .await()
+            .documents
+            .mapNotNull { it.toObject(DiaryEntity::class.java) }
+
+        val dao = db.diaryDao()
+        val localDiaries = dao.getDiariesByUserId(userId)
+        val localKeys = localDiaries.mapTo(mutableSetOf()) { it.syncKey() }
+        var restoredCount = 0
+
+        remoteDiaries.forEach { remote ->
+            val existingById = remote.diaryId.takeIf { it > 0 }?.let { dao.getDiaryById(it) }
+            if (existingById?.userId == userId || remote.syncKey() in localKeys) return@forEach
+
+            val diaryToInsert = if (existingById == null) remote else remote.copy(diaryId = 0)
+            val savedId = dao.insertPostIt(diaryToInsert).toInt()
+            val restoredDiary = diaryToInsert.copy(diaryId = savedId)
+            localKeys += restoredDiary.syncKey()
+            if (restoredDiary.reviewCycleDays != ReminderSchedulePolicy.DISABLED) {
+                ReminderScheduler.schedule(appContext, restoredDiary)
+            }
+            restoredCount++
+        }
+        return restoredCount
+    }
+
+    private fun DiaryEntity.syncKey(): String = listOf(
+        createdAt,
+        content,
+        color,
+        positionX.toString(),
+        positionY.toString(),
+        zIndex.toString()
+    ).joinToString("|")
+
     suspend fun saveDiariesToLocalAndRemote(diaries: List<DiaryEntity>): Boolean {
         return try {
             for (diary in diaries) {

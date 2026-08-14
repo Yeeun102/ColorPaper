@@ -19,6 +19,7 @@ class UserRepository(
 ) {
     val currentUid: String? get() = auth.currentUser?.uid
     val currentEmail: String get() = auth.currentUser?.email ?: "default@email.com"
+    private val currentLocalUserId: Int? get() = currentUid?.hashCode()
 
     // 1-1. 내 프로필 정보 조회
     suspend fun getUserProfile(): UserEntity? {
@@ -32,7 +33,7 @@ class UserRepository(
                     val profileImageUrl = doc.getString("profileImageUrl")
 
                     return UserEntity(
-                        userId = 1,
+                        userId = uid.hashCode(),
                         userCode = userCode,
                         email = currentEmail,
                         passwordHash = "",
@@ -45,7 +46,16 @@ class UserRepository(
                 }
             } catch (_: Exception) { }
         }
-        return db.userDao().getUserById(1)
+        // 고정 PK(1)의 로컬 프로필은 다른 Firebase 계정의 캐시일 수 있다.
+        // 현재 인증 이메일이 같은 경우에만 오프라인 fallback으로 사용한다.
+        val localUserId = currentLocalUserId ?: return null
+        db.userDao().getUserById(localUserId)?.let { return it }
+        val legacyUser = db.userDao().getUserById(LEGACY_LOCAL_USER_ID)
+            ?.takeIf { it.email.equals(currentEmail, ignoreCase = true) }
+            ?: return null
+        val migratedUser = legacyUser.copy(userId = localUserId)
+        db.userDao().insertUser(migratedUser)
+        return migratedUser
     }
 
     // 1-2. 타 유저 프로필 조회 (UID 및 userCode 검색 대응)
@@ -111,7 +121,10 @@ class UserRepository(
             android.util.Log.e("UserRepository", "현재 로그인된 UID가 없어 저장을 취소합니다.")
             return false
         }
-        val existingUser = db.userDao().getUserById(1)
+        val localUserId = uid.hashCode()
+        val existingUser = db.userDao().getUserById(localUserId)
+            ?: db.userDao().getUserById(LEGACY_LOCAL_USER_ID)
+                ?.takeIf { it.email.equals(currentEmail, ignoreCase = true) }
         val downloadUrl: String? = profileImageUriString
             ?.takeIf { it.startsWith("http://") || it.startsWith("https://") }
             ?: existingUser?.profileImageUrl
@@ -137,7 +150,7 @@ class UserRepository(
 
             // Room DB 로컬 데이터도 최신화
             val updatedUser = UserEntity(
-                userId = 1,
+                userId = localUserId,
                 userCode = userCode,
                 email = currentEmail,
                 passwordHash = existingUser?.passwordHash ?: "",
@@ -186,9 +199,9 @@ class UserRepository(
         }
 
         val localItems = if (isMe) {
-            db.diaryDao().getAllDiaries().filter {
-                it.userId == targetUserId || it.userId.isBlank() || it.userId == "1"
-            }
+            // 소유 UID가 없는 레거시 데이터는 어느 계정 것인지 증명할 수 없으므로
+            // 다른 계정에 노출하지 않는다.
+            db.diaryDao().getDiariesByUserId(targetUserId)
         } else {
             db.diaryDao().getDiariesByUserId(targetUserId)
                 .filter { it.visibility in allowedVisibilities }
@@ -439,5 +452,9 @@ class UserRepository(
         } catch (e: Exception) {
             emptyList()
         }
+    }
+
+    private companion object {
+        const val LEGACY_LOCAL_USER_ID = 1
     }
 }

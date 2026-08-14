@@ -1,5 +1,6 @@
 package com.example.colorpaper.ui.profile
 
+import com.example.colorpaper.MainActivity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -390,9 +391,7 @@ class ProfileFragment : Fragment() {
         auth.signOut()
         Toast.makeText(safeContext, "로그아웃 되었습니다.", Toast.LENGTH_SHORT).show()
 
-        softTransaction()
-            .replace(R.id.fragment_container, com.example.colorpaper.ui.login.LoginFragment())
-            .commit()
+        (activity as? MainActivity)?.openLogin()
     }
 
     private fun toggleFollow(targetUid: String, btnToggle: TextView, tvFollower: TextView?, tvFollowing: TextView?) {

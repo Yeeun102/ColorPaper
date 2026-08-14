@@ -19,4 +19,7 @@ interface WidgetDao {
     // 불러오기
     @Query("SELECT * FROM widget_table WHERE user_id = :userId ORDER BY widget_order ASC")
     suspend fun getWidgetsByUser(userId: Int): List<WidgetEntity>
+
+    @Query("UPDATE widget_table SET user_id = :newUserId WHERE user_id = :legacyUserId")
+    suspend fun reassignLegacyUser(legacyUserId: Int, newUserId: Int)
 }

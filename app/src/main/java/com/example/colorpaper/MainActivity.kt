@@ -69,6 +69,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
+        ThemeManager.syncLauncherIcon(this)
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
 
@@ -143,11 +144,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun bindNavigation() {
         findViewById<View>(R.id.nav_diary).setOnClickListener {
-            hideQuickActions()
-            showScreen(DiaryFragment(), R.id.nav_diary)
+            runIfAuthenticated {
+                hideQuickActions()
+                showScreen(DiaryFragment(), R.id.nav_diary)
+            }
         }
         findViewById<View>(R.id.nav_flashcard).setOnClickListener {
-            toggleQuickActions()
+            runIfAuthenticated { toggleQuickActions() }
         }
         findViewById<View>(R.id.card_quick_actions).setOnClickListener {
             hideQuickActions()
@@ -163,17 +166,27 @@ class MainActivity : AppCompatActivity() {
         bindCircularQuickActionPress(R.id.quick_action_reminder, R.id.icon_quick_reminder)
         bindCircularQuickActionPress(R.id.quick_action_flashcard, R.id.icon_quick_flashcard)
         findViewById<View>(R.id.nav_home).setOnClickListener {
-            hideQuickActions()
-            showScreen(HomeFragment(), R.id.nav_home)
+            runIfAuthenticated {
+                hideQuickActions()
+                showScreen(HomeFragment(), R.id.nav_home)
+            }
         }
         findViewById<View>(R.id.nav_profile).setOnClickListener {
-            hideQuickActions()
-            showScreen(ProfileFragment(), R.id.nav_profile)
+            runIfAuthenticated {
+                hideQuickActions()
+                showScreen(ProfileFragment(), R.id.nav_profile)
+            }
         }
         findViewById<View>(R.id.nav_setting).setOnClickListener {
-            hideQuickActions()
-            showScreen(SettingFragment(), R.id.nav_setting)
+            runIfAuthenticated {
+                hideQuickActions()
+                showScreen(SettingFragment(), R.id.nav_setting)
+            }
         }
+    }
+
+    private inline fun runIfAuthenticated(action: () -> Unit) {
+        if (FirebaseAuth.getInstance().currentUser == null) openLogin() else action()
     }
 
     private fun toggleQuickActions() {
@@ -302,6 +315,11 @@ class MainActivity : AppCompatActivity() {
 
     fun openHome() {
         showScreen(HomeFragment(), R.id.nav_home)
+    }
+
+    fun openLogin() {
+        hideQuickActions(animate = false)
+        showScreen(LoginFragment(), R.id.nav_home)
     }
 
     fun openDiaryDate(dateKey: String) {
@@ -436,24 +454,11 @@ class MainActivity : AppCompatActivity() {
                         .setInterpolator(OvershootInterpolator(2f))
                         .start()
                 }
-            } else if (wasSelected) {
-                indicator.animate()
-                    .alpha(0f)
-                    .scaleX(0.45f)
-                    .scaleY(0.45f)
-                    .setDuration(130L)
-                    .setInterpolator(AccelerateInterpolator())
-                    .withEndAction {
-                        if (selectedNavigationId != item.containerId) {
-                            indicator.background = null
-                            indicator.alpha = 1f
-                            indicator.scaleX = 1f
-                            indicator.scaleY = 1f
-                        }
-                    }
-                    .start()
             } else {
                 indicator.background = null
+                indicator.alpha = 1f
+                indicator.scaleX = 1f
+                indicator.scaleY = 1f
             }
         }
     }

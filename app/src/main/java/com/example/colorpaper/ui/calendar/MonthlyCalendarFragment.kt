@@ -125,7 +125,7 @@ class MonthlyCalendarFragment : Fragment() {
                 val database = AppDatabase.getDatabase(safeContext)
                 val userId = FirebaseAuth.getInstance().currentUser?.uid
                 val diaries = if (userId.isNullOrBlank()) {
-                    database.diaryDao().getDiariesForMonth(monthKey)
+                    emptyList()
                 } else {
                     UserRepository(database)
                         .getPublicDiariesByUserId(userId)
