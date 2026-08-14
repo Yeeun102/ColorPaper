@@ -79,11 +79,6 @@ class LoginFragment : Fragment() {
 
                 if (isSuccess) {
                     (activity as? MainActivity)?.openHome()
-                    parentFragmentManager.beginTransaction()
-                        .replace(R.id.fragment_container, HomeFragment())
-                        .commitAllowingStateLoss()
-
-                    activity?.findViewById<View>(R.id.bottom_navigation_bar)?.visibility = View.VISIBLE
                 }
             }
         }
