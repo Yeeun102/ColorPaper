@@ -78,12 +78,7 @@ class LoginFragment : Fragment() {
                 if (!isAdded || isStateSaved) return@performLogin
 
                 if (isSuccess) {
-                    (activity as? MainActivity)?.openDiaryDate("")
-                    parentFragmentManager.beginTransaction()
-                        .replace(R.id.fragment_container, HomeFragment())
-                        .commitAllowingStateLoss()
-
-                    activity?.findViewById<View>(R.id.bottom_navigation_bar)?.visibility = View.VISIBLE
+                    (activity as? MainActivity)?.openHome()
                 }
             }
         }

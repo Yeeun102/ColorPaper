@@ -300,6 +300,10 @@ class MainActivity : AppCompatActivity() {
         selectNavigation(selectedId)
     }
 
+    fun openHome() {
+        showScreen(HomeFragment(), R.id.nav_home)
+    }
+
     fun openDiaryDate(dateKey: String) {
         if (quickActionsOpen) hideQuickActions()
         findViewById<MaterialCardView>(R.id.bottom_navigation_bar)?.visibility = View.VISIBLE

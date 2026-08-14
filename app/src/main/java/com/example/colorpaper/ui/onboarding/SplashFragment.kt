@@ -10,6 +10,8 @@ import androidx.fragment.app.Fragment
 import com.example.colorpaper.R
 import com.example.colorpaper.ui.login.LoginFragment
 import com.example.colorpaper.ui.theme.ThemeManager
+import com.example.colorpaper.MainActivity
+import com.google.firebase.auth.FirebaseAuth
 
 class SplashFragment : Fragment() {
 
@@ -43,9 +45,15 @@ class SplashFragment : Fragment() {
         // 4. 1.5초 뒤에 다음 화면으로 이동
         Handler(Looper.getMainLooper()).postDelayed({
             if (isAdded) {
-                parentFragmentManager.beginTransaction().replace(R.id.fragment_container,
-                    LoginFragment()
-                ).commitAllowingStateLoss()
+                val currentUser = FirebaseAuth.getInstance().currentUser
+                
+                if (currentUser != null) {
+                    (activity as? MainActivity)?.openHome()
+                } else {
+                    parentFragmentManager.beginTransaction().replace(R.id.fragment_container,
+                        LoginFragment()
+                    ).commitAllowingStateLoss()
+                }
             }
         }, 1500)
     }
